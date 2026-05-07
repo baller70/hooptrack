@@ -1,0 +1,58 @@
+export const dynamic = "force-dynamic"
+import { getSession } from '@/lib/session'
+import { generateWorkout } from '@/lib/ai'
+import { db } from '@/lib/db'
+import { z } from 'zod'
+
+const schema = z.object({
+  playerName: z.string().optional(),
+  skillLevel: z.enum(['beginner', 'intermediate', 'advanced']),
+  focusAreas: z.array(z.string()).min(1),
+  duration: z.number().int().min(10).max(120),
+  autoSave: z.boolean().optional(),
+})
+
+export async function POST(request: Request) {
+  const session = await getSession()
+  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+  try {
+    const body = await request.json()
+    const data = schema.parse(body)
+
+    const workout = await generateWorkout({
+      playerName: data.playerName || session.name,
+      skillLevel: data.skillLevel,
+      focusAreas: data.focusAreas,
+      duration: data.duration,
+    })
+
+    // Auto-save to DB if requested
+    if (data.autoSave && session.role === 'trainer') {
+      const result = db.prepare(
+        'INSERT INTO workouts (title, description, category, created_by) VALUES (?, ?, ?, ?)'
+      ).run(workout.title, workout.description, workout.category, session.id)
+
+      const workoutId = result.lastInsertRowid as number
+
+      if (workout.drills && workout.drills.length > 0) {
+        const insertDrill = db.prepare(
+          'INSERT INTO drills (workout_id, name, description, category, duration_seconds, drill_order) VALUES (?, ?, ?, ?, ?, ?)'
+        )
+        workout.drills.forEach((drill: { name: string; description: string; category: string; duration_seconds: number }, index: number) => {
+          insertDrill.run(workoutId, drill.name, drill.description, drill.category, drill.duration_seconds, index)
+        })
+      }
+
+      return Response.json({ workout, saved: true, workoutId })
+    }
+
+    return Response.json({ workout })
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return Response.json({ error: err.issues[0].message }, { status: 400 })
+    }
+    console.error('AI workout error:', err)
+    return Response.json({ error: 'Failed to generate workout' }, { status: 500 })
+  }
+}
