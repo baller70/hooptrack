@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { RECORDINGS_DIR } from '@/lib/constants'
+import { notifyAllTrainers } from '@/lib/notifications'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 
@@ -67,6 +68,23 @@ export async function POST(request: Request) {
     const relPath = filename
     db.prepare('UPDATE recordings SET video_path = ?, video_size_bytes = ?, video_mime = ? WHERE id = ?')
       .run(relPath, buffer.length, mime, recordingId)
+
+    // Surface video uploads from players to trainers
+    if (session.role === 'player' && row.player_id === session.id) {
+      const playerName = (db
+        .prepare('SELECT name FROM users WHERE id = ?')
+        .get(session.id) as { name: string } | undefined)?.name || 'Player'
+      const drillName = (db
+        .prepare('SELECT d.name FROM drills d JOIN recordings r ON r.drill_id = d.id WHERE r.id = ?')
+        .get(recordingId) as { name: string } | undefined)?.name || 'a drill'
+      notifyAllTrainers({
+        message: `${playerName} uploaded video for ${drillName}`,
+        type: 'video_uploaded',
+        actor_id: session.id,
+        link_url: `/dashboard/players/${session.id}?recording=${recordingId}`,
+        push_title: 'Video uploaded',
+      }).catch(() => {})
+    }
 
     return Response.json({ video_path: relPath, size: buffer.length })
   } catch (err) {

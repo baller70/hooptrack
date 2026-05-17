@@ -175,7 +175,7 @@ export default function QuizPlayerPage() {
   if (phase === 'results' && result) {
     return (
       <div className="p-4 max-w-2xl mx-auto">
-        <div className="bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_#0A0A0A] overflow-hidden">
+        <div className="bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_#0A0A0A] overflow-hidden mb-4">
           <div className="p-8 text-center">
             <div className="text-6xl font-[family-name:var(--font-russo)] mb-2">
               {result.score}%
@@ -210,10 +210,78 @@ export default function QuizPlayerPage() {
               </Button>
             </div>
           </div>
-          {quiz && (
-            <EntityChat contextType="quiz" contextId={quiz.id} contextTitle={quiz.title} defaultOpen embedded />
-          )}
         </div>
+
+        <h3 className="font-[family-name:var(--font-russo)] text-lg mb-3">Review your answers</h3>
+        <div className="space-y-3 mb-4">
+          {questions.map((q, i) => {
+            const userAnswer = answers[i]
+            const isCorrect = userAnswer === q.correct_answer
+            return (
+              <div
+                key={q.id}
+                className={`bg-white border-2 rounded-xl shadow-[3px_3px_0px_0px_#0A0A0A] overflow-hidden ${
+                  isCorrect ? 'border-green-600' : 'border-red-600'
+                }`}
+              >
+                <div className={`flex items-center gap-2 px-4 py-2 text-sm font-bold ${
+                  isCorrect ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                }`}>
+                  {isCorrect ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                  Question {i + 1} · {isCorrect ? 'Correct' : 'Incorrect'}
+                </div>
+                <div className="p-4">
+                  {q.video_url && (
+                    <div className="aspect-video rounded-lg overflow-hidden mb-3 border">
+                      <YouTubeEmbed url={q.video_url} />
+                    </div>
+                  )}
+                  <p className="font-semibold mb-3">{q.question_text}</p>
+                  <div className="space-y-2">
+                    {q.options.map((option, optIdx) => {
+                      const isUserPick = option === userAnswer
+                      const isRight = option === q.correct_answer
+                      let cls = 'border-gray-200 bg-gray-50'
+                      if (isRight) cls = 'border-green-600 bg-green-50'
+                      else if (isUserPick && !isRight) cls = 'border-red-600 bg-red-50'
+                      return (
+                        <div
+                          key={optIdx}
+                          className={`p-3 rounded-lg border-2 flex items-center gap-2 ${cls}`}
+                        >
+                          {isRight ? (
+                            <CheckCircle className="h-4 w-4 text-green-700 shrink-0" />
+                          ) : isUserPick ? (
+                            <XCircle className="h-4 w-4 text-red-700 shrink-0" />
+                          ) : (
+                            <div className="h-4 w-4 shrink-0" />
+                          )}
+                          <span className="flex-1 text-sm">{option}</span>
+                          {isUserPick && (
+                            <span className="text-xs font-bold text-muted-foreground">
+                              your answer
+                            </span>
+                          )}
+                          {isRight && !isUserPick && (
+                            <span className="text-xs font-bold text-green-700">
+                              correct answer
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {quiz && (
+          <div className="bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_#0A0A0A] overflow-hidden">
+            <EntityChat contextType="quiz" contextId={quiz.id} contextTitle={quiz.title} defaultOpen embedded />
+          </div>
+        )}
       </div>
     )
   }

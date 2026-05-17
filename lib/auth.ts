@@ -1,9 +1,20 @@
 import bcrypt from 'bcryptjs'
 import { SignJWT, jwtVerify } from 'jose'
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET ?? 'hooptrack-dev-secret-change-in-production'
-)
+let cachedSecret: Uint8Array | undefined
+
+function getJwtSecret(): Uint8Array {
+  if (cachedSecret) return cachedSecret
+  const secret = process.env.JWT_SECRET
+  if (!secret || secret.length < 32) {
+    throw new Error(
+      'JWT_SECRET environment variable is required and must be at least 32 characters. ' +
+        'Refusing to sign or verify tokens with a missing or weak secret.'
+    )
+  }
+  cachedSecret = new TextEncoder().encode(secret)
+  return cachedSecret
+}
 
 export type UserPayload = {
   id: number
@@ -30,12 +41,12 @@ export async function createToken(payload: UserPayload) {
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime('7d')
     .setIssuedAt()
-    .sign(JWT_SECRET)
+    .sign(getJwtSecret())
 }
 
 export async function verifyToken(token: string): Promise<UserPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET)
+    const { payload } = await jwtVerify(token, getJwtSecret())
     return payload as unknown as UserPayload
   } catch {
     return null

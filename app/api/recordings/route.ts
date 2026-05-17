@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { z } from 'zod'
-import { createNotification } from '@/lib/notifications'
+import { createNotification, notifyAllTrainers } from '@/lib/notifications'
 
 const createRecordingSchema = z.object({
   drillId: z.number().int(),
@@ -20,10 +20,12 @@ export async function GET(request: Request) {
   const drillId = searchParams.get('drillId')
 
   let query = `
-    SELECT r.*, d.name as drill_name, d.category as drill_category, w.title as workout_title
+    SELECT r.*, d.name as drill_name, d.category as drill_category, w.title as workout_title,
+           u.name as player_name
     FROM recordings r
     JOIN drills d ON d.id = r.drill_id
     JOIN workouts w ON w.id = d.workout_id
+    LEFT JOIN users u ON u.id = r.player_id
   `
   const conditions: string[] = []
   const params: (string | number)[] = []
@@ -104,6 +106,33 @@ export async function POST(request: Request) {
         message: prMessage,
         link_url: '/dashboard/progress',
       }).catch(() => {})
+    }
+
+    // Surface player activity to trainers
+    if (session.role === 'player') {
+      const playerName = (db
+        .prepare('SELECT name FROM users WHERE id = ?')
+        .get(session.id) as { name: string } | undefined)?.name || 'Player'
+      const drillName = drill?.name || 'a drill'
+      const repsStr = data.rep_count != null ? ` · ${data.rep_count} reps` : ''
+      const durStr = data.duration > 0 ? ` · ${Math.floor(data.duration / 60)}:${String(data.duration % 60).padStart(2, '0')}` : ''
+      notifyAllTrainers({
+        message: `${playerName} recorded ${drillName}${durStr}${repsStr}`,
+        type: 'recording_created',
+        actor_id: session.id,
+        link_url: `/dashboard/players/${session.id}`,
+        push_title: 'New recording',
+      }).catch(() => {})
+
+      if (isPr) {
+        notifyAllTrainers({
+          message: `${playerName} — ${prMessage}`,
+          type: 'pr_set',
+          actor_id: session.id,
+          link_url: `/dashboard/players/${session.id}`,
+          push_title: 'New PR!',
+        }).catch(() => {})
+      }
     }
 
     // Auto-log on calendar: if this drill belongs to the user's "Free Play"

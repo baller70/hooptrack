@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Play, Pause, RotateCcw, Link2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getVideoFromIndexedDB } from '@/lib/video-storage'
 import VideoSpeedControl from '@/components/video-speed-control'
 import EntityChat from '@/components/entity-chat'
 import LibraryTabs from '@/components/library-tabs'
+import AdaptiveVideo from '@/components/adaptive-video'
 
 interface Recording {
   id: number
@@ -16,9 +18,21 @@ interface Recording {
   recorded_at: string
   duration_seconds: number
   video_path: string | null
+  player_name?: string | null
+  player_id?: number
+}
+
+interface Player {
+  id: number
+  name: string
 }
 
 export default function ComparisonPage() {
+  const searchParams = useSearchParams()
+  const initialPlayerId = searchParams.get('playerId') || ''
+  const [role, setRole] = useState<'trainer' | 'player' | ''>('')
+  const [players, setPlayers] = useState<Player[]>([])
+  const [filterPlayerId, setFilterPlayerId] = useState<string>(initialPlayerId)
   const [recordings, setRecordings] = useState<Recording[]>([])
   const [leftKey, setLeftKey] = useState('')
   const [rightKey, setRightKey] = useState('')
@@ -33,10 +47,27 @@ export default function ComparisonPage() {
   const rightVideoRef = useRef<HTMLVideoElement>(null)
 
   useEffect(() => {
-    fetch('/api/recordings')
+    fetch('/api/auth/me', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => setRole(d.user?.role || ''))
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (role === 'trainer') {
+      fetch('/api/players', { cache: 'no-store' })
+        .then((r) => r.json())
+        .then((d) => setPlayers(d.players || []))
+        .catch(() => {})
+    }
+  }, [role])
+
+  useEffect(() => {
+    const url = filterPlayerId ? `/api/recordings?playerId=${filterPlayerId}` : '/api/recordings'
+    fetch(url)
       .then((r) => r.json())
       .then((data) => setRecordings(data.recordings || []))
-  }, [])
+  }, [filterPlayerId])
 
   useEffect(() => {
     if (!leftKey) return
@@ -107,7 +138,27 @@ export default function ComparisonPage() {
   return (
     <div className="p-4 max-w-6xl mx-auto">
       <LibraryTabs />
-      <h2 className="font-[family-name:var(--font-russo)] text-2xl mb-6">Compare Recordings</h2>
+      <h2 className="font-[family-name:var(--font-russo)] text-2xl mb-4">Compare Recordings</h2>
+
+      {role === 'trainer' && (
+        <div className="bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_#0A0A0A] p-3 mb-4 flex items-center gap-2">
+          <label className="text-sm font-semibold">Player:</label>
+          <select
+            value={filterPlayerId}
+            onChange={(e) => {
+              setFilterPlayerId(e.target.value)
+              setLeftKey('')
+              setRightKey('')
+            }}
+            className="flex-1 rounded-md border-2 border-input bg-white px-2 py-1.5 text-sm"
+          >
+            <option value="">All players</option>
+            {players.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {recordings.length < 2 && (
         <div className="text-center py-16 text-muted-foreground">
@@ -129,23 +180,26 @@ export default function ComparisonPage() {
                 <option value="">Select recording...</option>
                 {recordings.map((r) => (
                   <option key={r.id} value={r.blob_key}>
-                    {r.drill_name} - {new Date(r.recorded_at).toLocaleDateString()}
+                    {role === 'trainer' && r.player_name ? `${r.player_name} · ` : ''}{r.drill_name} - {new Date(r.recorded_at).toLocaleDateString()}
                   </option>
                 ))}
               </select>
               <div className="bg-white border-2 border-black rounded-xl overflow-hidden">
-                <div className="relative aspect-video bg-black">
-                  {leftUrl ? (
-                    <>
-                      <video ref={leftVideoRef} src={leftUrl} controls={!synced} playsInline className="w-full h-full object-cover" />
-                      <div className="absolute top-2 right-2 z-10">
-                        <VideoSpeedControl rate={leftRate} onChange={setLeftRateLinked} compact />
-                      </div>
-                    </>
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-500">Select a recording</div>
-                  )}
-                </div>
+                {leftUrl ? (
+                  <div className="relative">
+                    <AdaptiveVideo
+                      ref={leftVideoRef}
+                      src={leftUrl}
+                      controls={!synced}
+                      playsInline
+                    />
+                    <div className="absolute top-2 right-2 z-10">
+                      <VideoSpeedControl rate={leftRate} onChange={setLeftRateLinked} compact />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="aspect-video bg-black w-full flex items-center justify-center text-gray-500">Select a recording</div>
+                )}
                 {leftKey && (() => {
                   const rec = recordings.find((r) => r.blob_key === leftKey)
                   if (!rec) return null
@@ -172,23 +226,26 @@ export default function ComparisonPage() {
                 <option value="">Select recording...</option>
                 {recordings.map((r) => (
                   <option key={r.id} value={r.blob_key}>
-                    {r.drill_name} - {new Date(r.recorded_at).toLocaleDateString()}
+                    {role === 'trainer' && r.player_name ? `${r.player_name} · ` : ''}{r.drill_name} - {new Date(r.recorded_at).toLocaleDateString()}
                   </option>
                 ))}
               </select>
               <div className="bg-white border-2 border-black rounded-xl overflow-hidden">
-                <div className="relative aspect-video bg-black">
-                  {rightUrl ? (
-                    <>
-                      <video ref={rightVideoRef} src={rightUrl} controls={!synced} playsInline className="w-full h-full object-cover" />
-                      <div className="absolute top-2 right-2 z-10">
-                        <VideoSpeedControl rate={rightRate} onChange={setRightRateLinked} compact />
-                      </div>
-                    </>
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-500">Select a recording</div>
-                  )}
-                </div>
+                {rightUrl ? (
+                  <div className="relative">
+                    <AdaptiveVideo
+                      ref={rightVideoRef}
+                      src={rightUrl}
+                      controls={!synced}
+                      playsInline
+                    />
+                    <div className="absolute top-2 right-2 z-10">
+                      <VideoSpeedControl rate={rightRate} onChange={setRightRateLinked} compact />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="aspect-video bg-black w-full flex items-center justify-center text-gray-500">Select a recording</div>
+                )}
                 {rightKey && (() => {
                   const rec = recordings.find((r) => r.blob_key === rightKey)
                   if (!rec) return null

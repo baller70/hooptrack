@@ -121,7 +121,7 @@ export default async function WorkoutDetailPage({ params }: { params: Promise<{ 
                   Record
                 </Link>
               </div>
-              <RecordingsList drillId={drill.id} drillName={drill.name} embedded />
+              <RecordingsList drillId={drill.id} drillName={drill.name} embedded viewerRole={session?.role === 'trainer' ? 'trainer' : 'player'} />
               <EntityChat contextType="drill" contextId={drill.id} contextTitle={drill.name} compact embedded />
             </div>
           )

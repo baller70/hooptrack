@@ -2,6 +2,9 @@
   "name": "hooptrack",
   "version": "0.1.0",
   "private": true,
+  "description": "Basketball tracking application for managing players, sessions, drills, and progress — a Next.js App Router PWA with offline support and web push notifications.",
+  "license": "UNLICENSED",
+  "author": "HoopTrack",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

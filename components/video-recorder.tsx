@@ -4,7 +4,6 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Video, Square, RotateCcw, Check, Circle, Sparkles, Loader2, Trophy, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { saveVideoToIndexedDB } from '@/lib/video-storage'
 import { toast } from 'sonner'
 import EntityChat from '@/components/entity-chat'
 import RecordingsList from '@/components/recordings-list'
@@ -150,6 +149,12 @@ export default function VideoRecorder({
   const [loadingFeedback, setLoadingFeedback] = useState(false)
   const [savedRecordingId, setSavedRecordingId] = useState<number | null>(null)
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'uploaded' | 'failed'>('idle')
+  const [uploadProgress, setUploadProgress] = useState<number>(0)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [blobKey, setBlobKey] = useState<string | null>(null)
+  const [cameraAspect, setCameraAspect] = useState<number>(16 / 9)
+  const xhrRef = useRef<XMLHttpRequest | null>(null)
+  const onStopFiredRef = useRef<boolean>(false)
 
   const videoPreviewRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -192,6 +197,11 @@ export default function VideoRecorder({
       if (videoPreviewRef.current) {
         videoPreviewRef.current.srcObject = stream
         videoPreviewRef.current.play()
+        videoPreviewRef.current.onloadedmetadata = () => {
+          const vw = videoPreviewRef.current?.videoWidth || 0
+          const vh = videoPreviewRef.current?.videoHeight || 0
+          if (vw > 0 && vh > 0) setCameraAspect(vw / vh)
+        }
       }
       setPhase('previewing')
     } catch {
@@ -269,8 +279,19 @@ export default function VideoRecorder({
     const ctx = canvas.getContext('2d')!
     const video = videoPreviewRef.current!
 
-    canvas.width = 1280
-    canvas.height = 720
+    // Match the canvas (and therefore the recorded video) to the camera's
+    // actual orientation. Portrait stream → portrait canvas. Cap the longer
+    // edge at 1280px to keep file sizes reasonable. H.264/VP9 encoders
+    // require even dimensions — round to multiples of 2 or MediaRecorder
+    // can fail silently and never fire onstop.
+    const srcW = video.videoWidth || 1280
+    const srcH = video.videoHeight || 720
+    const longest = Math.max(srcW, srcH)
+    const scale = longest > 1280 ? 1280 / longest : 1
+    const evenize = (n: number) => Math.max(2, Math.round(n / 2) * 2)
+    canvas.width = evenize(srcW * scale)
+    canvas.height = evenize(srcH * scale)
+    setCameraAspect(canvas.width / canvas.height)
 
     try { await document.fonts.load('bold 36px "Russo One"') } catch {}
     try { await document.fonts.load('bold 120px "Russo One"') } catch {}
@@ -476,6 +497,7 @@ export default function VideoRecorder({
 
     recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
     recorder.onstop = () => {
+      onStopFiredRef.current = true
       intervalTimersRef.current.forEach((id) => window.clearInterval(id))
       intervalTimersRef.current = []
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -484,6 +506,9 @@ export default function VideoRecorder({
       const blob = new Blob(chunksRef.current, { type: mimeType || 'video/webm' })
       setRecordedBlob(blob)
       setPhase('reviewing')
+    }
+    recorder.onerror = (e) => {
+      console.error('MediaRecorder error:', e)
     }
 
     chunksRef.current = []
@@ -529,7 +554,33 @@ export default function VideoRecorder({
 
   function stopRecording() {
     cancelAnimationFrame(animFrameRef.current)
-    mediaRecorderRef.current?.stop()
+    const recorder = mediaRecorderRef.current
+    if (!recorder) {
+      setPhase('reviewing')
+      return
+    }
+    onStopFiredRef.current = false
+    try {
+      recorder.stop()
+    } catch (e) {
+      console.error('recorder.stop failed:', e)
+    }
+
+    // Watchdog: if recorder.onstop doesn't fire within 5s, salvage whatever
+    // chunks we already have so the user isn't stuck on the recording screen.
+    setTimeout(() => {
+      if (onStopFiredRef.current) return
+      if (chunksRef.current.length === 0) return
+      const mime = recorder.mimeType || 'video/webm'
+      const blob = new Blob(chunksRef.current, { type: mime })
+      setRecordedBlob(blob)
+      setPhase('reviewing')
+      intervalTimersRef.current.forEach((id) => window.clearInterval(id))
+      intervalTimersRef.current = []
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel()
+      }
+    }, 5000)
   }
 
   function tapRep() {
@@ -541,68 +592,143 @@ export default function VideoRecorder({
   async function saveRecording() {
     if (!recordedBlob) return
     setSaving(true)
-    try {
-      const key = await saveVideoToIndexedDB(recordedBlob)
-      const finalReps = mode === 'reps' ? repsRef.current : null
-      const res = await fetch('/api/recordings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          drillId: drill.id,
-          blobKey: key,
-          duration: elapsedSeconds,
-          rep_count: finalReps,
-        }),
-      })
-      if (!res.ok) throw new Error('Save failed')
-      const saveData = await res.json().catch(() => ({}))
-      if (saveData?.id) {
-        setSavedRecordingId(saveData.id)
-        setUploadStatus('uploading')
-        ;(async () => {
-          try {
-            const fd = new FormData()
-            fd.append('video', recordedBlob, `recording-${saveData.id}.webm`)
-            fd.append('recording_id', String(saveData.id))
-            fd.append('blob_key', key)
-            const upRes = await fetch('/api/recordings/upload', { method: 'POST', body: fd })
-            if (!upRes.ok) throw new Error('Upload failed')
-            setUploadStatus('uploaded')
-            toast.success('Video uploaded to your library')
-          } catch (e) {
-            console.error('Background upload failed:', e)
-            setUploadStatus('failed')
-            toast.error('Video upload failed — try again later from this drill')
-          }
-        })()
-      }
+    setSaveError(null)
+    const finalReps = mode === 'reps' ? repsRef.current : null
 
-      if (mode === 'stopwatch' && pr?.best_seconds != null && elapsedSeconds < pr.best_seconds) {
-        toast.success(`New PR! Beat ${formatTime(pr.best_seconds)} by ${formatTime(pr.best_seconds - elapsedSeconds)}`)
-      } else if (mode === 'reps' && pr?.best_reps != null && finalReps != null && finalReps > pr.best_reps) {
-        toast.success(`New PR! ${finalReps} reps (was ${pr.best_reps})`)
-      } else {
-        toast.success('Recording saved!')
-      }
+    // Use an idempotent blob_key so retries don't create duplicate rows.
+    let key = blobKey
+    if (!key) {
+      key = `srv_${Date.now()}_${Math.random().toString(36).slice(2)}`
+      setBlobKey(key)
+    }
 
-      setPhase('saved')
-      setLoadingFeedback(true)
+    // Step 1: create the recording row on the server (if we don't have one yet).
+    let recordingId = savedRecordingId
+    if (!recordingId) {
       try {
-        const fbRes = await fetch('/api/ai/feedback', {
+        const res = await fetch('/api/recordings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ drillId: drill.id, duration: elapsedSeconds }),
+          body: JSON.stringify({
+            drillId: drill.id,
+            blobKey: key,
+            duration: elapsedSeconds,
+            rep_count: finalReps,
+          }),
         })
-        const fbData = await fbRes.json()
-        if (fbRes.ok) setAiFeedback(fbData.feedback)
-      } catch {} finally {
-        setLoadingFeedback(false)
+        if (!res.ok) {
+          const errText = res.status === 401
+            ? 'You were signed out. Sign back in, then tap Retry. Keep this page open!'
+            : `Server returned ${res.status}. Tap Retry — keep this page open.`
+          setSaveError(errText)
+          setSaving(false)
+          return
+        }
+        const saveData = await res.json().catch(() => ({}))
+        if (!saveData?.id) {
+          setSaveError('Server response was empty. Tap Retry — keep this page open.')
+          setSaving(false)
+          return
+        }
+        recordingId = saveData.id
+        setSavedRecordingId(recordingId)
+      } catch (e) {
+        console.error('Recording POST failed:', e)
+        const msg = (e as Error)?.message || 'Network error'
+        setSaveError(`Couldn't reach the server (${msg}). Tap Retry — keep this page open!`)
+        setSaving(false)
+        return
       }
-    } catch {
-      toast.error('Failed to save recording')
-    } finally {
-      setSaving(false)
     }
+
+    // Step 2: upload the actual video bytes to the storage box. Use XHR so
+    // we can show real upload progress instead of a frozen "Saving..." button.
+    setUploadStatus('uploading')
+    setUploadProgress(0)
+    try {
+      const fd = new FormData()
+      fd.append('video', recordedBlob, `recording-${recordingId}.webm`)
+      fd.append('recording_id', String(recordingId))
+      fd.append('blob_key', key)
+
+      const uploadResult = await new Promise<{ ok: boolean; status: number; statusText: string }>((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        xhrRef.current = xhr
+        xhr.open('POST', '/api/recordings/upload', true)
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable && e.total > 0) {
+            setUploadProgress(Math.round((e.loaded / e.total) * 100))
+          }
+        }
+        xhr.onload = () => {
+          xhrRef.current = null
+          resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, statusText: xhr.statusText })
+        }
+        xhr.onerror = () => {
+          xhrRef.current = null
+          reject(new Error('Network error during upload'))
+        }
+        xhr.onabort = () => {
+          xhrRef.current = null
+          reject(new Error('Upload cancelled'))
+        }
+        xhr.ontimeout = () => {
+          xhrRef.current = null
+          reject(new Error('Upload timed out'))
+        }
+        xhr.send(fd)
+      })
+
+      if (!uploadResult.ok) {
+        const errText = `Upload returned ${uploadResult.status}. Tap Retry — keep this page open!`
+        setUploadStatus('failed')
+        setSaveError(errText)
+        setSaving(false)
+        return
+      }
+      setUploadStatus('uploaded')
+      setUploadProgress(100)
+    } catch (e) {
+      console.error('Upload failed:', e)
+      const msg = (e as Error)?.message || 'Network error'
+      setUploadStatus('failed')
+      setSaveError(`Upload failed (${msg}). Tap Retry — keep this page open!`)
+      setSaving(false)
+      return
+    }
+
+    // Step 3: success path.
+    if (mode === 'stopwatch' && pr?.best_seconds != null && elapsedSeconds < pr.best_seconds) {
+      toast.success(`New PR! Beat ${formatTime(pr.best_seconds)} by ${formatTime(pr.best_seconds - elapsedSeconds)}`)
+    } else if (mode === 'reps' && pr?.best_reps != null && finalReps != null && finalReps > pr.best_reps) {
+      toast.success(`New PR! ${finalReps} reps (was ${pr.best_reps})`)
+    } else {
+      toast.success('Recording saved!')
+    }
+
+    setPhase('saved')
+    setLoadingFeedback(true)
+    try {
+      const fbRes = await fetch('/api/ai/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ drillId: drill.id, duration: elapsedSeconds }),
+      })
+      const fbData = await fbRes.json()
+      if (fbRes.ok) setAiFeedback(fbData.feedback)
+    } catch {} finally {
+      setLoadingFeedback(false)
+    }
+    setSaving(false)
+  }
+
+  async function retrySave() {
+    if (!recordedBlob) {
+      setSaveError('The recording is gone (the page was reloaded). Please re-record.')
+      return
+    }
+    setSaveError(null)
+    await saveRecording()
   }
 
   function redo() {
@@ -666,7 +792,10 @@ export default function VideoRecorder({
         </div>
       )}
 
-      <div className="relative w-full max-w-3xl aspect-video bg-black rounded-xl overflow-hidden border-2 border-black">
+      <div
+        className="relative w-full max-w-3xl bg-black rounded-xl overflow-hidden border-2 border-black mx-auto"
+        style={{ aspectRatio: cameraAspect, maxHeight: '70vh' }}
+      >
         {phase === 'idle' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
             <Video className="h-16 w-16 mb-4 opacity-60" />
@@ -679,14 +808,14 @@ export default function VideoRecorder({
           ref={videoPreviewRef}
           muted
           playsInline
-          className={phase === 'previewing' || phase === 'recording' ? 'w-full h-full object-cover' : 'hidden'}
+          className={phase === 'previewing' || phase === 'recording' ? 'w-full h-full object-contain' : 'hidden'}
         />
 
         <canvas
           ref={canvasRef}
           className={
             phase === 'previewing' || phase === 'recording'
-              ? 'absolute inset-0 w-full h-full object-cover'
+              ? 'absolute inset-0 w-full h-full object-contain'
               : 'hidden'
           }
         />
@@ -697,7 +826,7 @@ export default function VideoRecorder({
             src={URL.createObjectURL(recordedBlob)}
             controls
             playsInline
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
           />
         )}
 
@@ -752,13 +881,56 @@ export default function VideoRecorder({
 
         {phase === 'reviewing' && (
           <>
-            <Button onClick={redo} variant="outline" size="lg" className="gap-2">
+            {saving && (
+              <div className="w-full max-w-3xl bg-blue-50 border-2 border-blue-700 rounded-xl p-3 mb-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-700" />
+                  <p className="text-sm font-bold text-blue-700">
+                    {uploadStatus === 'uploading'
+                      ? `Uploading to library... ${uploadProgress}%`
+                      : uploadStatus === 'uploaded'
+                      ? 'Finalizing...'
+                      : 'Creating recording...'}
+                  </p>
+                </div>
+                {uploadStatus === 'uploading' && (
+                  <div className="h-2 bg-blue-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-blue-700 transition-all"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                )}
+                <p className="text-[11px] text-blue-700 mt-2">
+                  Keep this page open until upload finishes. Larger recordings can take a minute.
+                </p>
+              </div>
+            )}
+            {saveError && (
+              <div className="w-full max-w-3xl bg-red-50 border-2 border-red-700 rounded-xl p-3 mb-2">
+                <p className="text-sm font-bold text-red-700">Save didn&apos;t finish</p>
+                <p className="text-xs text-red-700 mt-1">{saveError}</p>
+                <p className="text-xs text-red-700 mt-1 font-bold">
+                  ⚠️ Don&apos;t close this page or hit Redo — your recording isn&apos;t saved yet.
+                </p>
+                <div className="flex gap-2 mt-2">
+                  <Button onClick={retrySave} size="sm" variant="default" disabled={saving}>
+                    {saving ? 'Retrying...' : 'Retry save'}
+                  </Button>
+                </div>
+              </div>
+            )}
+            <Button onClick={redo} variant="outline" size="lg" className="gap-2" disabled={saving}>
               <RotateCcw className="h-5 w-5" />
               Redo
             </Button>
             <Button onClick={saveRecording} size="lg" className="gap-2 bg-green-600 hover:bg-green-700" disabled={saving}>
               <Check className="h-5 w-5" />
-              {saving ? 'Saving...' : 'Save'}
+              {saving
+                ? uploadStatus === 'uploading'
+                  ? `Uploading ${uploadProgress}%`
+                  : 'Saving...'
+                : 'Save'}
             </Button>
           </>
         )}

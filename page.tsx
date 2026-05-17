@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import Link from 'next/link'
 import {
   format, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
   eachDayOfInterval, addDays, addWeeks, subWeeks, addMonths, subMonths,
@@ -99,9 +98,10 @@ export default function CalendarPage() {
     })
     fetch('/api/players').then(r => r.json()).then(d => {
       setPlayers(d.players || [])
-      // Trainers default to "All Players" so every assignment they've made
-      // (quotes, workouts, moves) is visible at once. Pick a specific player
-      // from the filter dropdown to scope down.
+      // Auto-select first player if trainer hasn't selected one
+      if (d.players?.length > 0 && !selectedPlayerId) {
+        setSelectedPlayerId(d.players[0].id)
+      }
     })
     fetch('/api/workouts').then(r => r.json()).then(d => setWorkouts(d.workouts || []))
     fetch('/api/moves').then(r => r.json()).then(d => setMoves(d.moves || []))
@@ -535,17 +535,8 @@ export default function CalendarPage() {
                     {getItemsForDate(expandedDate).map(item => {
                       const Icon = ITEM_ICONS[item.item_type] || Dumbbell
                       const colors = ITEM_COLORS[item.item_type] || ITEM_COLORS.workout
-                      // Where to send the user when they tap the item.
-                      let launchHref: string | null = null
-                      if (item.item_type === 'workout' && item.workout_id) {
-                        launchHref = `/dashboard/workouts/${item.workout_id}`
-                      } else if (item.item_type === 'quiz' && item.item_id) {
-                        launchHref = `/dashboard/classroom/${item.item_id}`
-                      } else if (item.item_type === 'move') {
-                        launchHref = item.item_id ? `/dashboard/moves?moveId=${item.item_id}` : '/dashboard/moves'
-                      }
-                      const TitleBlock = (
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                      return (
+                        <div key={item.id} className={`flex items-center gap-3 p-3 rounded-lg border ${colors} ${item.completed ? 'opacity-50' : ''}`}>
                           <Icon className="h-5 w-5 shrink-0" />
                           <div className="flex-1 min-w-0">
                             <p className={`font-medium ${item.completed ? 'line-through' : ''}`}>
@@ -554,25 +545,8 @@ export default function CalendarPage() {
                             {item.notes && <p className="text-xs mt-0.5 opacity-80 italic">{item.notes}</p>}
                             {item.workout_category && <span className="text-xs opacity-70">{item.workout_category}</span>}
                             <span className="text-xs ml-2 capitalize opacity-60">{item.item_type}</span>
-                            {userRole === 'trainer' && !selectedPlayerId && item.player_name && (
-                              <span className="text-xs ml-2 opacity-60">· {item.player_name}</span>
-                            )}
-                            {item.completed && item.completed_at && (
-                              <span className="text-xs ml-2 opacity-70">
-                                · done {format(new Date(item.completed_at), 'MMM d')}
-                              </span>
-                            )}
                           </div>
-                        </div>
-                      )
-                      return (
-                        <div key={item.id} className={`flex items-center gap-3 p-3 rounded-lg border ${colors} ${item.completed ? 'opacity-50' : ''}`}>
-                          {launchHref ? (
-                            <Link href={launchHref} className="contents">
-                              {TitleBlock}
-                            </Link>
-                          ) : TitleBlock}
-                          {(userRole === 'trainer' || (userRole === 'player' && item.player_id === userId)) && (
+                          {userRole === 'trainer' && (
                             <div className="flex items-center gap-1 shrink-0">
                               {!item.completed && (
                                 <button onClick={() => markComplete(item.id)} className="p-1.5 rounded-md hover:bg-white/50" title="Mark complete">

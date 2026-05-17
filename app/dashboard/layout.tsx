@@ -56,7 +56,7 @@ export default async function DashboardLayout({
         </div>
       </header>
       <main className="flex-1 pb-20 md:pb-4">{children}</main>
-      <NavTabs />
+      <NavTabs role={session.role} />
       <PushBootstrap />
     </div>
   )

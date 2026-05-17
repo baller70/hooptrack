@@ -3,11 +3,14 @@
 import { useEffect, useState } from 'react'
 import { Video, Trophy, ChevronDown, ChevronUp, Loader2, Trash2, Scissors, Pencil, Check, X } from 'lucide-react'
 import RecordingClipper from '@/components/recording-clipper'
+import AdaptiveVideo from '@/components/adaptive-video'
 import { toast } from 'sonner'
 
 interface Recording {
   id: number
   drill_id: number
+  player_id?: number
+  player_name?: string | null
   duration_seconds: number
   rep_count: number | null
   recorded_at: string
@@ -25,6 +28,7 @@ interface Props {
   defaultOpen?: boolean
   embedded?: boolean
   highlightId?: number | null
+  viewerRole?: 'trainer' | 'player'
 }
 
 function formatDuration(s: number): string {
@@ -38,7 +42,7 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
-export default function RecordingsList({ drillId, drillName: _drillName, defaultOpen = false, embedded = false, highlightId = null }: Props) {
+export default function RecordingsList({ drillId, drillName: _drillName, defaultOpen = false, embedded = false, highlightId = null, viewerRole = 'player' }: Props) {
   const [open, setOpen] = useState(defaultOpen)
   const [recordings, setRecordings] = useState<Recording[]>([])
   const [loading, setLoading] = useState(true)
@@ -158,7 +162,7 @@ export default function RecordingsList({ drillId, drillName: _drillName, default
         <div className="flex items-center gap-2">
           <Video className="h-4 w-4" />
           <span className="font-semibold text-sm">
-            My Recordings
+            {viewerRole === 'trainer' ? 'Recordings' : 'My Recordings'}
             {recordings.length > 0 && <span className="text-muted-foreground ml-1">({recordings.length})</span>}
           </span>
           {bestSeconds != null && (
@@ -231,6 +235,9 @@ export default function RecordingsList({ drillId, drillName: _drillName, default
                       className="flex-1 min-w-0 text-left"
                     >
                       <p className="text-sm font-medium truncate">
+                        {viewerRole === 'trainer' && r.player_name && (
+                          <span className="text-hoop-orange mr-1">{r.player_name}:</span>
+                        )}
                         {r.title || formatDate(r.recorded_at)}
                         {isDerivedClip && <span className="ml-2 text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-semibold"><Scissors className="inline h-3 w-3 mr-0.5" />CLIP</span>}
                         {isBest && bestSeconds != null && <span className="ml-2 text-[10px] text-yellow-700"><Trophy className="inline h-3 w-3" /> PR</span>}
@@ -284,23 +291,20 @@ export default function RecordingsList({ drillId, drillName: _drillName, default
                 )}
 
                 {isPlaying && !isEditing && (
-                  <div className="aspect-video bg-black">
-                    {r.video_path ? (
-                      <video
-                        key={r.id}
-                        src={`/api/recordings/${r.id}/video${hasClip ? `#t=${r.clip_start},${r.clip_end}` : ''}`}
-                        controls
-                        playsInline
-                        autoPlay
-                        className="w-full h-full object-contain"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center text-white text-sm gap-2 p-4 text-center">
-                        <p>This recording was made before video upload was enabled.</p>
-                        <p className="text-xs text-gray-400">It only exists on the device that recorded it.</p>
-                      </div>
-                    )}
-                  </div>
+                  r.video_path ? (
+                    <AdaptiveVideo
+                      key={r.id}
+                      src={`/api/recordings/${r.id}/video${hasClip ? `#t=${r.clip_start},${r.clip_end}` : ''}`}
+                      controls
+                      playsInline
+                      autoPlay
+                    />
+                  ) : (
+                    <div className="aspect-video bg-black w-full flex flex-col items-center justify-center text-white text-sm gap-2 p-4 text-center">
+                      <p>This recording was made before video upload was enabled.</p>
+                      <p className="text-xs text-gray-400">It only exists on the device that recorded it.</p>
+                    </div>
+                  )
                 )}
 
                 {isEditing && r.video_path && (

@@ -1,6 +1,7 @@
-import { db, parseJSON } from '@/lib/db'
+import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { z } from 'zod'
+import { notifyAllTrainers } from '@/lib/notifications'
 
 const attemptSchema = z.object({
   answers: z.array(z.string()),
@@ -28,6 +29,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const result = db.prepare(
     'INSERT INTO quiz_attempts (quiz_id, player_id, score, answers) VALUES (?, ?, ?, ?)'
   ).run(id, session.id, score, JSON.stringify(data.answers))
+
+  // Surface quiz attempts from players to trainers
+  if (session.role === 'player') {
+    const playerName = (db
+      .prepare('SELECT name FROM users WHERE id = ?')
+      .get(session.id) as { name: string } | undefined)?.name || 'Player'
+    const quizTitle = (db
+      .prepare('SELECT title FROM quizzes WHERE id = ?')
+      .get(id) as { title: string } | undefined)?.title || 'a quiz'
+    notifyAllTrainers({
+      message: `${playerName} scored ${score}% on ${quizTitle} (${correct}/${questions.length})`,
+      type: 'quiz_attempt',
+      actor_id: session.id,
+      link_url: `/dashboard/players/${session.id}`,
+      push_title: 'Quiz completed',
+    }).catch(() => {})
+  }
 
   return Response.json({
     id: result.lastInsertRowid,

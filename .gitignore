@@ -39,19 +39,9 @@ yarn-error.log*
 # local database
 /data/
 
-# PWA workbox (generated)
+# PWA generated
+public/sw.js
 public/workbox-*.js
-
-# Server-uploaded files (live on the host, not in repo)
-public/uploads/
-
-# Local one-off inspection scripts
-inspect-views.mjs
-test-puppeteer.mjs
-test-full2.mjs
-
-# Backup DBs
-*.bak
 
 # typescript
 *.tsbuildinfo

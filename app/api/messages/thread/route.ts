@@ -5,8 +5,12 @@ import { getSession } from '@/lib/session'
 import { z } from 'zod'
 import { createNotification } from '@/lib/notifications'
 import { ATTACHMENTS_DIR } from '@/lib/constants'
-import { writeFile, mkdir } from 'fs/promises'
+import { writeFile, mkdir, unlink } from 'fs/promises'
+import { execFile } from 'child_process'
+import { promisify } from 'util'
 import path from 'path'
+
+const execFileAsync = promisify(execFile)
 
 const CONTEXT_TYPES = ['workout', 'drill', 'move', 'quiz', 'recording', 'general'] as const
 const ATTACHMENT_TYPES = ['voice', 'image', 'video', 'file'] as const
@@ -127,7 +131,13 @@ async function parseInput(request: Request): Promise<ParsedInput> {
   return data as ParsedInput
 }
 
-async function saveAttachment(messageId: number, file: File, type: string): Promise<string> {
+interface SavedAttachment {
+  filename: string
+  mime: string
+  sizeBytes: number
+}
+
+async function saveAttachment(messageId: number, file: File, type: string): Promise<SavedAttachment> {
   const dir = path.isAbsolute(ATTACHMENTS_DIR) ? ATTACHMENTS_DIR : path.join(process.cwd(), ATTACHMENTS_DIR)
   await mkdir(dir, { recursive: true })
 
@@ -155,7 +165,31 @@ async function saveAttachment(messageId: number, file: File, type: string): Prom
   const fullPath = path.join(dir, filename)
   const buffer = Buffer.from(await file.arrayBuffer())
   await writeFile(fullPath, buffer)
-  return filename
+
+  // iOS Safari can't decode webm/opus or ogg/opus inside an <audio> element.
+  // Transcode voice messages to m4a (AAC) so every recipient device can play
+  // them. Voice clips are short, so this finishes fast.
+  if (type === 'voice' && (mime.startsWith('audio/webm') || mime.startsWith('audio/ogg'))) {
+    const m4aFilename = filename.replace(/\.[^.]+$/, '.m4a')
+    const m4aFullPath = path.join(dir, m4aFilename)
+    try {
+      await execFileAsync(
+        'ffmpeg',
+        ['-i', fullPath, '-c:a', 'aac', '-b:a', '96k', '-movflags', '+faststart', '-y', m4aFullPath],
+        { timeout: 30_000 },
+      )
+      // Original file is now redundant; remove it.
+      try { await unlink(fullPath) } catch {}
+      const { stat } = await import('fs/promises')
+      const s = await stat(m4aFullPath)
+      return { filename: m4aFilename, mime: 'audio/mp4', sizeBytes: s.size }
+    } catch (e) {
+      console.error('Voice transcode failed, keeping original:', e)
+      // Fall through and return the original webm — better than nothing.
+    }
+  }
+
+  return { filename, mime, sizeBytes: buffer.length }
 }
 
 export async function POST(request: Request) {
@@ -217,7 +251,7 @@ export async function POST(request: Request) {
 
     // Save attachment to storage box if present
     if (data.attachment) {
-      const filename = await saveAttachment(messageId, data.attachment.file, data.attachment.type)
+      const saved = await saveAttachment(messageId, data.attachment.file, data.attachment.type)
       db.prepare(
         `UPDATE messages SET
           attachment_type = ?,
@@ -229,9 +263,9 @@ export async function POST(request: Request) {
         WHERE id = ?`
       ).run(
         data.attachment.type,
-        filename,
-        data.attachment.mime,
-        data.attachment.file.size,
+        saved.filename,
+        saved.mime,
+        saved.sizeBytes,
         data.attachment.duration_seconds ?? null,
         data.attachment.file.name || null,
         messageId,
@@ -263,13 +297,29 @@ export async function POST(request: Request) {
       preview = data.body.length > 80 ? data.body.slice(0, 77) + '...' : data.body
     }
 
+    // For recording-context messages, route each recipient to the surface
+    // where they can play the video and continue the chat.
+    let recordingOwnerId: number | null = null
+    if (data.context_type === 'recording') {
+      const r = db.prepare('SELECT player_id FROM recordings WHERE id = ?').get(data.context_id) as
+        | { player_id: number }
+        | undefined
+      recordingOwnerId = r?.player_id ?? null
+    }
+
     for (const rid of recipientArr) {
+      let link = linkUrl
+      if (data.context_type === 'recording' && recordingOwnerId != null) {
+        link = rid === recordingOwnerId
+          ? '/dashboard/me'
+          : `/dashboard/players/${recordingOwnerId}`
+      }
       createNotification({
         player_id: rid,
         actor_id: session.id,
         type: 'message_received',
         message: `${session.name}${ctx}: ${preview}`,
-        link_url: linkUrl,
+        link_url: link,
         push_title: `Message from ${session.name}`,
       }).catch(() => {})
     }

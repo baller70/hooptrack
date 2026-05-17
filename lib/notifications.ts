@@ -13,6 +13,10 @@ export type NotificationType =
   | 'streak_milestone'
   | 'message_received'
   | 'system'
+  | 'recording_created'
+  | 'video_uploaded'
+  | 'quiz_attempt'
+  | 'missed_deadlines'
 
 let vapidConfigured = false
 function ensureVapid() {
@@ -100,4 +104,39 @@ export async function createNotification(opts: CreateOpts): Promise<number> {
   }).catch((e) => console.error('push fanout failed', e))
 
   return id
+}
+
+interface FanoutOpts {
+  message: string
+  type: NotificationType
+  link_url?: string | null
+  actor_id?: number | null
+  push_title?: string
+  exclude_user_id?: number | null
+}
+
+// Fan out a notification to every trainer in the system. Used to surface
+// player activity (recordings, quiz attempts, PRs, etc.) on the trainer side.
+export async function notifyAllTrainers(opts: FanoutOpts): Promise<number[]> {
+  const trainers = db
+    .prepare("SELECT id FROM users WHERE role = 'trainer'")
+    .all() as { id: number }[]
+  const ids: number[] = []
+  for (const t of trainers) {
+    if (opts.exclude_user_id != null && t.id === opts.exclude_user_id) continue
+    try {
+      const id = await createNotification({
+        player_id: t.id,
+        message: opts.message,
+        type: opts.type,
+        link_url: opts.link_url ?? null,
+        actor_id: opts.actor_id ?? null,
+        push_title: opts.push_title,
+      })
+      ids.push(id)
+    } catch (e) {
+      console.error('notifyAllTrainers failed for trainer', t.id, e)
+    }
+  }
+  return ids
 }

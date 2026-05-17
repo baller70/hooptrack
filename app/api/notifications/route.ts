@@ -7,6 +7,8 @@ const TYPES = [
   'reminder', 'inspirational',
   'workout_assigned', 'move_assigned', 'quiz_assigned', 'quote_assigned',
   'workout_completed', 'pr_set', 'streak_milestone', 'system',
+  'recording_created', 'video_uploaded', 'quiz_attempt', 'missed_deadlines',
+  'message_received',
 ] as const
 
 const createSchema = z.object({
