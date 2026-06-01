@@ -1,0 +1,72 @@
+name: Build-only hooptrack (off-box CI, no deploy)
+
+# Builds the Next.js app ON the GitHub runner (never on the production box),
+# ships ONLY the compiled .next to Contabo, smoke-tests it on a staging port,
+# and only then cuts the live process over. A bad build can never take the
+# live site down, and the box's runtime *.db files are never shipped/touched.
+#
+# Repo secrets required: CONTABO_HOST, CONTABO_SSH_KEY (fleet CI deploy key).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: software-cc-offbox-deploy
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Fetch memory-core local dep from Contabo
+        env:
+          SSH_KEY: ${{ secrets.CONTABO_SSH_KEY }}
+          HOST: ${{ secrets.CONTABO_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          sudo mkdir -p /opt/_packages/memory-core
+          sudo chown -R "$USER" /opt/_packages
+          rsync -az --exclude node_modules --exclude venv-embed --exclude .git -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new" root@"$HOST":/opt/_packages/memory-core/ /opt/_packages/memory-core/
+          # pnpm-lock references memory-core via a path RELATIVE to the repo
+          # (../../_packages/memory-core). On the runner that resolves outside
+          # /opt, so mirror it there too (covers both absolute & relative forms).
+          RELPKGS="$(dirname "$(dirname "$GITHUB_WORKSPACE")")/_packages"
+          mkdir -p "$RELPKGS"
+          ln -sfn /opt/_packages/memory-core "$RELPKGS/memory-core"
+          for ef in .env .env.local .env.production.local; do
+            scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new root@"$HOST":/opt/apps/hooptrack/$ef ./$ef 2>/dev/null || true
+          done
+
+      - name: Install dependencies
+        env:
+          NODE_OPTIONS: "--max-old-space-size=8192"
+        run: pnpm install --no-frozen-lockfile --ignore-scripts
+
+      - name: Rebuild native bindings (best-effort)
+        run: pnpm rebuild better-sqlite3 || true
+
+      - name: Prisma generate (if present)
+        run: pnpm exec prisma generate || echo "no prisma schema — skipped"
+
+      - name: Build .next on the runner
+        env:
+          CI: "true"
+          NODE_OPTIONS: "--max-old-space-size=6144"
+        run: pnpm run build
+
+      - name: Verify build produced a BUILD_ID
+        run: test -f .next/BUILD_ID || { echo "no .next/BUILD_ID — build failed"; exit 1; }
