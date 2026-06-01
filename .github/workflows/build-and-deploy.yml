@@ -1,4 +1,4 @@
-name: Build-only hooptrack (off-box CI, no deploy)
+name: Build & Deploy hooptrack (off-box)
 
 # Builds the Next.js app ON the GitHub runner (never on the production box),
 # ships ONLY the compiled .next to Contabo, smoke-tests it on a staging port,
@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: software-cc-offbox-deploy
+  group: hooptrack-offbox-deploy
   cancel-in-progress: true
 
 jobs:
@@ -83,3 +83,80 @@ jobs:
 
       - name: Verify build produced a BUILD_ID
         run: test -f .next/BUILD_ID || { echo "no .next/BUILD_ID — build failed"; exit 1; }
+
+      - name: Ship .next to Contabo, staging smoke test, then cut over
+        env:
+          SSH_KEY: ${{ secrets.CONTABO_SSH_KEY }}
+          HOST: ${{ secrets.CONTABO_HOST }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          SSH="ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=10 -o ServerAliveCountMax=6"
+          APP=/opt/apps/hooptrack
+
+          $SSH root@"$HOST" "rm -rf $APP/.next.incoming && mkdir -p $APP/.next.incoming"
+          rsync -az --delete -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new" \
+            ./.next/ root@"$HOST":$APP/.next.incoming/
+          rsync -az -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new" \
+            ./pnpm-lock.yaml ./package.json root@"$HOST":$APP/
+
+          $SSH root@"$HOST" "bash -s" <<'REMOTE'
+            set -uo pipefail
+            APP=/opt/apps/hooptrack
+            PM2_NAME=hooptrack
+            LIVE_PORT=3053
+            STAGE_PORT=13053
+            cd "$APP"
+
+            wait_port_free() { for _ in $(seq 1 20); do ss -ltn 2>/dev/null | grep -q ":$1 " || return 0; fuser -k "$1"/tcp 2>/dev/null || true; sleep 1; done; }
+
+            miss=""
+            for f in BUILD_ID required-server-files.json; do [ -e ".next.incoming/$f" ] || miss="$miss $f"; done
+            if [ -n "$miss" ]; then echo "[ABORT] incoming build incomplete:$miss — live untouched"; rm -rf .next.incoming; exit 1; fi
+
+            corepack pnpm install --frozen-lockfile --config.verify-deps-before-run=false || corepack pnpm install --no-frozen-lockfile --config.verify-deps-before-run=false || true
+            corepack pnpm rebuild better-sqlite3 sharp 2>/dev/null || true
+            corepack pnpm exec prisma generate 2>/dev/null || true
+
+            STAGE="$APP/.stage"; wait_port_free "$STAGE_PORT"; rm -rf "$STAGE"; mkdir -p "$STAGE"
+            cp -a .next.incoming "$STAGE/.next"
+            ln -s "$APP/node_modules" "$STAGE/node_modules"
+            cp package.json "$STAGE/" 2>/dev/null || true
+            for c in next.config.ts next.config.mjs next.config.js; do [ -f "$c" ] && cp "$c" "$STAGE/"; done
+            [ -f .env ] && cp .env "$STAGE/"
+            [ -d public ] && cp -a public "$STAGE/"
+            ( cd "$STAGE" && node_modules/next/dist/bin/next start -p "$STAGE_PORT" > "$STAGE/boot.log" 2>&1 & echo $! > "$STAGE/pid" )
+            scode=000
+            for _ in $(seq 1 20); do sleep 3; scode=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "http://127.0.0.1:$STAGE_PORT/" || echo 000); case "$scode" in 2*|3*) break;; esac; done
+            spid=$(cat "$STAGE/pid" 2>/dev/null || true); [ -n "${spid:-}" ] && kill "$spid" 2>/dev/null || true
+            wait_port_free "$STAGE_PORT"; rm -rf "$STAGE"
+            case "$scode" in 2*|3*) echo "[stage] smoke test passed ($scode) — proceeding to cutover";; *) echo "[ABORT] staging smoke test failed ($scode) — new build does not boot; LIVE UNTOUCHED"; rm -rf .next.incoming; exit 1;; esac
+
+            rm -rf .next.old; [ -d .next ] && mv .next .next.old; mv .next.incoming .next
+
+            health_ok() { for _ in $(seq 1 15); do sleep 3; case "$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "http://127.0.0.1:$LIVE_PORT/" || echo 000)" in 2*|3*) return 0;; esac; done; return 1; }
+            cutover() {
+              pm2 stop "$PM2_NAME" >/dev/null 2>&1 || true
+              wait_port_free "$LIVE_PORT"
+              pm2 reset "$PM2_NAME" >/dev/null 2>&1 || true
+              if pm2 describe "$PM2_NAME" >/dev/null 2>&1; then
+                pm2 restart "$PM2_NAME" --update-env || pm2 start "$PM2_NAME" --update-env || true
+              else
+                pm2 start node_modules/next/dist/bin/next --name "$PM2_NAME" --cwd "$APP" -- start -p "$LIVE_PORT" || true
+              fi
+            }
+            ok=no
+            for attempt in 1 2 3; do echo "[cutover] attempt $attempt"; cutover; if health_ok; then ok=yes; break; fi; echo "[cutover] unhealthy — retry"; done
+            if [ "$ok" != "yes" ]; then
+              echo "[ROLLBACK] new build unhealthy — restoring previous"
+              rm -rf .next.bad; [ -d .next ] && mv .next .next.bad
+              [ -d .next.old ] && mv .next.old .next
+              cutover
+              if health_ok; then echo "post-rollback -> 200"; else echo "post-rollback -> FAILED"; fi
+              exit 1
+            fi
+            echo "[OK] $PM2_NAME live on :$LIVE_PORT build=$(cat .next/BUILD_ID)"
+          REMOTE
