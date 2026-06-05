@@ -1,57 +1,125 @@
 import { spawn } from 'child_process'
+import { db } from './db'
 
-const CLAUDE_PATH = process.env.CLAUDE_CLI_PATH || '/usr/bin/claude'
+function getAiConfig() {
+  const row = db.prepare("SELECT ai_model, ai_credentials FROM users WHERE role = 'trainer' LIMIT 1").get() as { ai_model: string | null, ai_credentials: string | null } | undefined
+  let creds: Record<string, string> = {}
+  try {
+    if (row?.ai_credentials) creds = JSON.parse(row.ai_credentials)
+  } catch(e) {}
+  return {
+    model: row?.ai_model || 'Claude Code CLI',
+    creds
+  }
+}
+
+async function runCli(cmdPath: string, prompt: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(cmdPath, ['--print', prompt])
+    let out = ''
+    let err = ''
+    child.stdout.on('data', d => out += d.toString())
+    child.stderr.on('data', d => err += d.toString())
+    child.on('close', code => {
+      if (code !== 0) reject(new Error(`CLI failed: ${err}`))
+      else resolve(out.trim())
+    })
+    child.on('error', e => reject(e))
+  })
+}
+
+async function openaiCompatibleChat(url: string, key: string, modelName: string, prompt: string): Promise<string> {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${key}`
+    },
+    body: JSON.stringify({
+      model: modelName,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`API Error: ${res.status} - ${text}`)
+  }
+  const data = await res.json()
+  return data.choices[0].message.content
+}
+
+async function executeAiChat(prompt: string): Promise<string> {
+  const { model, creds } = getAiConfig()
+
+  try {
+    if (model === 'Claude Code CLI') {
+      const p = creds.claude_cli_path || '/usr/local/bin/claude'
+      return await runCli(p, prompt)
+    }
+    if (model === 'Codex CLI') {
+      const p = creds.codex_cli_path || '/usr/local/bin/codex'
+      return await runCli(p, prompt)
+    }
+    if (model === 'OpenAI') {
+      return await openaiCompatibleChat('https://api.openai.com/v1/chat/completions', creds.openai_api_key || '', 'gpt-4o', prompt)
+    }
+    if (model === 'OpenRouter') {
+      return await openaiCompatibleChat('https://openrouter.ai/api/v1/chat/completions', creds.openrouter_api_key || '', creds.openrouter_model || 'anthropic/claude-3-haiku', prompt)
+    }
+    if (model === 'MiniMax') {
+      // Using OpenAI compatible MiniMax endpoint
+      return await openaiCompatibleChat('https://api.minimax.chat/v1/text/chatcompletion_v2', creds.minimax_api_key || '', 'abab6.5-chat', prompt)
+    }
+    if (model === 'Local Model') {
+      return await openaiCompatibleChat(creds.local_base_url || 'http://localhost:11434/v1/chat/completions', 'dummy', creds.local_model || 'llama3', prompt)
+    }
+    if (model === 'Claude Code') { // Anthropic REST API
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': creds.anthropic_api_key || '',
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'claude-3-haiku-20240307',
+          max_tokens: 1024,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      })
+      if (!res.ok) throw new Error(`Anthropic API Error: ${await res.text()}`)
+      const data = await res.json()
+      return data.content[0].text
+    }
+  } catch (err) {
+    console.error('AI Execution Error:', err)
+    throw err
+  }
+
+  throw new Error("AI model misconfigured or not supported.")
+}
 
 async function claudeChat(prompt: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const proc = spawn(CLAUDE_PATH, ['-p', '--output-format', 'text'], {
-      timeout: 120000,
-    })
-
-    let stdout = ''
-    let stderr = ''
-
-    proc.stdout.on('data', (data: Buffer) => { stdout += data.toString() })
-    proc.stderr.on('data', (data: Buffer) => { stderr += data.toString() })
-
-    proc.on('close', (code) => {
-      if (code === 0) {
-        resolve(stdout.trim())
-      } else {
-        reject(new Error(stderr || `Claude CLI exited with code ${code}`))
-      }
-    })
-
-    proc.on('error', reject)
-
-    proc.stdin.write(prompt)
-    proc.stdin.end()
-  })
+  return executeAiChat(prompt)
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function claudeJSON(prompt: string): Promise<any> {
-  const raw = await claudeChat(prompt + '\n\nYou MUST respond with ONLY valid JSON. No markdown, no code fences, no backticks, no explanation. Output starts with { and ends with }. Use straight double quotes only, no smart quotes. Keep string values short (under 200 chars each).')
-  // Strip markdown fences, leading/trailing text
-  let cleaned = raw.replace(/^```(?:json)?\s*/gm, '').replace(/\s*```$/gm, '').trim()
-  // Find the first { and last } to extract JSON
-  const firstBrace = cleaned.indexOf('{')
-  const lastBrace = cleaned.lastIndexOf('}')
-  if (firstBrace !== -1 && lastBrace !== -1) {
-    cleaned = cleaned.slice(firstBrace, lastBrace + 1)
-  }
-  // Fix smart quotes and other common issues
-  cleaned = cleaned
-    .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')
-    .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'")
-    .replace(/\t/g, ' ')
-
+  // Append JSON formatting instructions to guarantee valid JSON string response
+  const jsonPrompt = prompt + '\n\nIMPORTANT: Respond ONLY with raw, valid JSON. Do not include markdown code blocks (like ```json), commentary, or any other text. Start your response with { and end with }.'
+  const text = await executeAiChat(jsonPrompt)
+  
   try {
-    return JSON.parse(cleaned)
-  } catch (e) {
-    // Try to fix trailing commas
-    const fixed = cleaned.replace(/,\s*([\]}])/g, '$1')
-    return JSON.parse(fixed)
+    return JSON.parse(text)
+  } catch (err) {
+    console.error('Failed to parse AI JSON response. Raw text:', text)
+    // Strip markdown codeblocks if the AI still included them
+    const cleaned = text.replace(/^```json\s*/, '').replace(/```$/, '').trim()
+    try {
+      return JSON.parse(cleaned)
+    } catch(e2) {
+      throw new Error('AI returned invalid JSON.')
+    }
   }
 }
 

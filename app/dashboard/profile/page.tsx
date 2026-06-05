@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { LogOut } from 'lucide-react'
+import { LogOut, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import AIProgressReport from '@/components/ai-progress-report'
@@ -12,14 +12,32 @@ interface UserInfo {
   name: string
   email: string
   role: string
+  ai_model?: string
+  ai_credentials?: string
 }
 
 export default function ProfilePage() {
   const router = useRouter()
   const [user, setUser] = useState<UserInfo | null>(null)
+  
+  // Settings UI State
+  const [aiModel, setAiModel] = useState('Claude Code CLI')
+  const [aiCreds, setAiCreds] = useState<Record<string, string>>({})
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
-    fetch('/api/auth/me', { cache: 'no-store' }).then(r => r.json()).then(d => setUser(d.user)).catch(() => {})
+    fetch('/api/auth/me', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(d => {
+        setUser(d.user)
+        if (d.user?.ai_model) setAiModel(d.user.ai_model)
+        if (d.user?.ai_credentials) {
+          try {
+            setAiCreds(JSON.parse(d.user.ai_credentials))
+          } catch(e) {}
+        }
+      })
+      .catch(() => {})
   }, [])
 
   async function handleLogout() {
@@ -28,11 +46,28 @@ export default function ProfilePage() {
     router.push('/login')
   }
 
+  async function handleSaveSettings() {
+    setIsSaving(true)
+    try {
+      const res = await fetch('/api/users/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ai_model: aiModel, ai_credentials: aiCreds })
+      })
+      if (!res.ok) throw new Error('Failed to save settings')
+      toast.success('Settings saved successfully')
+    } catch(err: any) {
+      toast.error(err.message)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   if (!user) return <div className="p-4 text-center">Loading...</div>
 
   return (
-    <div className="p-4 max-w-2xl mx-auto">
-      <h2 className="font-[family-name:var(--font-russo)] text-2xl mb-6">Profile</h2>
+    <div className="p-4 max-w-2xl mx-auto space-y-6">
+      <h2 className="font-[family-name:var(--font-russo)] text-2xl">Profile</h2>
 
       <div className="bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_#0A0A0A] p-6">
         <div className="flex items-center gap-4 mb-6">
@@ -54,10 +89,159 @@ export default function ProfilePage() {
         </Button>
       </div>
 
+      {user.role === 'trainer' && (
+        <div className="bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_#0A0A0A] p-6 space-y-4">
+          <h3 className="font-semibold text-xl">App Settings</h3>
+          <p className="text-sm text-muted-foreground">Configure the AI Engine that powers your workout generations and progress reports.</p>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">AI Engine</label>
+              <select 
+                value={aiModel} 
+                onChange={(e) => setAiModel(e.target.value)}
+                className="w-full border-2 border-black rounded-md p-2 bg-gray-50 focus:bg-white"
+              >
+                <option value="Claude Code CLI">Claude Code CLI (Local)</option>
+                <option value="Codex CLI">Codex CLI (Local)</option>
+                <option value="OpenAI">OpenAI (GPT-4o)</option>
+                <option value="Claude Code">Anthropic (Claude 3 Haiku)</option>
+                <option value="MiniMax">MiniMax</option>
+                <option value="OpenRouter">OpenRouter</option>
+                <option value="Local Model">Local Model (e.g. Ollama/Llama 3)</option>
+              </select>
+            </div>
+
+            {aiModel === 'Claude Code CLI' && (
+              <div>
+                <label className="block text-sm font-medium mb-1">Claude CLI Path</label>
+                <input 
+                  type="text" 
+                  value={aiCreds.claude_cli_path || ''} 
+                  onChange={(e) => setAiCreds({...aiCreds, claude_cli_path: e.target.value})}
+                  placeholder="/usr/local/bin/claude"
+                  className="w-full border-2 border-black rounded-md p-2 font-mono text-sm"
+                />
+              </div>
+            )}
+
+            {aiModel === 'Codex CLI' && (
+              <div>
+                <label className="block text-sm font-medium mb-1">Codex CLI Path</label>
+                <input 
+                  type="text" 
+                  value={aiCreds.codex_cli_path || ''} 
+                  onChange={(e) => setAiCreds({...aiCreds, codex_cli_path: e.target.value})}
+                  placeholder="/usr/local/bin/codex"
+                  className="w-full border-2 border-black rounded-md p-2 font-mono text-sm"
+                />
+              </div>
+            )}
+
+            {aiModel === 'OpenAI' && (
+              <div>
+                <label className="block text-sm font-medium mb-1">OpenAI API Key</label>
+                <input 
+                  type="password" 
+                  value={aiCreds.openai_api_key || ''} 
+                  onChange={(e) => setAiCreds({...aiCreds, openai_api_key: e.target.value})}
+                  placeholder="sk-..."
+                  className="w-full border-2 border-black rounded-md p-2 font-mono text-sm"
+                />
+              </div>
+            )}
+
+            {aiModel === 'Claude Code' && (
+              <div>
+                <label className="block text-sm font-medium mb-1">Anthropic API Key</label>
+                <input 
+                  type="password" 
+                  value={aiCreds.anthropic_api_key || ''} 
+                  onChange={(e) => setAiCreds({...aiCreds, anthropic_api_key: e.target.value})}
+                  placeholder="sk-ant-..."
+                  className="w-full border-2 border-black rounded-md p-2 font-mono text-sm"
+                />
+              </div>
+            )}
+
+            {aiModel === 'MiniMax' && (
+              <div>
+                <label className="block text-sm font-medium mb-1">MiniMax API Key</label>
+                <input 
+                  type="password" 
+                  value={aiCreds.minimax_api_key || ''} 
+                  onChange={(e) => setAiCreds({...aiCreds, minimax_api_key: e.target.value})}
+                  placeholder="Paste MiniMax key here"
+                  className="w-full border-2 border-black rounded-md p-2 font-mono text-sm"
+                />
+              </div>
+            )}
+
+            {aiModel === 'OpenRouter' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium mb-1">OpenRouter API Key</label>
+                  <input 
+                    type="password" 
+                    value={aiCreds.openrouter_api_key || ''} 
+                    onChange={(e) => setAiCreds({...aiCreds, openrouter_api_key: e.target.value})}
+                    placeholder="sk-or-v1-..."
+                    className="w-full border-2 border-black rounded-md p-2 font-mono text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Model Name</label>
+                  <input 
+                    type="text" 
+                    value={aiCreds.openrouter_model || ''} 
+                    onChange={(e) => setAiCreds({...aiCreds, openrouter_model: e.target.value})}
+                    placeholder="anthropic/claude-3-haiku"
+                    className="w-full border-2 border-black rounded-md p-2 font-mono text-sm"
+                  />
+                </div>
+              </>
+            )}
+
+            {aiModel === 'Local Model' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium mb-1">OpenAI-Compatible Base URL</label>
+                  <input 
+                    type="text" 
+                    value={aiCreds.local_base_url || ''} 
+                    onChange={(e) => setAiCreds({...aiCreds, local_base_url: e.target.value})}
+                    placeholder="http://localhost:11434/v1/chat/completions"
+                    className="w-full border-2 border-black rounded-md p-2 font-mono text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Model Name</label>
+                  <input 
+                    type="text" 
+                    value={aiCreds.local_model || ''} 
+                    onChange={(e) => setAiCreds({...aiCreds, local_model: e.target.value})}
+                    placeholder="llama3"
+                    className="w-full border-2 border-black rounded-md p-2 font-mono text-sm"
+                  />
+                </div>
+              </>
+            )}
+
+            <Button onClick={handleSaveSettings} disabled={isSaving} className="w-full gap-2">
+              <Save className="h-4 w-4" />
+              {isSaving ? 'Saving...' : 'Save Settings'}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* AI Progress Report */}
-      <div className="mt-6">
-        <AIProgressReport />
-      </div>
+      {user.role === 'player' && (
+        <div>
+          <AIProgressReport />
+        </div>
+      )}
     </div>
   )
 }
+

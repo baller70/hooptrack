@@ -73,7 +73,23 @@ function runMigrations(db: Database.Database) {
     db.exec(SCHEMA_V12)
     db.prepare('INSERT INTO _migrations VALUES (?)').run(12)
   }
+  if (current < 13) {
+    db.exec(SCHEMA_V13)
+    db.prepare('INSERT INTO _migrations VALUES (?)').run(13)
+  }
+  if (current < 14) {
+    db.exec(SCHEMA_V14)
+    db.prepare('INSERT INTO _migrations VALUES (?)').run(14)
+  }
 }
+
+const SCHEMA_V14 = `
+ALTER TABLE users ADD COLUMN ai_credentials TEXT;
+`
+
+const SCHEMA_V13 = `
+ALTER TABLE users ADD COLUMN ai_model TEXT DEFAULT 'Claude Code CLI';
+`
 
 const SCHEMA_V12 = `
 ALTER TABLE messages ADD COLUMN attachment_type TEXT;
@@ -218,6 +234,8 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL CHECK(role IN ('trainer','player')),
+  ai_model TEXT DEFAULT 'Claude Code CLI',
+  ai_credentials TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
