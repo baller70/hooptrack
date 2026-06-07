@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     `).run(
       ai_model, 
       ai_credentials ? JSON.stringify(ai_credentials) : null, 
-      session.userId
+      session.id
     )
 
     return NextResponse.json({ success: true })
