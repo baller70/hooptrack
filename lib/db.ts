@@ -234,8 +234,6 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL CHECK(role IN ('trainer','player')),
-  ai_model TEXT DEFAULT 'Claude Code CLI',
-  ai_credentials TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
