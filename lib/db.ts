@@ -74,22 +74,26 @@ function runMigrations(db: Database.Database) {
     db.prepare('INSERT INTO _migrations VALUES (?)').run(12)
   }
   if (current < 13) {
-    db.exec(SCHEMA_V13)
+    // Safely add ai_model column if it doesn't exist (may already be in V1 schema)
+    const cols13 = db.prepare("PRAGMA table_info(users)").all() as { name: string }[]
+    if (!cols13.some(c => c.name === 'ai_model')) {
+      db.exec(`ALTER TABLE users ADD COLUMN ai_model TEXT DEFAULT 'Claude Code CLI'`)
+    }
     db.prepare('INSERT INTO _migrations VALUES (?)').run(13)
   }
   if (current < 14) {
-    db.exec(SCHEMA_V14)
+    // Safely add ai_credentials column if it doesn't exist
+    const cols14 = db.prepare("PRAGMA table_info(users)").all() as { name: string }[]
+    if (!cols14.some(c => c.name === 'ai_credentials')) {
+      db.exec(`ALTER TABLE users ADD COLUMN ai_credentials TEXT`)
+    }
     db.prepare('INSERT INTO _migrations VALUES (?)').run(14)
   }
 }
 
-const SCHEMA_V14 = `
-ALTER TABLE users ADD COLUMN ai_credentials TEXT;
-`
-
-const SCHEMA_V13 = `
-ALTER TABLE users ADD COLUMN ai_model TEXT DEFAULT 'Claude Code CLI';
-`
+// V14 and V13 use a helper function since SQLite has no IF NOT EXISTS for ALTER TABLE
+const SCHEMA_V14 = `-- handled programmatically`
+const SCHEMA_V13 = `-- handled programmatically`
 
 const SCHEMA_V12 = `
 ALTER TABLE messages ADD COLUMN attachment_type TEXT;
@@ -234,6 +238,8 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL CHECK(role IN ('trainer','player')),
+  ai_model TEXT DEFAULT 'Claude Code CLI',
+  ai_credentials TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

@@ -73,7 +73,7 @@ async function executeAiChat(prompt: string): Promise<string> {
     if (model === 'Local Model') {
       return await openaiCompatibleChat(creds.local_base_url || 'http://localhost:11434/v1/chat/completions', 'dummy', creds.local_model || 'llama3', prompt)
     }
-    if (model === 'Claude Code') { // Anthropic REST API
+    if (model === 'Claude Code (API)') { // Anthropic REST API
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -92,11 +92,19 @@ async function executeAiChat(prompt: string): Promise<string> {
       return data.content[0].text
     }
   } catch (err) {
-    console.error('AI Execution Error:', err)
-    throw err
+    // Gracefully handle AI failures — log and return fallback instead of crashing
+    const errMsg = err instanceof Error ? err.message : String(err)
+    console.error(`AI execution failed (model: ${model}): ${errMsg}`)
+    
+    // Return a structured fallback for JSON callers, or plain text for chat callers
+    if (prompt.includes('Return JSON')) {
+      return JSON.stringify({ error: 'AI service unavailable', message: 'AI features are temporarily unavailable. Please configure an AI model in Settings.' })
+    }
+    return 'AI features are temporarily unavailable. Please configure an AI model in Settings.'
   }
 
-  throw new Error("AI model misconfigured or not supported.")
+  console.error(`AI model not supported: ${model}`)
+  return JSON.stringify({ error: 'AI model not configured', message: 'Please configure an AI model in Settings.' })
 }
 
 async function claudeChat(prompt: string): Promise<string> {

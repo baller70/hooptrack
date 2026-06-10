@@ -1,12 +1,12 @@
 # hooptrack — Architecture
 
-> Auto-generated 2026-05-31 14:34 UTC from brain.db structural extraction (`extract-structure.py` → `mem_app_*`). Division: **tbf**. Regenerate via `/tmp/gen-architecture.py`. Edit prose freely; counts refresh on regen.
+> Auto-generated 2026-06-10 21:19 UTC from brain.db structural extraction (`extract-structure.py` → `mem_app_*`). Division: **tbf**. Regenerate via `/tmp/gen-architecture.py`. Edit prose freely; counts refresh on regen.
 
 ## At a glance
 
 | Routes | API endpoints | DB tables | Components | Functions | Env vars | Packages | Workflows |
 |---|---|---|---|---|---|---|---|
-| 23 | 64 | 0 | 61 | 3024 | 36 | 43 | 12 |
+| 23 | 66 | 0 | 61 | 3058 | 35 | 45 | 12 |
 
 ## Deploy / runtime
 
@@ -39,7 +39,7 @@
 - `/login`
 - `/register`
 
-## API endpoints (64)
+## API endpoints (66)
 
 - `GET    /api/activity`
 - `POST   /api/ai/feedback`
@@ -98,6 +98,8 @@
 - `PUT    /api/schedule/:id`
 - `GET    /api/users/all-players`
 - `GET    /api/users/contacts`
+- `GET    /api/users/settings`
+- `PUT    /api/users/settings`
 - `GET    /api/workouts`
 - `POST   /api/workouts`
 - `DELETE /api/workouts/:id`
@@ -106,9 +108,9 @@
 - `POST   /api/workouts/:id/duplicate`
 - `GET    /api/youtube/search`
 
-## Environment variables (36)
+## Environment variables (35)
 
-`ATTACHMENTS_DIR`, `CLAUDE_CLI_PATH`, `DEBUG`, `ECE_KEYLOG`, `HOOPTRACK_DB`, `JWT_SECRET`, `NEXT_DEBUG_BUILD`, `NEXT_OTEL_FETCH_DISABLED`, `NEXT_OTEL_PERFORMANCE_PREFIX`, `NEXT_OTEL_VERBOSE`, `NEXT_PHASE`, `NEXT_PRIVATE_DEBUG_CACHE`, `NEXT_PRIVATE_RESPONSE_CACHE_MAX_SIZE`, `NEXT_PRIVATE_RESPONSE_CACHE_TTL`, `NEXT_PRIVATE_TEST_PROXY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `NEXT_SSG_FETCH_METRICS`, `NODE_ENV`, `PORT`, `RECORDINGS_DIR`, `TURBOPACK`, `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT`, `VERCEL`, `VERCEL_BRANCH_URL`, `VERCEL_ENV`, `VERCEL_PROJECT_PRODUCTION_URL`, `VERCEL_URL`, `__NEXT_BUILD_ID`, `__NEXT_EXPERIMENTAL_HTTPS`, `__NEXT_PREVIEW_MODE_ENCRYPTION_KEY`, `__NEXT_PREVIEW_MODE_ID`, `__NEXT_PREVIEW_MODE_SIGNING_KEY`, `__NEXT_TEST_MAX_ISR_CACHE`, `__NEXT_VERBOSE_LOGGING`
+`ATTACHMENTS_DIR`, `DEBUG`, `ECE_KEYLOG`, `HOOPTRACK_DB`, `JWT_SECRET`, `NEXT_DEBUG_BUILD`, `NEXT_OTEL_FETCH_DISABLED`, `NEXT_OTEL_PERFORMANCE_PREFIX`, `NEXT_OTEL_VERBOSE`, `NEXT_PHASE`, `NEXT_PRIVATE_DEBUG_CACHE`, `NEXT_PRIVATE_RESPONSE_CACHE_MAX_SIZE`, `NEXT_PRIVATE_RESPONSE_CACHE_TTL`, `NEXT_PRIVATE_TEST_PROXY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `NEXT_SSG_FETCH_METRICS`, `NODE_ENV`, `PORT`, `RECORDINGS_DIR`, `TURBOPACK`, `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT`, `VERCEL`, `VERCEL_BRANCH_URL`, `VERCEL_ENV`, `VERCEL_PROJECT_PRODUCTION_URL`, `VERCEL_URL`, `__NEXT_BUILD_ID`, `__NEXT_EXPERIMENTAL_HTTPS`, `__NEXT_PREVIEW_MODE_ENCRYPTION_KEY`, `__NEXT_PREVIEW_MODE_ID`, `__NEXT_PREVIEW_MODE_SIGNING_KEY`, `__NEXT_TEST_MAX_ISR_CACHE`, `__NEXT_VERBOSE_LOGGING`
 
 ## Key dependencies (prod)
 
