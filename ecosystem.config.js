@@ -1,9 +1,9 @@
 module.exports = {
   apps: [{
     name: "hooptrack",
-    script: "node_modules/.bin/next",
-    args: "start --port 4008",
+    script: "node_modules/next/dist/bin/next",
+    args: "start --port 3200",
     cwd: "/opt/apps/hooptrack",
-    env: { NODE_ENV: "production", PORT: 4008 },
+    env: { NODE_ENV: "production", PORT: 3200 },
   }],
 }

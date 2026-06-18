@@ -1,16 +1,16 @@
 # hooptrack — Architecture
 
-> Auto-generated 2026-06-10 21:19 UTC from brain.db structural extraction (`extract-structure.py` → `mem_app_*`). Division: **tbf**. Regenerate via `/tmp/gen-architecture.py`. Edit prose freely; counts refresh on regen.
+> Auto-generated 2026-06-18 08:37 UTC from brain.db structural extraction (`extract-structure.py` → `mem_app_*`). Division: **tbf**. Regenerate via `/tmp/gen-architecture.py`. Edit prose freely; counts refresh on regen.
 
 ## At a glance
 
 | Routes | API endpoints | DB tables | Components | Functions | Env vars | Packages | Workflows |
 |---|---|---|---|---|---|---|---|
-| 23 | 66 | 0 | 61 | 3058 | 35 | 45 | 12 |
+| 23 | 66 | 0 | 61 | 435 | 9 | 45 | 2 |
 
 ## Deploy / runtime
 
-- pm2-ecosystem — port 4008 — node_modules/.bin/next
+- pm2-ecosystem — port 3200 — node_modules/next/dist/bin/next
 - package-scripts — next start
 
 ## Pages / routes (23)
@@ -108,9 +108,9 @@
 - `POST   /api/workouts/:id/duplicate`
 - `GET    /api/youtube/search`
 
-## Environment variables (35)
+## Environment variables (9)
 
-`ATTACHMENTS_DIR`, `DEBUG`, `ECE_KEYLOG`, `HOOPTRACK_DB`, `JWT_SECRET`, `NEXT_DEBUG_BUILD`, `NEXT_OTEL_FETCH_DISABLED`, `NEXT_OTEL_PERFORMANCE_PREFIX`, `NEXT_OTEL_VERBOSE`, `NEXT_PHASE`, `NEXT_PRIVATE_DEBUG_CACHE`, `NEXT_PRIVATE_RESPONSE_CACHE_MAX_SIZE`, `NEXT_PRIVATE_RESPONSE_CACHE_TTL`, `NEXT_PRIVATE_TEST_PROXY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `NEXT_SSG_FETCH_METRICS`, `NODE_ENV`, `PORT`, `RECORDINGS_DIR`, `TURBOPACK`, `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT`, `VERCEL`, `VERCEL_BRANCH_URL`, `VERCEL_ENV`, `VERCEL_PROJECT_PRODUCTION_URL`, `VERCEL_URL`, `__NEXT_BUILD_ID`, `__NEXT_EXPERIMENTAL_HTTPS`, `__NEXT_PREVIEW_MODE_ENCRYPTION_KEY`, `__NEXT_PREVIEW_MODE_ID`, `__NEXT_PREVIEW_MODE_SIGNING_KEY`, `__NEXT_TEST_MAX_ISR_CACHE`, `__NEXT_VERBOSE_LOGGING`
+`ATTACHMENTS_DIR`, `HOOPTRACK_DB`, `JWT_SECRET`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `NODE_ENV`, `RECORDINGS_DIR`, `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT`
 
 ## Key dependencies (prod)
 
