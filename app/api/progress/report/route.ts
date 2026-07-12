@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic'
 
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
-import { analyzePlayerProgress } from '@/lib/ai'
 
 type Period = 'week' | 'month' | 'year'
 
@@ -327,28 +326,18 @@ export async function GET(request: Request) {
     }))
     .filter((p) => p.plan)
 
-  // AI narrative
-  const categoryCounts: Record<string, number> = {}
-  for (const r of recordings) categoryCounts[r.category] = (categoryCounts[r.category] || 0) + 1
-  const gradesBySubject: Record<string, string> = {}
-  for (const s of subjects) gradesBySubject[s.subject] = s.letter
-
-  let analysis: unknown = null
-  try {
-    analysis = await analyzePlayerProgress({
-      playerName: player.name,
-      totalRecordings: recordings.length,
-      categoryCounts,
-      streakDays,
-      quizAverage,
-      totalHours: Math.round(totalHours * 10) / 10,
-      hoursPerSubject: hoursBySubject,
-      gradesBySubject,
-      weakestSubjects: weakest,
-      strongestSubjects: strongest,
-    })
-  } catch (err) {
-    console.error('AI narrative failed:', err)
+  const analysis = {
+    summary: recordings.length > 0
+      ? `${player.name} logged ${recordings.length} session${recordings.length === 1 ? '' : 's'} with ${Math.round(totalHours * 10) / 10} total training hours this ${period}.`
+      : `${player.name} does not have recorded training data for this ${period} yet.`,
+    strengths: strongest.map((subject) => `${subject}: ${subjects.find((s) => s.subject === subject)?.letter ?? 'N/A'}`),
+    areas_to_improve: weakest.map((subject) => `${subject}: add focused reps to raise the grade.`),
+    next_steps: improvementPlans.length > 0
+      ? improvementPlans.slice(0, 3).map((plan) => (
+          `${plan.subject}: add ${plan.plan?.minutesPerDay ?? 10} minutes per day for ${plan.plan?.weeks ?? 4} weeks.`
+        ))
+      : ['Record a short skill session, assign it to a category, then review the next report.'],
+    motivation_level: totalHours >= 5 || streakDays >= 3 ? 'high' : totalHours > 0 ? 'medium' : 'low',
   }
 
   return Response.json({

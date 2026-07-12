@@ -38,7 +38,7 @@ export default function LoginPage() {
         toast.error(json.error || 'Login failed')
         return
       }
-      router.push('/dashboard/workouts')
+      router.push('/dashboard/capture')
     } catch {
       toast.error('Something went wrong')
     } finally {

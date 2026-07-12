@@ -1,6 +1,6 @@
 # hooptrack — Architecture
 
-> Auto-generated 2026-06-18 08:37 UTC from brain.db structural extraction (`extract-structure.py` → `mem_app_*`). Division: **tbf**. Regenerate via `/tmp/gen-architecture.py`. Edit prose freely; counts refresh on regen.
+> Auto-generated 2026-06-23 13:21 UTC from brain.db structural extraction (`extract-structure.py` → `mem_app_*`). Division: **tbf**. Regenerate via `/tmp/gen-architecture.py`. Edit prose freely; counts refresh on regen.
 
 ## At a glance
 

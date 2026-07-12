@@ -7,8 +7,8 @@ export async function POST() {
 
   const now = new Date().toISOString()
   const result = db.prepare(
-    'UPDATE notifications SET read_at = ? WHERE player_id = ? AND read_at IS NULL'
-  ).run(now, session.id)
+    'UPDATE notifications SET read_at = ? WHERE player_id = ? AND read_at IS NULL AND scheduled_for <= ?'
+  ).run(now, session.id, now)
 
   return Response.json({ success: true, updated: result.changes })
 }

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Library, Video, CalendarDays, User, Award, Users, Activity, FolderOpen } from 'lucide-react'
+import { Film, Library, Video, CalendarDays, Award, Activity } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -10,32 +10,23 @@ interface Props {
 }
 
 const baseTabs = [
-  { href: '/dashboard/workouts', label: 'Library', icon: Library, matchPrefixes: ['/dashboard/workouts', '/dashboard/moves', '/dashboard/classroom', '/dashboard/comparison'] },
-  { href: '/dashboard/record', label: 'Record', icon: Video },
-  { href: '/dashboard/calendar', label: 'Calendar', icon: CalendarDays },
-  { href: '/dashboard/progress', label: 'Progress', icon: Award },
-  { href: '/dashboard/profile', label: 'Profile', icon: User },
-]
-
-const trainerExtraTabs = [
-  { href: '/dashboard/players', label: 'Players', icon: Users },
+  { href: '/dashboard/capture', label: 'Capture', icon: Video, matchPrefixes: ['/dashboard/capture', '/dashboard/record', '/dashboard/moves/upload'] },
+  { href: '/dashboard/workouts', label: 'Library', icon: Library, matchPrefixes: ['/dashboard/workouts', '/dashboard/moves', '/dashboard/classroom'] },
+  { href: '/film/index.html', label: 'Film & Video', icon: Film, matchPrefixes: ['/dashboard/analyze', '/film'] },
+  { href: '/calendar/index.html', label: 'Calendar', icon: CalendarDays, matchPrefixes: ['/dashboard/calendar', '/calendar'] },
   { href: '/dashboard/activity', label: 'Activity', icon: Activity },
+  { href: '/dashboard/progress', label: 'Progress', icon: Award },
 ]
 
-const playerExtraTabs = [
-  { href: '/dashboard/me', label: 'My Stuff', icon: FolderOpen, matchPrefixes: ['/dashboard/me', '/dashboard/players'] },
-]
-
-export default function NavTabs({ role }: Props) {
+export default function NavTabs({ role: _role }: Props) {
+  void _role
   const pathname = usePathname()
 
-  const tabs = role === 'trainer'
-    ? [...baseTabs.slice(0, 1), ...trainerExtraTabs, ...baseTabs.slice(1)]
-    : [...baseTabs.slice(0, 1), ...playerExtraTabs, ...baseTabs.slice(1)]
+  const tabs = baseTabs
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-black z-50 md:static md:border-t-0 md:border-b-2">
-      <div className="flex justify-around items-center h-16 max-w-4xl mx-auto overflow-x-auto">
+      <div className="flex justify-around items-center h-16 max-w-5xl mx-auto overflow-x-auto">
         {tabs.map((tab) => {
           const prefixes = (tab as { matchPrefixes?: string[] }).matchPrefixes ?? [tab.href]
           const active = prefixes.some((p) => pathname === p || pathname.startsWith(p + '/'))

@@ -42,7 +42,7 @@ export default function RegisterPage() {
         return
       }
       toast.success('Account created!')
-      router.push('/dashboard/workouts')
+      router.push('/dashboard/capture')
     } catch {
       toast.error('Something went wrong')
     } finally {

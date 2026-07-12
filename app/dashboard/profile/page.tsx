@@ -21,20 +21,29 @@ export default function ProfilePage() {
   const [user, setUser] = useState<UserInfo | null>(null)
   
   // Settings UI State
-  const [aiModel, setAiModel] = useState('Claude Code CLI')
+  const [aiModel, setAiModel] = useState('Codex CLI')
   const [aiCreds, setAiCreds] = useState<Record<string, string>>({})
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     fetch('/api/auth/me', { cache: 'no-store' })
       .then(r => r.json())
-      .then(d => {
+      .then(async (d) => {
         setUser(d.user)
-        if (d.user?.ai_model) setAiModel(d.user.ai_model)
-        if (d.user?.ai_credentials) {
+        if (d.user?.role !== 'trainer') return
+
+        const settingsRes = await fetch('/api/users/settings', { cache: 'no-store' })
+        if (!settingsRes.ok) return
+        const settings = await settingsRes.json()
+        if (settings.ai_model) setAiModel(settings.ai_model)
+        if (settings.ai_credentials) {
           try {
-            setAiCreds(JSON.parse(d.user.ai_credentials))
-          } catch(e) {}
+            setAiCreds(
+              typeof settings.ai_credentials === 'string'
+                ? JSON.parse(settings.ai_credentials)
+                : settings.ai_credentials
+            )
+          } catch {}
         }
       })
       .catch(() => {})
@@ -50,14 +59,14 @@ export default function ProfilePage() {
     setIsSaving(true)
     try {
       const res = await fetch('/api/users/settings', {
-        method: 'POST',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ai_model: aiModel, ai_credentials: aiCreds })
       })
       if (!res.ok) throw new Error('Failed to save settings')
       toast.success('Settings saved successfully')
-    } catch(err: any) {
-      toast.error(err.message)
+    } catch(err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save settings')
     } finally {
       setIsSaving(false)
     }
@@ -102,28 +111,14 @@ export default function ProfilePage() {
                 onChange={(e) => setAiModel(e.target.value)}
                 className="w-full border-2 border-black rounded-md p-2 bg-gray-50 focus:bg-white"
               >
-                <option value="Claude Code CLI">Claude Code CLI (Local)</option>
                 <option value="Codex CLI">Codex CLI (Local)</option>
                 <option value="OpenAI">OpenAI (GPT-4o)</option>
-                <option value="Claude Code">Anthropic (Claude 3 Haiku)</option>
+                <option value="Claude Code (API)">Anthropic (Claude 3 Haiku)</option>
                 <option value="MiniMax">MiniMax</option>
                 <option value="OpenRouter">OpenRouter</option>
                 <option value="Local Model">Local Model (e.g. Ollama/Llama 3)</option>
               </select>
             </div>
-
-            {aiModel === 'Claude Code CLI' && (
-              <div>
-                <label className="block text-sm font-medium mb-1">Claude CLI Path</label>
-                <input 
-                  type="text" 
-                  value={aiCreds.claude_cli_path || ''} 
-                  onChange={(e) => setAiCreds({...aiCreds, claude_cli_path: e.target.value})}
-                  placeholder="/usr/local/bin/claude"
-                  className="w-full border-2 border-black rounded-md p-2 font-mono text-sm"
-                />
-              </div>
-            )}
 
             {aiModel === 'Codex CLI' && (
               <div>
@@ -132,7 +127,7 @@ export default function ProfilePage() {
                   type="text" 
                   value={aiCreds.codex_cli_path || ''} 
                   onChange={(e) => setAiCreds({...aiCreds, codex_cli_path: e.target.value})}
-                  placeholder="/usr/local/bin/codex"
+                  placeholder="/usr/bin/codex"
                   className="w-full border-2 border-black rounded-md p-2 font-mono text-sm"
                 />
               </div>
@@ -151,7 +146,7 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {aiModel === 'Claude Code' && (
+            {aiModel === 'Claude Code (API)' && (
               <div>
                 <label className="block text-sm font-medium mb-1">Anthropic API Key</label>
                 <input 
@@ -244,4 +239,3 @@ export default function ProfilePage() {
     </div>
   )
 }
-

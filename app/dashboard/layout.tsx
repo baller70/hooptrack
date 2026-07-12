@@ -1,5 +1,6 @@
 import { getSession } from '@/lib/session'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import NavTabs from '@/components/nav-tabs'
 import NotificationBell from '@/components/notification-bell'
 import PushBootstrap from '@/components/push-bootstrap'
@@ -37,22 +38,27 @@ export default async function DashboardLayout({
       </div>
       <ViewAsBanner />
       <header className="bg-white border-b-2 border-black px-4 py-3 flex items-center justify-between">
-        <h1 className="font-[family-name:var(--font-russo)] text-xl">HoopTrack</h1>
+        <Link href="/dashboard/capture" className="font-[family-name:var(--font-russo)] text-xl hover:text-hoop-orange transition-colors">
+          HoopTrack
+        </Link>
         <div className="flex items-center gap-2">
           <ViewAsToggle actualRole={realRole} isImpersonating={isImpersonating} />
           <NotificationBell />
-          <span className="text-sm text-muted-foreground">{session.name}</span>
-          <span
+          <Link href="/dashboard/profile" className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground">
+            {session.name}
+          </Link>
+          <Link
+            href="/dashboard/profile"
             className={`text-xs px-2 py-0.5 rounded-full font-bold capitalize border-2 ${
-              isImpersonating
-                ? 'bg-orange-500 text-white border-black'
-                : session.role === 'trainer'
-                ? 'bg-hoop-black text-white border-black'
-                : 'bg-hoop-orange text-white border-black'
-            }`}
+                isImpersonating
+                  ? 'bg-orange-500 text-white border-black'
+                  : session.role === 'trainer'
+                    ? 'bg-hoop-black text-white border-black'
+                    : 'bg-hoop-orange text-white border-black'
+              }`}
           >
             {session.role}{isImpersonating ? ' (preview)' : ''}
-          </span>
+          </Link>
         </div>
       </header>
       <main className="flex-1 pb-20 md:pb-4">{children}</main>

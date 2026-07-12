@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="156" height="140" viewBox="0 0 156 140" role="img" aria-label="Imported clip">
+  <rect width="156" height="140" fill="#161616"/>
+  <rect x="0.5" y="0.5" width="155" height="139" fill="none" stroke="#2a2a2a"/>
+  <circle cx="78" cy="70" r="34" fill="none" stroke="#5b5b5b" stroke-width="3"/>
+  <path d="M78 36v68M44 70h68M52 44c14 12 14 40 0 52M104 44c-14 12-14 40 0 52" fill="none" stroke="#5b5b5b" stroke-width="3"/>
+  <path d="M70 58l22 12-22 12z" fill="#e8e8e8"/>
+</svg>

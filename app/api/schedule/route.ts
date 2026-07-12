@@ -1,45 +1,29 @@
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { z } from 'zod'
-import { createNotification, type NotificationType } from '@/lib/notifications'
-
-function notifyForItem(playerId: number, actorId: number, itemType: string, title: string | null, dateStr: string) {
-  const titleStr = title || itemType
-  const map: Record<string, { type: NotificationType; verb: string; url: string }> = {
-    workout: { type: 'workout_assigned', verb: 'New workout assigned', url: '/dashboard/workouts' },
-    move: { type: 'move_assigned', verb: 'New move to study', url: '/dashboard/moves' },
-    quiz: { type: 'quiz_assigned', verb: 'New quiz to take', url: '/dashboard/classroom' },
-    quote: { type: 'quote_assigned', verb: 'New message for you', url: '/dashboard/calendar' },
-  }
-  const m = map[itemType]
-  if (!m) return
-  createNotification({
-    player_id: playerId,
-    actor_id: actorId,
-    type: m.type,
-    message: `${m.verb}: ${titleStr} (${dateStr})`,
-    link_url: m.url,
-    push_title: 'HoopTrack',
-  }).catch((e) => console.error('notify failed', e))
-}
+import { notifyScheduleAssignment } from '@/lib/schedule-notifications'
 
 const createScheduleSchema = z.object({
   player_id: z.number().int(),
   scheduled_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  item_type: z.enum(['workout', 'move', 'quiz', 'quote']),
+  item_type: z.enum(['workout', 'move', 'quiz', 'quote', 'event', 'film', 'game']),
   item_id: z.number().int().optional(),
   title: z.string().optional(),
   notes: z.string().optional(),
+  start_time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  end_time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   workout_id: z.number().int().optional(), // backward compat
 })
 
 const bulkSchema = z.object({
   player_id: z.number().int(),
   items: z.array(z.object({
-    item_type: z.enum(['workout', 'move', 'quiz', 'quote']),
+    item_type: z.enum(['workout', 'move', 'quiz', 'quote', 'event', 'film', 'game']),
     item_id: z.number().int().optional(),
     title: z.string().optional(),
     notes: z.string().optional(),
+    start_time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+    end_time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   })).min(1),
   dates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).min(1),
 })
@@ -102,7 +86,7 @@ export async function POST(request: Request) {
     if (body.bulk) {
       const data = bulkSchema.parse(body)
       const insert = db.prepare(
-        'INSERT INTO schedule (player_id, workout_id, scheduled_date, item_type, item_id, title, notes) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        'INSERT INTO schedule (player_id, workout_id, scheduled_date, item_type, item_id, title, notes, start_time, end_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
       )
       let count = 0
       for (const date of data.dates) {
@@ -113,10 +97,17 @@ export async function POST(request: Request) {
             const exists = db.prepare('SELECT id FROM workouts WHERE id = ?').get(item.item_id)
             if (exists) workoutId = item.item_id
           }
-          insert.run(data.player_id, workoutId, date, item.item_type, item.item_id || null, item.title || null, item.notes || null)
+          insert.run(data.player_id, workoutId, date, item.item_type, item.item_id || null, item.title || null, item.notes || null, item.start_time || null, item.end_time || null)
           count++
           if (data.player_id !== session.id) {
-            notifyForItem(data.player_id, session.id, item.item_type, item.title || null, date)
+            notifyScheduleAssignment({
+              playerId: data.player_id,
+              actorId: session.id,
+              itemType: item.item_type,
+              title: item.title || null,
+              date,
+              startTime: item.start_time || null,
+            }).catch((e) => console.error('notify failed', e))
           }
         }
       }
@@ -132,11 +123,18 @@ export async function POST(request: Request) {
       if (exists) workoutId = candidateWkId
     }
     const result = db.prepare(
-      'INSERT INTO schedule (player_id, workout_id, scheduled_date, item_type, item_id, title, notes) VALUES (?, ?, ?, ?, ?, ?, ?)'
-    ).run(data.player_id, workoutId, data.scheduled_date, data.item_type, data.item_id || null, data.title || null, data.notes || null)
+      'INSERT INTO schedule (player_id, workout_id, scheduled_date, item_type, item_id, title, notes, start_time, end_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(data.player_id, workoutId, data.scheduled_date, data.item_type, data.item_id || null, data.title || null, data.notes || null, data.start_time || null, data.end_time || null)
 
     if (data.player_id !== session.id) {
-      notifyForItem(data.player_id, session.id, data.item_type, data.title || null, data.scheduled_date)
+      notifyScheduleAssignment({
+        playerId: data.player_id,
+        actorId: session.id,
+        itemType: data.item_type,
+        title: data.title || null,
+        date: data.scheduled_date,
+        startTime: data.start_time || null,
+      }).catch((e) => console.error('notify failed', e))
     }
 
     return Response.json({ id: result.lastInsertRowid }, { status: 201 })

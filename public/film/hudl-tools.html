@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Film Tool Audit</title>
+  <style>
+    :root {
+      --bg: #090d12;
+      --panel: #111820;
+      --panel-2: #17212b;
+      --line: #2b3643;
+      --text: #f4f7fb;
+      --muted: #9eabbc;
+      --green: #15ff00;
+      --orange: #ff6300;
+      --blue: #009ce3;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 15px/1.45 Arial, sans-serif;
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 14px 22px;
+      background: rgba(9, 13, 18, 0.94);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(14px);
+    }
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 7px 10px;
+      background: #0e141b;
+    }
+    main {
+      display: grid;
+      gap: 18px;
+      padding: 18px;
+    }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    h2 {
+      margin: 0;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      font-size: 13px;
+      letter-spacing: .12em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    .tools {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+      gap: 10px;
+      padding: 14px;
+    }
+    .tool {
+      display: grid;
+      gap: 10px;
+      align-content: center;
+      min-height: 118px;
+      padding: 12px;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      text-align: center;
+    }
+    .tool svg {
+      width: 42px;
+      height: 42px;
+      margin: auto;
+      fill: #f7f8fb;
+    }
+    .tool b {
+      font-size: 13px;
+    }
+    .tool span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 10px;
+      padding: 14px;
+    }
+    .feature {
+      border-left: 3px solid var(--green);
+      padding: 12px;
+      background: #0d131a;
+      border-radius: 6px;
+    }
+    .feature b {
+      display: block;
+      margin-bottom: 4px;
+    }
+    .feature span {
+      color: var(--muted);
+    }
+    .shots {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 12px;
+      padding: 14px;
+    }
+    .shots img {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #000;
+    }
+    .source {
+      padding: 12px 16px;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Film Tool Audit</h1>
+    <div class="meta">
+      <span class="pill">Hudl 8.10.0</span>
+      <span class="pill">com.hudl.hudroid</span>
+      <span class="pill">APK extracted</span>
+    </div>
+  </header>
+  <main>
+    <section>
+      <h2>Extracted Tool Icons</h2>
+      <div class="tools">
+        <div class="tool"><svg viewBox="0 0 32 32"><path d="M14.59,20.27C14.41,21.34 14.69,22.3 15.13,22.55C15.58,22.81 16.42,22.38 17.52,20.83C18.41,19.57 18.86,18.24 18.97,17.04C16.45,16.89 14.94,18.17 14.59,20.27ZM18.97,17.04C19.01,16.57 19,16.12 18.94,15.69C18.7,13.91 17.65,12.62 16.23,12.59C15.01,12.56 14.16,13.5 13.06,15.74C13,15.88 12.5,16.92 12.36,17.21C11.37,19.2 10.51,20.04 9.13,19.55C8.23,19.23 7.93,18.39 8.01,17.19C8.06,16.44 8.19,15.84 8.62,14.06C8.66,13.88 8.69,13.75 8.72,13.62C9.39,10.79 9.36,9.58 8.54,9.34C8.18,9.23 7.97,8.85 8.08,8.49C8.19,8.13 8.57,7.92 8.94,8.03C10.86,8.6 10.91,10.31 10.06,13.94C10.02,14.07 9.99,14.2 9.95,14.39C9.28,17.15 9.22,18.13 9.59,18.26C10.01,18.41 10.43,18 11.13,16.6C11.27,16.32 11.76,15.29 11.83,15.14C13.15,12.44 14.3,11.17 16.26,11.22C18.54,11.27 20.1,13.27 20.32,15.86C20.36,16.3 20.36,16.76 20.32,17.22C20.18,18.67 19.65,20.19 18.64,21.62C17.19,23.67 15.69,24.45 14.45,23.74C13.41,23.15 12.97,21.62 13.24,20.04C13.7,17.25 15.77,15.55 18.94,15.69C19.38,15.71 19.84,15.76 20.32,15.86C21.33,16.05 22.43,16.41 23.6,16.96C23.95,17.12 24.1,17.53 23.94,17.87C23.78,18.22 23.37,18.36 23.02,18.2C22.04,17.75 21.14,17.43 20.31,17.24C19.84,17.13 19.39,17.07 18.97,17.04Z"/></svg><b>Freehand</b><span>drawing_freehand.xml</span></div>
+        <div class="tool"><svg viewBox="0 0 32 32"><path d="M10.28,23.78C9.99,24.07 9.51,24.07 9.22,23.78C8.92,23.48 8.93,23 9.22,22.71L21.42,10.51L16.73,10.51C16.31,10.51 15.97,10.17 15.97,9.75C15.97,9.34 16.32,9 16.71,9L23.26,9C23.67,9 24,9.35 24,9.74L24,16.29C24,16.7 23.67,17.03 23.25,17.03C22.83,17.03 22.5,16.69 22.5,16.28L22.5,11.56L10.28,23.78Z"/></svg><b>Arrow</b><span>drawing_arrow.xml</span></div>
+        <div class="tool"><svg viewBox="0 0 32 32"><path d="M22.5,16C22.5,12.41 19.59,9.5 16,9.5C12.41,9.5 9.5,12.41 9.5,16C9.5,19.59 12.41,22.5 16,22.5C19.59,22.5 22.5,19.59 22.5,16ZM8,16C8,11.58 11.58,8 16,8C20.42,8 24,11.58 24,16C24,20.42 20.42,24 16,24C11.58,24 8,20.42 8,16Z"/></svg><b>Circle</b><span>drawing_circle.xml</span></div>
+        <div class="tool"><svg viewBox="0 0 32 32"><path d="M7.38,8C7.17,8 7,8.18 7,8.4L7,21.6C7,21.82 7.17,22 7.38,22L12,22.01L12,24.6C12,24.76 12.11,24.91 12.25,24.97C12.29,24.99 12.34,25 12.39,25C12.49,25 12.59,24.96 12.66,24.88L16,22.01L24.63,22C24.83,22 25,21.83 25,21.6L25,8.4C25,8.18 24.83,8 24.63,8L7.38,8Z"/></svg><b>Comment</b><span>drawing_comment.xml</span></div>
+        <div class="tool"><img alt="" src="../.codex-tmp/hudl-real/extracted/res/drawable-xhdpi-v4/videoplayer_angle_selector.png"><b>Angle</b><span>angle selector image</span></div>
+        <div class="tool"><svg viewBox="0 0 32 32"><path d="M16 6a10 10 0 1 0 9.9 11.5h-2.1A8 8 0 1 1 21.7 10L18 10v2h7V5h-2v3.1A10 10 0 0 0 16 6Z"/></svg><b>Replay</b><span>10/30 style controls</span></div>
+        <div class="tool"><svg viewBox="0 0 32 32"><path d="M8 7v18l12-9L8 7Zm13 0v18h3V7h-3Z"/></svg><b>Frame / Play</b><span>single-frame editor controls</span></div>
+        <div class="tool"><svg viewBox="0 0 32 32"><path d="M9 8h4v16H9V8Zm10 0h4v16h-4V8Z"/></svg><b>Pause</b><span>video controller</span></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Video Features Found In APK</h2>
+      <div class="feature-grid">
+        <div class="feature"><b>Drawing layer</b><span>Freehand, arrow, circle, comment, undo, redo, and add-drawing view assets.</span></div>
+        <div class="feature"><b>Multi-angle playback</b><span>Angle selection bottom sheet, selected/unselected angle icons, and multi-angle button views.</span></div>
+        <div class="feature"><b>Clip and playlist workflow</b><span>Playlist player, clip list, clip thumbnails, comments, replies, labels, and shareables.</span></div>
+        <div class="feature"><b>Highlight editor</b><span>Highlight editor activity, local video add flow, frame arrows, and reel editor overlays.</span></div>
+        <div class="feature"><b>Playback controls</b><span>Play, pause, rewind, fast forward, replay 10/30, scrubber/progress bars, fullscreen player.</span></div>
+        <div class="feature"><b>Speed controls</b><span>Media3 speed icons for .5x, 1x, 1.2x, 1.5x, 1.8x, and 2x.</span></div>
+      </div>
+      <div class="source">Source inspected: real Hudl APK package <b>com.hudl.hudroid</b>, version <b>8.10.0</b>.</div>
+    </section>
+
+    <section>
+      <h2>Hudl Screenshots From App Listing</h2>
+      <div class="shots">
+        <img src="../.codex-tmp/hudl-real/screens/hudl-screen-1.png" alt="Hudl screenshot 1">
+        <img src="../.codex-tmp/hudl-real/screens/hudl-screen-2.png" alt="Hudl screenshot 2">
+        <img src="../.codex-tmp/hudl-real/screens/hudl-screen-3.png" alt="Hudl screenshot 3">
+        <img src="../.codex-tmp/hudl-real/screens/hudl-screen-4.png" alt="Hudl screenshot 4">
+        <img src="../.codex-tmp/hudl-real/screens/hudl-screen-5.png" alt="Hudl screenshot 5">
+        <img src="../.codex-tmp/hudl-real/screens/hudl-screen-6.png" alt="Hudl screenshot 6">
+        <img src="../.codex-tmp/hudl-real/screens/hudl-screen-7.png" alt="Hudl screenshot 7">
+        <img src="../.codex-tmp/hudl-real/screens/hudl-screen-8.png" alt="Hudl screenshot 8">
+      </div>
+    </section>
+  </main>
+</body>
+</html>

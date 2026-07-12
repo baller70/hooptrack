@@ -13,7 +13,7 @@ export async function GET() {
   if (realRole !== 'trainer') return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   const players = db.prepare(
-    "SELECT id, name, role FROM users WHERE role = 'player' ORDER BY name"
+    "SELECT id, name, email, role FROM users WHERE role = 'player' ORDER BY name, email"
   ).all()
 
   return Response.json({ players })

@@ -311,7 +311,7 @@ export default function VideoRecorder({
     repsRef.current = 0
     setReps(0)
     const countdownActive = (mode === 'timed' || mode === 'interval')
-    let countdownEndsAt = countdownActive ? Date.now() + 3000 : Date.now()
+    const countdownEndsAt = countdownActive ? Date.now() + 3000 : Date.now()
 
     // Set lastFlashTimes to now so first flash isn't immediate
     lastFlashTimes.current.number = Date.now()

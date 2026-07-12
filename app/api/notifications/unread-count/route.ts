@@ -8,8 +8,8 @@ export async function GET() {
   if (!session) return Response.json({ count: 0 })
 
   const row = db.prepare(
-    'SELECT COUNT(*) as c FROM notifications WHERE player_id = ? AND read_at IS NULL'
-  ).get(session.id) as { c: number }
+    'SELECT COUNT(*) as c FROM notifications WHERE player_id = ? AND read_at IS NULL AND scheduled_for <= ?'
+  ).get(session.id, new Date().toISOString()) as { c: number }
 
   return Response.json({ count: row.c })
 }

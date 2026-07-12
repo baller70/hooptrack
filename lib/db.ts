@@ -77,7 +77,7 @@ function runMigrations(db: Database.Database) {
     // Safely add ai_model column if it doesn't exist (may already be in V1 schema)
     const cols13 = db.prepare("PRAGMA table_info(users)").all() as { name: string }[]
     if (!cols13.some(c => c.name === 'ai_model')) {
-      db.exec(`ALTER TABLE users ADD COLUMN ai_model TEXT DEFAULT 'Claude Code CLI'`)
+      db.exec(`ALTER TABLE users ADD COLUMN ai_model TEXT DEFAULT 'Codex CLI'`)
     }
     db.prepare('INSERT INTO _migrations VALUES (?)').run(13)
   }
@@ -88,6 +88,22 @@ function runMigrations(db: Database.Database) {
       db.exec(`ALTER TABLE users ADD COLUMN ai_credentials TEXT`)
     }
     db.prepare('INSERT INTO _migrations VALUES (?)').run(14)
+  }
+  if (current < 15) {
+    safeAddColumn(db, 'schedule', 'start_time', 'TEXT')
+    safeAddColumn(db, 'schedule', 'end_time', 'TEXT')
+    db.prepare('INSERT OR IGNORE INTO _migrations VALUES (?)').run(15)
+  }
+}
+
+function safeAddColumn(db: Database.Database, table: string, column: string, definition: string) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]
+  if (cols.some(c => c.name === column)) return
+  try {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : ''
+    if (!message.includes('duplicate column name')) throw err
   }
 }
 
@@ -238,7 +254,7 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL CHECK(role IN ('trainer','player')),
-  ai_model TEXT DEFAULT 'Claude Code CLI',
+  ai_model TEXT DEFAULT 'Codex CLI',
   ai_credentials TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

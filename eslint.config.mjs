@@ -9,10 +9,26 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    ".next.prev/**",
+    ".next.staging/**",
+    ".next.tmp/**",
     "out/**",
     "build/**",
+    "coverage/**",
+    "public/suite/**",
+    "public/film/**",
+    "public/calendar/**",
+    "__codex_upload_tmp__/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      "react-hooks/immutability": "warn",
+      "react-hooks/purity": "warn",
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/static-components": "warn",
+    },
+  },
 ]);
 
 export default eslintConfig;

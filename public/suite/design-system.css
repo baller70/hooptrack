@@ -1,0 +1,73 @@
+/* ============================================================================
+   CoachAI Suite — Design System
+   Single source of visual truth linked by every suite surface (static apps +
+   the Next shell reference the same tokens). Re-skins via CSS variables only —
+   never moves or removes an element, never changes behavior.
+   ========================================================================== */
+
+/* --- 1. Wilson X type system --------------------------------------------------
+   Alias EVERY font name used across the apps to the real Wilson X files, so
+   "Wilson X Connect", "WilsonTungsten", "WilsonBoxed", etc. all resolve to one
+   face. Tungsten = display/body, Boxed = micro-labels. ------------------------ */
+@font-face { font-family: "WilsonX Tungsten"; src: url("/wilson-x-fonts/tungsten_medium.otf")   format("opentype"); font-weight: 400 500; font-display: swap; }
+@font-face { font-family: "WilsonX Tungsten"; src: url("/wilson-x-fonts/tungsten_semibold.otf") format("opentype"); font-weight: 600;     font-display: swap; }
+@font-face { font-family: "WilsonX Tungsten"; src: url("/wilson-x-fonts/tungsten_bold.otf")     format("opentype"); font-weight: 700 900; font-display: swap; }
+@font-face { font-family: "WilsonX Boxed";    src: url("/wilson-x-fonts/boxedregular.otf")      format("opentype"); font-weight: 400 500; font-display: swap; }
+@font-face { font-family: "WilsonX Boxed";    src: url("/wilson-x-fonts/boxedregular_bold.otf") format("opentype"); font-weight: 600 900; font-display: swap; }
+/* name aliases → same faces (so mismatched references still render Wilson X) */
+@font-face { font-family: "Wilson X Connect"; src: url("/wilson-x-fonts/tungsten_medium.otf")   format("opentype"); font-weight: 400 500; font-display: swap; }
+@font-face { font-family: "Wilson X Connect"; src: url("/wilson-x-fonts/tungsten_semibold.otf") format("opentype"); font-weight: 600;     font-display: swap; }
+@font-face { font-family: "Wilson X Connect"; src: url("/wilson-x-fonts/tungsten_bold.otf")     format("opentype"); font-weight: 700 900; font-display: swap; }
+@font-face { font-family: "WilsonTungsten";   src: url("/wilson-x-fonts/tungsten_medium.otf")   format("opentype"); font-weight: 400 600; font-display: swap; }
+@font-face { font-family: "WilsonTungsten";   src: url("/wilson-x-fonts/tungsten_bold.otf")     format("opentype"); font-weight: 700 900; font-display: swap; }
+@font-face { font-family: "WilsonBoxed";      src: url("/wilson-x-fonts/boxedregular.otf")      format("opentype"); font-weight: 400 600; font-display: swap; }
+
+/* --- 2. Canonical tokens (mirror the Next-app / Playbook north star) --------- */
+:root {
+  --suite-primary:      #009485;               /* hsl(174 100% 29%) — the teal */
+  --suite-primary-strong:#0f6b5d;
+  --suite-primary-050:  #e6f4f1;
+  --suite-primary-100:  #cfeae5;
+  --suite-ink:          #131a26;               /* foreground 222 33% 11% */
+  --suite-ink-2:        #384252;
+  --suite-muted:        #6b7686;               /* muted-foreground */
+  --suite-paper:        #ffffff;
+  --suite-page:         #f6f7f9;
+  --suite-line:         #e5e9f0;               /* border 214 32% 91% */
+  --suite-radius:       0.8rem;                /* radius */
+  --suite-radius-sm:    0.5rem;
+  --suite-shadow:       0 1px 2px rgba(16,24,40,.05), 0 10px 28px -14px rgba(16,24,40,.18);
+  --suite-shadow-sm:    0 1px 2px rgba(16,24,40,.06);
+  /* semantic colors — one meaning across every app */
+  --suite-success:#16a34a; --suite-warning:#d97706; --suite-danger:#dc2626; --suite-info:#009485;
+  /* type */
+  --suite-font:       "WilsonX Tungsten","Wilson X Connect","Avenir Next Condensed","Arial Narrow",Arial,sans-serif;
+  --suite-label-font: "WilsonX Boxed","WilsonX Tungsten",Arial,sans-serif;
+}
+
+/* --- 3. Universal base (font, selection, scrollbar, links) ------------------- */
+html { scroll-behavior: smooth; }
+body { font-family: var(--suite-font); color: var(--suite-ink); }
+::selection { background: rgba(0,148,133,.18); color: var(--suite-ink); }
+:focus-visible { outline: 2px solid var(--suite-primary); outline-offset: 2px; }
+* { scrollbar-width: thin; scrollbar-color: #c3cad6 transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: #c3cad6; border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover { background: #a8b1c0; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* --- 4. Shared top bar + one logo (apps that opt in add class="suite-topbar")
+   Film & Calendar intentionally opt OUT — they stay full-canvas. -------------- */
+.suite-topbar {
+  display: flex; align-items: center; gap: 14px;
+  height: 64px; padding: 0 24px;
+  background: var(--suite-paper);
+  border-bottom: 1px solid var(--suite-line);
+  font-family: var(--suite-font);
+}
+.suite-topbar .suite-logo { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; color: var(--suite-ink); text-decoration: none; }
+.suite-topbar .suite-logo-mark { width: 22px; height: 22px; border-radius: 999px; background: var(--suite-primary); flex: none; }
+.suite-topbar .suite-logo-word { font-size: 20px; letter-spacing: .2px; }
+.suite-topbar .suite-title { font-size: 24px; font-weight: 700; color: var(--suite-ink); line-height: 1; }
+.suite-topbar .suite-title small { display:block; font-family: var(--suite-label-font); font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--suite-muted); margin-top: 4px; }
+.suite-topbar .suite-spacer { flex: 1; }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Award, Clock, Flame, Activity, CheckCircle2, AlertCircle, Target, Sparkles, Loader2 } from 'lucide-react'
+import { Award, Clock, Flame, Activity, CheckCircle2, AlertCircle, Target, Sparkles, Loader2, ChevronDown } from 'lucide-react'
 import GradeCard from '@/components/grade-card'
 import { HoursByCategoryChart, WeeklyHoursChart, SubjectRadar } from '@/components/progress-charts'
 
@@ -71,6 +71,106 @@ function gpaLetterColor(letter: string): string {
   return 'text-red-700'
 }
 
+function scorePercent(score: number): number {
+  return Math.max(0, Math.min(100, Math.round(score)))
+}
+
+function hoursPercent(currentHours: number, targetHours: number): number {
+  if (targetHours <= 0) return 0
+  return Math.max(0, Math.min(100, Math.round((currentHours / targetHours) * 100)))
+}
+
+function LevelUpPlanDropdown({
+  plan,
+  open,
+  onToggle,
+}: {
+  plan: ImprovementPlan
+  open: boolean
+  onToggle: () => void
+}) {
+  const currentPercent = scorePercent(plan.currentScore)
+  const targetPercent = hoursPercent(plan.currentHours, plan.plan.targetHours)
+
+  return (
+    <div className="bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_#0A0A0A] overflow-hidden">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="w-full flex items-center justify-between gap-4 p-5 text-left hover:bg-gray-50 transition-colors"
+      >
+        <div className="min-w-0">
+          <p className="font-[family-name:var(--font-russo)] text-base">{plan.subject}</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Tap to see the plan to move from {plan.currentLetter} to {plan.plan.targetLetter}.
+          </p>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <span className={`font-[family-name:var(--font-russo)] text-2xl ${gpaLetterColor(plan.currentLetter)}`}>
+            {plan.currentLetter}
+          </span>
+          <ChevronDown className={`h-5 w-5 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </div>
+      </button>
+
+      {open && (
+        <div className="border-t-2 border-gray-100 p-5 pt-4">
+          <div className="grid lg:grid-cols-[1fr_220px] gap-5">
+            <div>
+              <p className="text-sm leading-relaxed">
+                Right now this area has <strong>{plan.currentHours} hours</strong>. To reach a{' '}
+                <strong>{plan.plan.targetLetter}</strong>, add <strong>{plan.plan.minutesPerDay} minutes per day</strong>{' '}
+                for {plan.plan.weeks} weeks. That adds <strong>{plan.plan.addHours} hours</strong> and gets this area
+                to roughly <strong>{plan.plan.targetHours} total hours</strong>.
+              </p>
+
+              <ul className="text-sm mt-4 space-y-2">
+                <li className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  Add <strong>{plan.plan.minutesPerDay} min/day</strong> for {plan.plan.weeks} weeks
+                </li>
+                <li className="flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                  That is <strong>+{plan.plan.addHours} hours</strong> total
+                </li>
+                <li className="flex items-center gap-2">
+                  <Award className="h-4 w-4 text-muted-foreground" />
+                  Target pace: <strong>{plan.plan.targetHours} hours</strong> overall
+                </li>
+              </ul>
+            </div>
+
+            <div className="rounded-lg border-2 border-gray-100 p-4 bg-gray-50">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Progress graph</p>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex items-center justify-between text-xs font-semibold mb-1">
+                    <span>Grade score</span>
+                    <span>{currentPercent}%</span>
+                  </div>
+                  <div className="h-3 rounded-full bg-white border border-gray-200 overflow-hidden">
+                    <div className="h-full bg-black" style={{ width: `${currentPercent}%` }} />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between text-xs font-semibold mb-1">
+                    <span>Hours to target</span>
+                    <span>{targetPercent}%</span>
+                  </div>
+                  <div className="h-3 rounded-full bg-white border border-gray-200 overflow-hidden">
+                    <div className="h-full bg-red-600" style={{ width: `${targetPercent}%` }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function ProgressPage() {
   const searchParams = useSearchParams()
   const [period, setPeriod] = useState<Period>('month')
@@ -79,6 +179,16 @@ export default function ProgressPage() {
   const [userRole, setUserRole] = useState('')
   const [report, setReport] = useState<Report | null>(null)
   const [loading, setLoading] = useState(false)
+  const [openPlans, setOpenPlans] = useState<Set<string>>(() => new Set())
+
+  const togglePlan = useCallback((subject: string) => {
+    setOpenPlans((current) => {
+      const next = new Set(current)
+      if (next.has(subject)) next.delete(subject)
+      else next.add(subject)
+      return next
+    })
+  }, [])
 
   useEffect(() => {
     fetch('/api/auth/me', { cache: 'no-store' }).then(r => r.json()).then(d => {
@@ -217,7 +327,7 @@ export default function ProgressPage() {
             <div className="bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_#0A0A0A] p-5">
               <h4 className="font-[family-name:var(--font-russo)] text-base mb-3 flex items-center gap-2 text-green-700">
                 <CheckCircle2 className="h-5 w-5" />
-                What You're Crushing
+                What You&apos;re Crushing
               </h4>
               {report.analysis?.strengths?.length ? (
                 <ul className="space-y-2">
@@ -273,31 +383,14 @@ export default function ProgressPage() {
               <h3 className="font-[family-name:var(--font-russo)] text-lg mb-3 flex items-center gap-2">
                 <Target className="h-5 w-5" /> How to Level Up
               </h3>
-              <div className="grid md:grid-cols-2 gap-3">
+              <div className="space-y-3">
                 {report.improvement_plans.map(p => (
-                  <div key={p.subject} className="bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_#0A0A0A] p-5">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold">{p.subject}</h4>
-                      <span className={`font-[family-name:var(--font-russo)] text-2xl ${gpaLetterColor(p.currentLetter)}`}>{p.currentLetter}</span>
-                    </div>
-                    <p className="text-sm">
-                      Right now you've put in <strong>{p.currentHours} hours</strong>. To reach a <strong>{p.plan.targetLetter}</strong>:
-                    </p>
-                    <ul className="text-sm mt-2 space-y-1">
-                      <li className="flex items-center gap-2">
-                        <Clock className="h-3 w-3 text-muted-foreground" />
-                        Add <strong>{p.plan.minutesPerDay} min/day</strong> for {p.plan.weeks} weeks
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <Activity className="h-3 w-3 text-muted-foreground" />
-                        That's <strong>+{p.plan.addHours} hours</strong> total
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <Award className="h-3 w-3 text-muted-foreground" />
-                        Reaches roughly <strong>{p.plan.targetHours} hours</strong> overall
-                      </li>
-                    </ul>
-                  </div>
+                  <LevelUpPlanDropdown
+                    key={p.subject}
+                    plan={p}
+                    open={openPlans.has(p.subject)}
+                    onToggle={() => togglePlan(p.subject)}
+                  />
                 ))}
               </div>
             </div>

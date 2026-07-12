@@ -45,14 +45,40 @@ export default function NotificationBell() {
   const [items, setItems] = useState<Notification[]>([])
   const [pushEnabled, setPushEnabled] = useState<'unknown' | 'granted' | 'denied' | 'default'>('unknown')
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const lastCountRef = useRef<number | null>(null)
+
+  const playReminderSound = useCallback(() => {
+    try {
+      const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+      if (!AudioContextCtor) return
+      const ctx = new AudioContextCtor()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.value = 880
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.36)
+    } catch {}
+  }, [])
 
   const fetchCount = useCallback(async () => {
     try {
+      await fetch('/api/notifications/due', { method: 'POST', cache: 'no-store' }).catch(() => null)
       const r = await fetch('/api/notifications/unread-count', { cache: 'no-store' })
       const d = await r.json()
-      setCount(d.count || 0)
+      const nextCount = d.count || 0
+      if (lastCountRef.current !== null && nextCount > lastCountRef.current) {
+        playReminderSound()
+      }
+      lastCountRef.current = nextCount
+      setCount(nextCount)
     } catch {}
-  }, [])
+  }, [playReminderSound])
 
   const fetchItems = useCallback(async () => {
     try {

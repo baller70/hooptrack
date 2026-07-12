@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CoachAI · Calendar</title>
+    <link rel="icon" href="/favicon/favicon.svg" />
+    <link rel="stylesheet" href="/suite/branding.css" />
+    <link rel="stylesheet" href="/calendar/styles.css?v=20260705m" />
+    <link rel="stylesheet" href="/coachai-design-system.css?v=20260705m" />
+    <style id="suite-unify">:root{--accent:var(--suite-primary) !important;--accent-soft:var(--suite-primary-050) !important;--accent-strong:var(--suite-primary-strong) !important;--dot:var(--suite-primary) !important;}</style>
+    <style>
+      .hooptrack-back-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 36px;
+        padding: 0 14px;
+        margin-left: auto;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #ffffff;
+        color: #0f172a;
+        font: 800 14px/1 var(--font-label, Arial, sans-serif);
+        text-decoration: none;
+        text-transform: uppercase;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, .08);
+      }
+
+      .hooptrack-back-link:hover,
+      .hooptrack-back-link:focus-visible {
+        border-color: #009b8f;
+        color: #006b5d;
+        outline: none;
+      }
+
+      @media (max-width: 760px) {
+        .suite-page-header .row {
+          align-items: flex-start;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+
+        .hooptrack-back-link {
+          width: 100%;
+          margin-left: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="structured-app">
+      <header class="suite-page-header">
+        <div class="row">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+          <h1>Calendar</h1>
+          <a class="hooptrack-back-link" href="/dashboard/workouts">Back to HoopTrack</a>
+        </div>
+        <p class="subtitle">Plan practices, games and team events.</p>
+        <div class="divider"></div>
+      </header>
+      <header class="day-header">
+        <div class="title-row">
+          <h1>
+            <button class="month-jump month-back" data-month-nav="-1" aria-label="Previous month">‹</button>
+            <span id="headlineDay">16.</span>
+            <span id="headlineMonth">October</span>
+            <button class="month-jump month-forward" data-month-nav="1" aria-label="Next month"><span id="headlineYear">2025</span> ›</button>
+          </h1>
+          <div class="top-tools">
+            <a class="pill-button suite-btn-secondary" href="/import?target=schedule">Import schedule</a>
+            <a class="pill-button suite-btn-secondary" href="/api/suite/calendar/ics" download="coachai-schedule.ics">Export .ics</a>
+            <button class="round-tool" id="calendarButton" aria-label="Calendar"></button>
+            <button class="round-tool" id="settingsButton" aria-label="Settings"></button>
+          </div>
+        </div>
+        <section class="week-strip" id="weekStrip" aria-label="Week"></section>
+      </header>
+
+      <section class="planner-shell">
+        <div class="sheet-handle"></div>
+        <div class="view-pane is-active" id="timelineView" aria-label="Timeline"></div>
+        <div class="view-pane" id="inboxView" aria-label="Inbox"></div>
+        <div class="view-pane" id="calendarView" aria-label="Calendar"></div>
+        <div class="view-pane" id="focusView" aria-label="Focus"></div>
+        <div class="view-pane" id="packetsView" aria-label="Packets"></div>
+        <div class="view-pane" id="settingsView" aria-label="Settings"></div>
+      </section>
+
+      <nav class="bottom-nav" aria-label="Planner tabs" id="bottomNav"></nav>
+
+      <button class="floating-add" id="newTaskButton" aria-label="Add task"></button>
+    </main>
+
+    <dialog id="taskDialog" class="event-dialog">
+      <form method="dialog" class="task-editor event-editor">
+        <section class="event-hero">
+          <div class="event-toolbar">
+            <button value="cancel" class="event-close close-button" aria-label="Close"></button>
+            <button type="button" class="event-more" data-event-menu aria-label="More actions"></button>
+          </div>
+          <div class="event-menu" id="eventMenu">
+            <button type="button" data-event-duplicate>Duplicate</button>
+            <button type="button" data-event-inbox>Move to Inbox</button>
+            <button type="button" class="danger" id="deleteTaskButton">Delete</button>
+          </div>
+          <div class="event-hero-grid">
+            <label class="event-icon-picker" aria-label="Event type">
+              <select id="taskIconInput">
+                <option value="activity">Practice</option>
+                <option value="calendar">Game</option>
+                <option value="video">Film / Scout</option>
+                <option value="users">Team Function</option>
+                <option value="phone">Staff Call</option>
+                <option value="print">Packet</option>
+                <option value="file">Admin</option>
+              </select>
+              <span id="eventIconPreview"></span>
+            </label>
+            <div class="event-title-block">
+              <p id="eventTimeSummary">3:30-4:00 PM</p>
+              <input id="taskTitleInput" class="event-title-input" type="text" autocomplete="off" placeholder="New coach event" />
+              <div class="event-title-line"></div>
+            </div>
+            <button type="button" class="event-status" data-complete-current aria-label="Mark complete"></button>
+          </div>
+        </section>
+
+        <section class="event-body">
+          <div class="event-info-card">
+            <button type="button" class="event-info-row">
+              <span class="event-row-icon calendar-tone"></span>
+              <span>
+                <strong id="eventDateLabel">Thu, Jul 2, 2026</strong>
+                <small>Today</small>
+              </span>
+              <span class="event-row-arrow"></span>
+            </button>
+            <div class="event-info-row event-time-row">
+              <span class="event-row-icon time-tone"></span>
+              <span>
+                <strong id="eventTimeLabel">3:30-4:00 PM</strong>
+                <small id="eventDurationLabel">30 min</small>
+              </span>
+              <div class="event-time-inputs">
+                <input id="taskTimeInput" class="suite-input" type="time" />
+                <select id="taskDurationInput" class="suite-select">
+                  <option value="15">15 min</option>
+                  <option value="30">30 min</option>
+                  <option value="45">45 min</option>
+                  <option value="60">1 hour</option>
+                  <option value="75">1h 15min</option>
+                  <option value="90">1h 30min</option>
+                  <option value="120">2 hours</option>
+                  <option value="480">All day</option>
+                </select>
+              </div>
+            </div>
+            <div class="event-info-row event-player-row" id="eventPlayerRow" hidden>
+              <span class="event-row-icon player-tone"></span>
+              <span>
+                <strong>Player</strong>
+                <small>Send this item to the player calendar</small>
+              </span>
+              <select id="eventPlayerInput" class="suite-select" aria-label="Player"></select>
+            </div>
+            <button type="button" class="event-info-row">
+              <span class="event-row-icon alert-tone"></span>
+              <span>
+                <strong>3 Alerts</strong>
+                <small>Nudge</small>
+              </span>
+              <span class="event-row-arrow"></span>
+            </button>
+          </div>
+
+          <button type="button" class="event-repeat">
+            <span></span>
+            <strong>Repeat</strong>
+          </button>
+
+          <section class="event-options-card">
+            <button type="button" class="event-option-row">
+              <span class="event-row-icon calendar-tone"></span>
+              <strong>Change Day</strong>
+              <span class="event-row-arrow"></span>
+            </button>
+            <button type="button" class="event-option-row">
+              <span class="event-row-icon map-tone"></span>
+              <strong>Set Timezone</strong>
+              <span class="event-row-arrow"></span>
+            </button>
+            <button type="button" class="event-option-row" data-all-day-toggle>
+              <span class="event-row-icon check-tone"></span>
+              <strong>Change to All-Day</strong>
+              <span class="event-row-arrow"></span>
+            </button>
+            <button type="button" class="event-option-row" data-event-inbox>
+              <span class="event-row-icon inbox-tone"></span>
+              <strong>Add to Inbox</strong>
+              <span class="event-row-arrow"></span>
+            </button>
+            <button type="button" class="event-option-row">
+              <span class="event-row-icon time-tone"></span>
+              <strong>Time Picker</strong>
+              <span class="event-row-arrow"></span>
+            </button>
+          </section>
+
+          <section class="event-time-picker-card">
+            <div class="event-card-head">
+              <h3>Time</h3>
+              <button type="button" class="event-mini-more" aria-label="Time options"></button>
+            </div>
+            <div class="time-choice-row" aria-label="Quick start times">
+              <button type="button" data-time-option="12:45">12:45 PM</button>
+              <button type="button" data-time-option="13:00">1:00 PM</button>
+              <button type="button" class="is-selected" data-time-option="13:15">1:15-1:30 PM</button>
+              <button type="button" data-time-option="13:45">1:45 PM</button>
+              <button type="button" data-time-option="14:00">2:00 PM</button>
+            </div>
+            <div class="event-card-head">
+              <h3>Duration</h3>
+              <button type="button" class="event-mini-more" aria-label="Duration options"></button>
+            </div>
+            <div class="duration-choice-row" aria-label="Quick durations">
+              <button type="button" data-duration-option="1">1</button>
+              <button type="button" class="is-selected" data-duration-option="15">15m</button>
+              <button type="button" data-duration-option="30">30</button>
+              <button type="button" data-duration-option="45">45</button>
+              <button type="button" data-duration-option="60">1h</button>
+              <button type="button" data-duration-option="90">1.5h</button>
+            </div>
+          </section>
+
+          <section class="event-note-card">
+            <label class="subtask-line">
+              <input type="checkbox" id="eventSubtaskInput" />
+              <span>Add Subtask</span>
+            </label>
+            <textarea id="eventNotesInput" class="suite-input" rows="4" placeholder="Add notes, meeting links or phone numbers..."></textarea>
+          </section>
+
+          <button type="button" class="primary event-save suite-btn" id="saveTaskButton">Continue</button>
+        </section>
+      </form>
+    </dialog>
+
+    <dialog id="quickActionDialog" class="quick-action-dialog">
+      <form method="dialog" class="quick-action-card">
+        <button value="cancel" class="quick-action-close close-button" aria-label="Close quick action"></button>
+        <div class="quick-action-top">
+          <span id="quickActionIcon" class="quick-action-icon"></span>
+          <div>
+            <p id="quickActionKicker">QUICK ACTION</p>
+            <h2 id="quickActionTitle">Add Practice</h2>
+          </div>
+        </div>
+        <div class="quick-action-fields">
+          <div>
+            <span>Date</span>
+            <strong id="quickActionDate">Today</strong>
+          </div>
+          <div>
+            <span>Time</span>
+            <strong id="quickActionTime">3:30-5:00 PM</strong>
+          </div>
+          <div>
+            <span>Duration</span>
+            <strong id="quickActionDuration">1h 30min</strong>
+          </div>
+          <div>
+            <span>Detail</span>
+            <strong id="quickActionDetail">Practice Builder ready</strong>
+          </div>
+        </div>
+        <button type="button" class="primary quick-action-save suite-btn" id="quickActionSave">Add to schedule</button>
+      </form>
+    </dialog>
+
+    <dialog id="detailDialog">
+      <form method="dialog" class="detail-panel">
+        <header>
+          <p id="detailKicker">DETAIL</p>
+          <button value="cancel" class="close-button detail-close" aria-label="Close detail"></button>
+        </header>
+        <h2 id="detailTitle">Detail</h2>
+        <p id="detailBody">Select an item to inspect it.</p>
+        <button value="cancel" class="primary suite-btn">Done</button>
+      </form>
+    </dialog>
+
+    <dialog id="monthDialog" class="month-dialog">
+      <form method="dialog" class="month-picker">
+        <div class="month-picker-head">
+          <button type="button" class="round-tool ghost" data-year-nav="-1" aria-label="Previous year">‹</button>
+          <div>
+            <p>YEAR CALENDAR</p>
+            <h3 id="monthPickerTitle">2025</h3>
+          </div>
+          <button type="button" class="round-tool ghost" data-year-nav="1" aria-label="Next year">›</button>
+        </div>
+        <div class="month-picker-grid" id="monthPickerGrid"></div>
+        <div class="month-picker-actions">
+          <button type="button" class="pill-button suite-btn-secondary" data-picker-today>Today</button>
+          <button class="pill-button primary suite-btn" value="cancel">Close</button>
+        </div>
+      </form>
+    </dialog>
+
+  <script src="/suite/terminology.js"></script>
+  <script src="/suite/branding-boot.js"></script>
+  <script src="/calendar/calendar-data.js?v=20260711-player-calendar"></script>
+  <script src="/calendar/app.js?v=20260711-player-calendar"></script>
+  </body>
+</html>

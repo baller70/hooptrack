@@ -85,7 +85,7 @@ export default function AIMoveRecommendations({ onAdded }: { onAdded?: () => voi
           className="gap-2 bg-purple-600 hover:bg-purple-700 w-full"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          {loading ? 'Claude is thinking...' : 'Get AI Move Recommendations'}
+          {loading ? 'AI is thinking...' : 'Get AI Move Recommendations'}
         </Button>
       ) : (
         <div className="space-y-3">

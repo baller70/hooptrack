@@ -272,20 +272,23 @@ export default function RecordSetup() {
         onToggle={() => setShowVisualCues(!showVisualCues)}
       >
         <p className="text-xs text-muted-foreground">
-          Drawn into the recorded video so reviews show the same cues.
+          These filters appear on the record window and are saved into the video.
+          Use them to test eyes-up reactions, peripheral vision, and focus while the player performs.
         </p>
         <ToggleRow
           icon={<Hash className="h-3.5 w-3.5" />}
-          label="Number flash"
-          hint="Random 1–9 in a corner — call it out"
+          kicker="Filter option 1"
+          label="Number flash filter"
+          hint="A random number from 1-9 appears in a corner of the recording window. The player calls it out while continuing the drill."
           on={numberFlashOn}
           onChange={setNumberFlashOn}
           extra={numberFlashOn && <SecondsInput value={numberFlashEvery} onChange={setNumberFlashEvery} label="every" />}
         />
         <ToggleRow
           icon={<Type className="h-3.5 w-3.5" />}
-          label="Reaction words"
-          hint="Random commands you react to"
+          kicker="Filter option 2"
+          label="Reaction word filter"
+          hint="A random command appears on the recording window. Use it for live reads like LEFT, RIGHT, SHOOT, PASS, or CROSS."
           on={reactionPromptsOn}
           onChange={setReactionPromptsOn}
           extra={reactionPromptsOn && (
@@ -297,16 +300,18 @@ export default function RecordSetup() {
         />
         <ToggleRow
           icon={<SquareIcon className="h-3.5 w-3.5" />}
-          label="Color flash"
-          hint="Peripheral vision — colored block in a corner"
+          kicker="Filter option 3"
+          label="Color flash filter"
+          hint="A colored block flashes in a corner of the recording window. Use it to train peripheral vision and quick visual recognition."
           on={colorFlashOn}
           onChange={setColorFlashOn}
           extra={colorFlashOn && <SecondsInput value={colorFlashEvery} onChange={setColorFlashEvery} label="every" />}
         />
         <ToggleRow
           icon={<Eye className="h-3.5 w-3.5" />}
-          label="Eyes-up guide"
-          hint="Crosshair near top of frame"
+          kicker="Filter option 4"
+          label="Eyes-up guide filter"
+          hint="A guide mark appears near the top of the recording window so the player has a visual target for keeping their eyes up."
           on={eyeLevelGuide}
           onChange={setEyeLevelGuide}
         />
@@ -403,17 +408,24 @@ function ModeButton({ active, onClick, icon: Icon, label, full = false }: { acti
   )
 }
 
-function ToggleRow({ icon, label, hint, on, onChange, extra }: { icon: React.ReactNode; label: string; hint: string; on: boolean; onChange: (v: boolean) => void; extra?: React.ReactNode }) {
+function ToggleRow({ icon, kicker, label, hint, on, onChange, extra }: { icon: React.ReactNode; kicker?: string; label: string; hint: string; on: boolean; onChange: (v: boolean) => void; extra?: React.ReactNode }) {
   return (
-    <div className="space-y-2">
-      <label className="flex items-start gap-2 cursor-pointer">
-        <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} className="mt-0.5 h-4 w-4" />
+    <div className={`space-y-2 rounded-lg border-2 p-3 ${on ? 'border-black bg-gray-50' : 'border-gray-200 bg-white'}`}>
+      <label className="flex items-start gap-3 cursor-pointer">
+        <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} className="mt-1 h-4 w-4" />
         <div className="flex-1">
-          <p className="text-sm font-semibold flex items-center gap-1.5">{icon}{label}</p>
-          <p className="text-xs text-muted-foreground">{hint}</p>
+          {kicker && (
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-bold mb-1">{kicker}</p>
+          )}
+          <p className="text-sm font-semibold flex items-center gap-1.5">
+            {icon}
+            {label}
+            {on && <span className="text-[10px] bg-black text-white px-1.5 py-0.5 rounded font-bold">ON</span>}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{hint}</p>
         </div>
       </label>
-      {extra && <div className="pl-6">{extra}</div>}
+      {extra && <div className="pl-7">{extra}</div>}
     </div>
   )
 }

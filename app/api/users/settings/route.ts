@@ -3,13 +3,18 @@ import { getSession } from '@/lib/session'
 
 const ALLOWED_MODELS = [
   'Claude Code (API)',
-  'Claude Code CLI',
   'Codex CLI',
   'OpenAI',
   'OpenRouter',
   'MiniMax',
   'Local Model',
 ]
+
+function normalizeAiModel(model: string | null | undefined) {
+  if (!model || model === 'Claude Code CLI') return 'Codex CLI'
+  if (model === 'Claude Code') return 'Claude Code (API)'
+  return model
+}
 
 export async function GET() {
   const session = await getSession()
@@ -26,7 +31,7 @@ export async function GET() {
     // ignore parse errors
   }
 
-  return Response.json({ ai_model: user.ai_model || 'Claude Code CLI', ai_credentials: creds })
+  return Response.json({ ai_model: normalizeAiModel(user.ai_model), ai_credentials: creds })
 }
 
 export async function PUT(request: Request) {
@@ -37,12 +42,13 @@ export async function PUT(request: Request) {
   const body = await request.json().catch(() => ({}))
   const { ai_model, ai_credentials } = body
 
-  if (!ai_model) return Response.json({ error: 'Missing ai_model' }, { status: 400 })
-  if (!ALLOWED_MODELS.includes(ai_model)) return Response.json({ error: 'Invalid ai_model value' }, { status: 400 })
+  const normalizedModel = normalizeAiModel(ai_model)
+  if (!normalizedModel) return Response.json({ error: 'Missing ai_model' }, { status: 400 })
+  if (!ALLOWED_MODELS.includes(normalizedModel)) return Response.json({ error: 'Invalid ai_model value' }, { status: 400 })
 
   const credsStr = ai_credentials ? JSON.stringify(ai_credentials) : null
 
-  db.prepare('UPDATE users SET ai_model = ?, ai_credentials = ? WHERE id = ?').run(ai_model, credsStr, session.id)
+  db.prepare('UPDATE users SET ai_model = ?, ai_credentials = ? WHERE id = ?').run(normalizedModel, credsStr, session.id)
 
-  return Response.json({ success: true, ai_model, ai_credentials })
+  return Response.json({ success: true, ai_model: normalizedModel, ai_credentials })
 }

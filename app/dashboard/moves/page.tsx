@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { Plus, PlayCircle, Trash2, Upload, Film, Scissors, ChevronDown, ChevronRight, Folder, CircleDot, Crosshair, Footprints, Flame, Zap, Wind, ShieldCheck, BrainCircuit, Dumbbell } from 'lucide-react'
+import { Plus, PlayCircle, Trash2, Upload, Film, Scissors, ChevronDown, ChevronRight, Folder, CircleDot, Crosshair, Footprints, Flame, Zap, Wind, ShieldCheck, BrainCircuit, Dumbbell, Video } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -14,7 +14,13 @@ import AIMoveRecommendations from '@/components/ai-move-recommendations'
 import VideoSpeedControl from '@/components/video-speed-control'
 import EntityChat from '@/components/entity-chat'
 import InlineRename from '@/components/inline-rename'
-import LibraryTabs from '@/components/library-tabs'
+import {
+  EmptyWorkspaceState,
+  StatTile,
+  TrainingWorkspaceShell,
+  WorkspaceActionLink,
+  WorkspacePanel,
+} from '@/components/training-workspace-shell'
 
 function UploadedVideoPlayer({ src, defaultRate }: { src: string; defaultRate: number }) {
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -86,7 +92,10 @@ export default function MovesPage() {
   async function fetchMoves() {
     const res = await fetch('/api/moves')
     const data = await res.json()
-    setMoves(data.moves || [])
+    const list: Move[] = data.moves || []
+    setMoves(list)
+    const categories = Array.from(new Set(list.map((move) => move.category))).slice(0, 3)
+    setOpenCategories((current) => current.size === 0 ? new Set(categories) : current)
   }
 
   function toggleCategory(cat: string) {
@@ -156,56 +165,91 @@ export default function MovesPage() {
   const customCategories = Object.keys(grouped).filter(c => !DRILL_CATEGORIES.includes(c as typeof DRILL_CATEGORIES[number]))
 
   const totalMoves = moves.length
+  const uploadedCount = moves.filter((move) => move.video_type === 'upload').length
+  const clippedCount = moves.filter((move) => move.clip_start != null && move.clip_end != null).length
+  const visibleCategoryCount = categoriesWithMoves.length + customCategories.length
 
   return (
-    <div className="p-4 max-w-4xl mx-auto">
-      <LibraryTabs />
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="font-[family-name:var(--font-russo)] text-2xl">Players Moves</h2>
-          <p className="text-sm text-muted-foreground">{totalMoves} moves across {categoriesWithMoves.length + customCategories.length} categories</p>
-        </div>
-        {userRole === 'trainer' && (
-          <div className="flex items-center gap-2">
-            <Link
-              href="/dashboard/moves/create"
-              className="flex items-center gap-1 bg-hoop-orange text-white px-3 py-2 rounded-lg font-semibold text-sm hover:opacity-90"
-            >
-              <Plus className="h-4 w-4" />
-              YouTube
-            </Link>
-            <Link
-              href="/dashboard/moves/upload"
-              className="flex items-center gap-1 bg-hoop-black text-white px-3 py-2 rounded-lg font-semibold text-sm hover:opacity-90"
-            >
-              <Upload className="h-4 w-4" />
-              Upload
-            </Link>
-          </div>
-        )}
-      </div>
-
-      {/* AI Recommendations — trainer only */}
-      {userRole === 'trainer' && (
-        <div className="mb-6">
-          <AIMoveRecommendations onAdded={fetchMoves} />
-        </div>
+    <TrainingWorkspaceShell
+      active="moves"
+      title="Moves"
+      description="Keep teaching clips organized by skill, then open one clip when it is time to review the exact detail."
+      primary={userRole === 'trainer' && (
+        <>
+          <Link
+            href="/dashboard/moves/create"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border-2 border-black bg-hoop-orange px-4 text-sm font-bold text-white shadow-[2px_2px_0px_0px_#0A0A0A] hover:opacity-90"
+          >
+            <Plus className="h-4 w-4" />
+            YouTube
+          </Link>
+          <Link
+            href="/dashboard/moves/upload"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border-2 border-black bg-hoop-black px-4 text-sm font-bold text-white shadow-[2px_2px_0px_0px_#0A0A0A] hover:opacity-90"
+          >
+            <Upload className="h-4 w-4" />
+            Upload
+          </Link>
+        </>
       )}
-
-      {/* Category Sections */}
-      <div className="space-y-3">
-        {/* Categories with moves */}
-        {[...categoriesWithMoves, ...customCategories].map((category) => {
+      stats={
+        <>
+          <StatTile label="Moves" value={totalMoves} />
+          <StatTile label="Categories" value={visibleCategoryCount} />
+          <StatTile label="Uploaded" value={uploadedCount} />
+          <StatTile label="Clipped" value={clippedCount} />
+        </>
+      }
+      sidebar={
+        <>
+          {userRole === 'trainer' && <AIMoveRecommendations onAdded={fetchMoves} />}
+          <WorkspaceActionLink
+            href="/dashboard/capture"
+            icon={Video}
+            title="Record a new move"
+            body="Capture from the phone first, then save the clip into the right category."
+          />
+          <WorkspaceActionLink
+            href="/film/index.html"
+            icon={Scissors}
+            title="Analyze the detail"
+            body="Use Film & Video when a move needs side-by-side review or markups."
+          />
+        </>
+      }
+    >
+      <WorkspacePanel
+        title="Move library"
+        description="Open a category, review the clip, and keep the teaching notes close to the video."
+      >
+        {totalMoves === 0 ? (
+          <EmptyWorkspaceState
+            icon={Folder}
+            title="No moves yet"
+            body="Upload a player clip or add a YouTube reference so this library becomes useful during review."
+            action={userRole === 'trainer' && (
+              <Link
+                href="/dashboard/moves/upload"
+                className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-hoop-black px-4 text-sm font-bold text-white"
+              >
+                <Upload className="h-4 w-4" />
+                Upload move
+              </Link>
+            )}
+          />
+        ) : (
+          <div className="space-y-3">
+            {[...categoriesWithMoves, ...customCategories].map((category) => {
           const items = grouped[category] || []
           const isOpen = openCategories.has(category)
           const IconComponent = CATEGORY_ICONS[category] || Folder
 
           return (
-            <div key={category} className="bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_#0A0A0A] overflow-hidden">
+            <div key={category} className="overflow-hidden rounded-lg border-2 border-black bg-white">
               {/* Category Header — click to expand */}
               <button
                 onClick={() => toggleCategory(category)}
-                className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                className="flex w-full items-center justify-between p-4 transition-colors hover:bg-orange-50"
               >
                 <div className="flex items-center gap-3">
                   <IconComponent className="h-6 w-6 text-hoop-orange" />
@@ -314,34 +358,28 @@ export default function MovesPage() {
               )}
             </div>
           )
-        })}
+            })}
 
-        {/* Empty categories */}
-        {categoriesEmpty.length > 0 && (
-          <div className="mt-6">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2 font-medium">Empty Categories</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {categoriesEmpty.map((category) => {
-                const Icon = CATEGORY_ICONS[category] || Folder
-                return (
-                  <div key={category} className="bg-white border border-gray-200 rounded-lg p-3 text-center opacity-60">
-                    <Icon className="h-5 w-5 mx-auto text-muted-foreground" />
-                    <p className="text-xs font-medium mt-1">{category}</p>
-                    <p className="text-[10px] text-muted-foreground">0 moves</p>
-                  </div>
-                )
-              })}
-            </div>
+            {categoriesEmpty.length > 0 && (
+              <div>
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">Empty categories</p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {categoriesEmpty.map((category) => {
+                    const Icon = CATEGORY_ICONS[category] || Folder
+                    return (
+                      <div key={category} className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-center opacity-70">
+                        <Icon className="mx-auto h-5 w-5 text-muted-foreground" />
+                        <p className="mt-1 text-xs font-medium">{category}</p>
+                        <p className="text-[10px] text-muted-foreground">0 moves</p>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
-      </div>
-
-      {totalMoves === 0 && (
-        <div className="text-center py-12 text-muted-foreground">
-          <Folder className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>No moves yet. Use AI recommendations or add your own.</p>
-        </div>
-      )}
-    </div>
+      </WorkspacePanel>
+    </TrainingWorkspaceShell>
   )
 }

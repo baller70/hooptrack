@@ -2,6 +2,83 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+@font-face {
+  font-family: "WilsonX Tungsten";
+  src: url("/wilson-x-fonts/tungsten_medium.otf") format("opentype");
+  font-weight: 400 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "WilsonX Tungsten";
+  src: url("/wilson-x-fonts/tungsten_semibold.otf") format("opentype");
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "WilsonX Tungsten";
+  src: url("/wilson-x-fonts/tungsten_bold.otf") format("opentype");
+  font-weight: 700 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "WilsonX Boxed";
+  src: url("/wilson-x-fonts/boxedregular.otf") format("opentype");
+  font-weight: 400 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "WilsonX Boxed";
+  src: url("/wilson-x-fonts/boxedregular_bold.otf") format("opentype");
+  font-weight: 600 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Wilson X Connect";
+  src: url("/wilson-x-fonts/tungsten_medium.otf") format("opentype");
+  font-weight: 400 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Wilson X Connect";
+  src: url("/wilson-x-fonts/tungsten_semibold.otf") format("opentype");
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Wilson X Connect";
+  src: url("/wilson-x-fonts/tungsten_bold.otf") format("opentype");
+  font-weight: 700 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Wilson Connect X";
+  src: url("/wilson-x-fonts/tungsten_medium.otf") format("opentype");
+  font-weight: 400 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Wilson Connect X";
+  src: url("/wilson-x-fonts/tungsten_semibold.otf") format("opentype");
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Wilson Connect X";
+  src: url("/wilson-x-fonts/tungsten_bold.otf") format("opentype");
+  font-weight: 700 900;
+  font-display: swap;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -51,6 +128,9 @@
 }
 
 :root {
+  --font-sans: "Wilson Connect X", "Wilson X Connect", "WilsonX Tungsten", "Avenir Next Condensed", "Arial Narrow", Arial, sans-serif;
+  --font-russo: "Wilson Connect X", "Wilson X Connect", "WilsonX Tungsten", "DIN Condensed", "Avenir Next Condensed", "Arial Narrow", Impact, sans-serif;
+  --font-geist-mono: "WilsonX Boxed", "Wilson Connect X", "Arial Narrow", monospace;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -91,8 +171,15 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-sans);
   }
   html {
     @apply font-sans;
+  }
+  button,
+  input,
+  textarea,
+  select {
+    font-family: inherit;
   }
 }

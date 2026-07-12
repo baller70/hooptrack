@@ -1,30 +1,59 @@
 import { spawn } from 'child_process'
 import { db } from './db'
 
+const DEFAULT_AI_MODEL = 'Codex CLI'
+
+function normalizeAiModel(model: string | null | undefined): string {
+  if (!model || model === 'Claude Code CLI') return DEFAULT_AI_MODEL
+  if (model === 'Claude Code') return 'Claude Code (API)'
+  return model
+}
+
 function getAiConfig() {
   const row = db.prepare("SELECT ai_model, ai_credentials FROM users WHERE role = 'trainer' LIMIT 1").get() as { ai_model: string | null, ai_credentials: string | null } | undefined
   let creds: Record<string, string> = {}
   try {
     if (row?.ai_credentials) creds = JSON.parse(row.ai_credentials)
-  } catch(e) {}
+  } catch {}
   return {
-    model: row?.ai_model || 'Claude Code CLI',
+    model: normalizeAiModel(row?.ai_model),
     creds
   }
 }
 
-async function runCli(cmdPath: string, prompt: string): Promise<string> {
+async function runCli(cmdPath: string, args: string[], prompt: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmdPath, ['--print', prompt])
+    const child = spawn(cmdPath, args)
     let out = ''
     let err = ''
+    let settled = false
+    const timeoutMs = Number(process.env.AI_CLI_TIMEOUT_MS || 12000)
+    const timer = setTimeout(() => {
+      if (settled) return
+      settled = true
+      child.kill('SIGTERM')
+      setTimeout(() => child.kill('SIGKILL'), 1000).unref()
+      reject(new Error(`CLI timed out after ${timeoutMs}ms`))
+    }, timeoutMs)
+    timer.unref()
     child.stdout.on('data', d => out += d.toString())
     child.stderr.on('data', d => err += d.toString())
     child.on('close', code => {
-      if (code !== 0) reject(new Error(`CLI failed: ${err}`))
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      const shortErr = err.trim().split('\n').slice(-8).join('\n')
+      if (code !== 0) reject(new Error(`CLI failed: ${shortErr}`))
       else resolve(out.trim())
     })
-    child.on('error', e => reject(e))
+    child.on('error', e => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      reject(e)
+    })
+    child.stdin.write(prompt)
+    child.stdin.end()
   })
 }
 
@@ -52,13 +81,9 @@ async function executeAiChat(prompt: string): Promise<string> {
   const { model, creds } = getAiConfig()
 
   try {
-    if (model === 'Claude Code CLI') {
-      const p = creds.claude_cli_path || '/usr/local/bin/claude'
-      return await runCli(p, prompt)
-    }
     if (model === 'Codex CLI') {
-      const p = creds.codex_cli_path || '/usr/local/bin/codex'
-      return await runCli(p, prompt)
+      const p = creds.codex_cli_path || process.env.CODEX_CLI_PATH || '/usr/bin/codex'
+      return await runCli(p, ['-a', 'never', 'exec', '--sandbox', 'read-only', '--skip-git-repo-check', '-'], prompt)
     }
     if (model === 'OpenAI') {
       return await openaiCompatibleChat('https://api.openai.com/v1/chat/completions', creds.openai_api_key || '', 'gpt-4o', prompt)
@@ -119,13 +144,13 @@ async function claudeJSON(prompt: string): Promise<any> {
   
   try {
     return JSON.parse(text)
-  } catch (err) {
+  } catch {
     console.error('Failed to parse AI JSON response. Raw text:', text)
     // Strip markdown codeblocks if the AI still included them
     const cleaned = text.replace(/^```json\s*/, '').replace(/```$/, '').trim()
     try {
       return JSON.parse(cleaned)
-    } catch(e2) {
+    } catch {
       throw new Error('AI returned invalid JSON.')
     }
   }

@@ -8,7 +8,7 @@ const TYPES = [
   'workout_assigned', 'move_assigned', 'quiz_assigned', 'quote_assigned',
   'workout_completed', 'pr_set', 'streak_milestone', 'system',
   'recording_created', 'video_uploaded', 'quiz_attempt', 'missed_deadlines',
-  'message_received',
+  'message_received', 'calendar_event',
 ] as const
 
 const createSchema = z.object({
@@ -30,8 +30,8 @@ export async function GET(request: Request) {
     ? session.id
     : parseInt(searchParams.get('playerId') || String(session.id))
 
-  let query = 'SELECT * FROM notifications WHERE player_id = ?'
-  const params: (number | string)[] = [targetPlayerId]
+  let query = 'SELECT * FROM notifications WHERE player_id = ? AND scheduled_for <= ?'
+  const params: (number | string)[] = [targetPlayerId, new Date().toISOString()]
   if (unreadOnly) query += ' AND read_at IS NULL'
   query += ' ORDER BY created_at DESC LIMIT ?'
   params.push(limit)
@@ -54,6 +54,7 @@ export async function POST(request: Request) {
       type: data.type as NotificationType,
       link_url: data.link_url ?? null,
       actor_id: session.id,
+      scheduled_for: data.scheduled_for ?? null,
     })
 
     return Response.json({ id }, { status: 201 })

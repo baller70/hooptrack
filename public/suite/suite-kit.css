@@ -1,0 +1,797 @@
+/* =========================================================================
+   Basketball Coach AI Suite — shared template kit stylesheet
+   -------------------------------------------------------------------------
+   The EXACT Practice Builder design system, factored out so every new tool
+   links one stylesheet and stays 1:1 with the Practice Builder.
+
+   Owns: design tokens, base reset, shared chrome (topbar / buttons /
+   automation bar), .no-print / .print-only, the print foundation
+   (@page letter, grayscale flatten, print-color-adjust) and the shared
+   print booklet structure that SuiteKit.buildPrintBooklet() emits.
+
+   Each individual tool keeps its OWN page styles (e.g. practice-builder.css
+   still owns .practice-header / .drill-row / .planner-table). Pulled
+   verbatim from public/practice-builder/practice-builder.css — do not drift.
+   ========================================================================= */
+
+@font-face {
+  font-family: "WilsonX Tungsten";
+  src: url("/wilson-x-fonts/tungsten_medium.otf") format("opentype");
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "WilsonX Tungsten";
+  src: url("/wilson-x-fonts/tungsten_semibold.otf") format("opentype");
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "WilsonX Tungsten";
+  src: url("/wilson-x-fonts/tungsten_bold.otf") format("opentype");
+  font-weight: 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "WilsonX Boxed";
+  src: url("/wilson-x-fonts/boxedmedium.otf") format("opentype");
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "WilsonX Boxed";
+  src: url("/wilson-x-fonts/boxedsemibold.otf") format("opentype");
+  font-weight: 800;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light;
+  --bg: #f5f7f4;
+  --page: #ffffff;
+  --ink: #16211f;
+  --muted: #66716d;
+  --line: #d7ded8;
+  --soft: #eef3ef;
+  --accent: #0f6b5d;
+  --accent-strong: #0a4f45;
+  --gold: #c47a1c;
+  --danger: #a33a32;
+  --header-bg: #f7f9fc;
+  --header-line: #dbe3ec;
+  --shadow: 0 18px 55px rgba(24, 33, 31, 0.12);
+  --suite-font-family: "WilsonX Tungsten", "Avenir Next Condensed", "Arial Narrow", "HelveticaNeue-CondensedBold", Arial, sans-serif;
+  --suite-display-family: "WilsonX Tungsten", "DIN Condensed", "Avenir Next Condensed", "Arial Narrow", "HelveticaNeue-CondensedBold", Impact, sans-serif;
+  --suite-label-family: "WilsonX Boxed", "Avenir Next Condensed", "Arial Narrow", "HelveticaNeue-CondensedBold", Arial, sans-serif;
+  /* Back-compat alias so tools migrated from the Practice Builder keep working. */
+  --practice-font-family: var(--suite-font-family);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--suite-font-family);
+  font-size: 16px;
+  line-height: normal;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.eyebrow,
+.label,
+.button,
+.mode-button,
+.mini-button,
+.bulk-count-button,
+.pill,
+button,
+select,
+label,
+nav {
+  font-family: var(--suite-display-family) !important;
+  line-height: .95;
+  letter-spacing: 0;
+}
+
+button {
+  cursor: pointer;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  padding: 8px 10px;
+  line-height: 1.25;
+}
+
+textarea {
+  min-height: 46px;
+  resize: vertical;
+  overflow: hidden;
+}
+
+label span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  font-family: var(--suite-label-family);
+  line-height: .98;
+}
+
+/* ---- Layout -------------------------------------------------------------- */
+
+.app-shell {
+  min-height: 100vh;
+}
+
+.builder-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1180px);
+  justify-content: center;
+  gap: 12px;
+  padding: 24px clamp(16px, 3vw, 34px) 40px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- Top bar ------------------------------------------------------------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px clamp(16px, 3vw, 34px);
+  border-bottom: 1px solid rgba(22, 33, 31, 0.08);
+  background: rgba(255, 255, 255, 0.92);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(12px);
+}
+
+.eyebrow {
+  margin: 0 0 2px;
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 800;
+  font-family: var(--suite-display-family);
+}
+
+h1,
+h2 {
+  margin: 0;
+  letter-spacing: 0;
+  font-family: var(--suite-display-family);
+}
+
+h1 {
+  font-size: clamp(1.4rem, 3vw, 2.1rem);
+  line-height: 1.1;
+}
+
+h2 {
+  font-size: 0.95rem;
+}
+
+.topbar-actions,
+.section-actions,
+.diagram-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ---- Buttons ------------------------------------------------------------- */
+
+.button,
+.mini-button {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.button {
+  padding: 11px 14px;
+}
+
+.mini-button {
+  padding: 8px 10px;
+  font-size: 0.78rem;
+}
+
+.button-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.button-primary:hover {
+  background: var(--accent-strong);
+}
+
+.button-secondary {
+  background: #fff;
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.button-quiet,
+.mini-button {
+  background: var(--soft);
+  color: var(--ink);
+  border-color: #dce4de;
+}
+
+.mini-button.danger,
+.button-quiet.danger {
+  color: var(--danger);
+}
+
+/* ---- Automation bar (shared toolbar shell) ------------------------------ */
+
+.automation-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid #dfe5e8;
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px;
+}
+
+.mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  flex: 0 0 auto;
+  border: 1px solid #dce4de;
+  border-radius: 7px;
+  background: #f5f7f4;
+  padding: 3px;
+}
+
+.mode-button {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+  min-width: 68px;
+  padding: 9px 10px;
+  text-transform: uppercase;
+}
+
+.mode-button.is-active {
+  border-color: #dce4de;
+  background: #fff;
+  color: var(--ink);
+}
+
+/* ---- Print visibility helpers ------------------------------------------- */
+
+.print-only {
+  display: none;
+}
+
+/* =========================================================================
+   Responsive chrome collapse (940 / 720 / 430) — matches the Practice
+   Builder breakpoints for the shared shell. Tool-specific responsive rules
+   live in each tool's own stylesheet.
+   ========================================================================= */
+
+@media (max-width: 940px) {
+  .builder-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .topbar {
+    position: static;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .topbar-actions,
+  .topbar-actions .button {
+    width: 100%;
+  }
+
+  .automation-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mode-toggle,
+  .automation-bar > .button {
+    width: 100%;
+  }
+
+  .mode-button {
+    flex: 1 1 0;
+  }
+}
+
+@media (max-width: 430px) {
+  .topbar {
+    padding: 12px;
+  }
+
+  .builder-layout {
+    padding: 12px 8px 28px;
+  }
+}
+
+/* =========================================================================
+   Print foundation + shared booklet (the dual print path).
+   @page letter / 0.45in margin, grayscale token flatten, print-color-adjust,
+   .no-print hidden, booklet-mode swap, and the booklet-* structure emitted
+   by SuiteKit.buildPrintBooklet(). Verbatim from practice-builder.css.
+   ========================================================================= */
+
+@media print {
+  @page {
+    size: letter;
+    margin: 0.45in;
+  }
+
+  :root {
+    --page: #fff;
+    --ink: #111;
+    --muted: #424242;
+    --line: #bfbfbf;
+    --soft: #eeeeee;
+    --accent: #111;
+    --accent-strong: #111;
+    --gold: #555;
+  }
+
+  html,
+  body {
+    background: #fff;
+  }
+
+  body {
+    color: #111;
+    font-size: 10.5pt;
+    line-height: 1.25;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: none !important;
+  }
+
+  body.print-booklet-mode .app-shell {
+    display: none !important;
+  }
+
+  body.print-booklet-mode .booklet-print-area {
+    display: block !important;
+  }
+
+  label span {
+    margin-bottom: 2pt;
+    color: #333;
+    font-size: 6.8pt;
+  }
+
+  input,
+  textarea,
+  select {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+    color: #111;
+  }
+
+  textarea {
+    min-height: 0;
+    resize: none;
+  }
+
+  /* ---- Booklet cover --------------------------------------------------- */
+
+  .booklet-cover {
+    min-height: 9.4in;
+    display: grid;
+    align-content: start;
+    gap: 18pt;
+    padding: 0.12in 0;
+  }
+
+  .booklet-cover > div:first-child span,
+  .booklet-index h2,
+  .booklet-stat-grid span,
+  .booklet-meta dt,
+  .booklet-event-status {
+    color: #5f6d7b;
+    font-size: 7pt;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .booklet-cover h1 {
+    margin: 10pt 0 4pt;
+    color: #0f1728;
+    font-size: 28pt;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .booklet-cover p {
+    margin: 0;
+    font-size: 11pt;
+  }
+
+  .booklet-cover dl {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border: 1pt solid #d9e1e8;
+  }
+
+  .booklet-cover dl div {
+    padding: 10pt;
+    border-right: 1pt solid #d9e1e8;
+  }
+
+  .booklet-cover dl div:last-child {
+    border-right: 0;
+  }
+
+  .booklet-cover dt,
+  .booklet-cover dd {
+    margin: 0;
+  }
+
+  .booklet-cover dt {
+    color: #5f6d7b;
+    font-size: 7pt;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .booklet-cover dd {
+    margin-top: 3pt;
+    color: #0f1728;
+    font-size: 16pt;
+    font-weight: 900;
+  }
+
+  /* ---- Booklet index --------------------------------------------------- */
+
+  .booklet-index {
+    display: grid;
+    gap: 0;
+    border: 1pt solid #d9e1e8;
+  }
+
+  .booklet-index h2 {
+    margin: 0;
+    padding: 7pt 9pt;
+    border-bottom: 1pt solid #d9e1e8;
+    background: #f3f6f8;
+  }
+
+  .booklet-index div {
+    display: grid;
+    grid-template-columns: 0.35in 1.1in 0.9in minmax(0, 1fr);
+    gap: 8pt;
+    align-items: center;
+    padding: 7pt 9pt;
+    border-bottom: 1pt solid #e3e8ed;
+  }
+
+  .booklet-index div:last-child {
+    border-bottom: 0;
+  }
+
+  .booklet-index span {
+    display: inline-grid;
+    place-items: center;
+    height: 18pt;
+    border-left: 3pt solid #555;
+    background: #f8faf9;
+    font-weight: 900;
+  }
+
+  .booklet-index strong,
+  .booklet-index em,
+  .booklet-index small {
+    font-style: normal;
+    overflow-wrap: break-word;
+  }
+
+  /* ---- Booklet practice page ------------------------------------------- */
+
+  .booklet-practice {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .booklet-practice-header {
+    display: grid;
+    grid-template-columns: 0.75in minmax(0, 1fr) 2.15in;
+    gap: 10pt;
+    align-items: center;
+    border: 1pt solid #bfc8d3;
+    border-radius: 10pt;
+    background: #f7f9fc;
+    padding: 9pt;
+    break-inside: avoid;
+  }
+
+  .booklet-logo-wrap {
+    display: grid;
+    place-items: center;
+    width: 0.66in;
+    height: 0.66in;
+    border: 1pt solid #dce5ee;
+    border-radius: 5pt;
+    background: #fff;
+  }
+
+  .booklet-logo-wrap img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  .booklet-title-block span {
+    color: #8d9bb0;
+    font-size: 7pt;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .booklet-title-block h1 {
+    margin: 4pt 0;
+    color: #0f1728;
+    font-size: 18pt;
+    line-height: 1;
+  }
+
+  .booklet-title-block p {
+    margin: 0;
+    font-size: 8pt;
+    font-weight: 700;
+  }
+
+  .booklet-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4pt 8pt;
+    margin: 0;
+  }
+
+  .booklet-meta div {
+    min-width: 0;
+  }
+
+  .booklet-meta dd {
+    margin: 1pt 0 0;
+    font-size: 8pt;
+    font-weight: 900;
+  }
+
+  .booklet-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border: 1pt solid #d9e1e8;
+    border-top: 0;
+  }
+
+  .booklet-stat-grid div {
+    min-width: 0;
+    padding: 6pt 8pt;
+    border-right: 1pt solid #d9e1e8;
+  }
+
+  .booklet-stat-grid div:last-child {
+    border-right: 0;
+  }
+
+  .booklet-stat-grid strong {
+    display: block;
+    margin-top: 2pt;
+    overflow-wrap: break-word;
+    font-size: 8.5pt;
+  }
+
+  .booklet-event-status {
+    margin: 7pt 0;
+  }
+
+  /* ---- Booklet section table ------------------------------------------- */
+
+  .booklet-section {
+    margin-top: 9pt;
+    border: 1pt solid #d9e1e8;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .booklet-section header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 0.82in;
+    align-items: center;
+    background: #f0f5f2;
+    border-bottom: 1pt solid #d9e1e8;
+  }
+
+  .booklet-section h2 {
+    margin: 0;
+    padding: 7pt 8pt;
+    font-size: 11pt;
+    text-transform: uppercase;
+  }
+
+  .booklet-section header strong {
+    padding: 7pt 8pt;
+    border-left: 3pt solid #555;
+    background: #fff;
+    font-size: 11pt;
+    text-align: center;
+  }
+
+  .booklet-table {
+    display: grid;
+  }
+
+  .booklet-row {
+    display: grid;
+    grid-template-columns: 0.85in 2.2in minmax(0, 1fr);
+    border-bottom: 1pt solid #e0e5ea;
+  }
+
+  .booklet-row:last-child {
+    border-bottom: 0;
+  }
+
+  .booklet-row span {
+    min-width: 0;
+    padding: 7pt 6pt;
+    border-right: 1pt solid #e0e5ea;
+    font-size: 8.2pt;
+    overflow-wrap: break-word;
+  }
+
+  .booklet-row span:last-child {
+    border-right: 0;
+  }
+
+  .booklet-head {
+    background: #f7f8fa;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+}
+
+html body h1,
+html body h2,
+html body h3,
+html body h4,
+html body h5,
+html body h6,
+html body button,
+html body select,
+html body label,
+html body nav,
+html body .eyebrow,
+html body .label,
+html body .button,
+html body .mode-button,
+html body .mini-button,
+html body .bulk-count-button,
+html body .pill,
+html body [class*="title"],
+html body [class*="heading"],
+html body [class*="nav"],
+html body [class*="tab"] {
+  font-family: var(--suite-display-family) !important;
+  line-height: .95 !important;
+  letter-spacing: 0 !important;
+  font-weight: 900 !important;
+}
+
+html body small,
+html body .eyebrow,
+html body .label,
+html body [class*="tag"],
+html body [class*="badge"],
+html body [class*="meta"] {
+  font-family: var(--suite-label-family) !important;
+  line-height: .98 !important;
+  letter-spacing: 0 !important;
+  text-transform: uppercase;
+}
+
+html body h1,
+html body [class*="title"] {
+  font-size: clamp(48px, 5.4vw, 88px) !important;
+}
+
+html body h2,
+html body [class*="heading"] {
+  font-size: clamp(34px, 3.4vw, 58px) !important;
+}
+
+html body .text-xs,
+html body [class~="text-xs"] {
+  font-size: 14px !important;
+}
+
+html body .text-sm,
+html body [class~="text-sm"] {
+  font-size: 16px !important;
+}
