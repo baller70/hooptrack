@@ -26,7 +26,9 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ i
     | undefined
   if (!player) notFound()
 
+  // Server component — Date.now() is stable per request, not a render-loop hazard.
   const today = new Date().toISOString().slice(0, 10)
+  // eslint-disable-next-line react-hooks/purity -- server component, one Date.now() per request
   const sevenAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
 
   const totals = db.prepare(`

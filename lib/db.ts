@@ -5,7 +5,7 @@ import fs from 'fs'
 const DB_PATH = path.join(process.cwd(), 'data', 'hooptrack.db')
 
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __db: Database.Database | undefined
 }
 
@@ -106,10 +106,6 @@ function safeAddColumn(db: Database.Database, table: string, column: string, def
     if (!message.includes('duplicate column name')) throw err
   }
 }
-
-// V14 and V13 use a helper function since SQLite has no IF NOT EXISTS for ALTER TABLE
-const SCHEMA_V14 = `-- handled programmatically`
-const SCHEMA_V13 = `-- handled programmatically`
 
 const SCHEMA_V12 = `
 ALTER TABLE messages ADD COLUMN attachment_type TEXT;

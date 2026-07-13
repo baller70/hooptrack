@@ -65,28 +65,6 @@ export default function UploadMovePage() {
     }
   }
 
-  async function uploadVideo() {
-    if (!videoFile) return
-    setUploading(true)
-    try {
-      const formData = new FormData()
-      formData.append('video', videoFile)
-
-      const res = await fetch('/api/moves/upload', {
-        method: 'POST',
-        body: formData,
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      setUploadedPath(data.videoPath)
-      toast.success('Video uploaded!')
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Upload failed')
-    } finally {
-      setUploading(false)
-    }
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.title) {
@@ -96,7 +74,11 @@ export default function UploadMovePage() {
 
     // Upload first if not already uploaded
     let path = uploadedPath
-    if (!path && videoFile) {
+    if (!path) {
+      if (!videoFile) {
+        toast.error('Please select a video file')
+        return
+      }
       setUploading(true)
       try {
         const formData = new FormData()

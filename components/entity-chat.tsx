@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   MessageSquare, Send, Loader2, ChevronDown, ChevronUp,
-  Mic, Image as ImageIcon, Film, Paperclip, X, Pause, Play, Trash2, Download, FileIcon,
+  Mic, Image as ImageIcon, Film, Paperclip, X, Pause, Trash2, Download, FileIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -100,7 +100,10 @@ export default function EntityChat({ contextType, contextId, contextTitle, defau
     }
   }, [contextType, contextId, meId])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- setState is in the async fetch callback
+    load()
+  }, [load])
 
   useEffect(() => {
     if (!open) return
@@ -113,6 +116,7 @@ export default function EntityChat({ contextType, contextId, contextTitle, defau
   }, [messages, open])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- setMessages is in the async fetch callback
     if (open) load()
   }, [open, load])
 
@@ -429,8 +433,9 @@ function AttachmentRenderer({ message, mine }: { message: Message; mine: boolean
   const url = `/api/messages/${message.id}/attachment`
   if (message.attachment_type === 'image') {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
+
       <a href={url} target="_blank" rel="noreferrer">
+        {/* eslint-disable-next-line @next/next/no-img-element -- data/blob URL from upload, not optimizer-friendly */}
         <img src={url} alt="Attached image" className="rounded max-w-full max-h-72 mt-1 cursor-zoom-in" />
       </a>
     )

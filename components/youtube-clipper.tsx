@@ -72,25 +72,7 @@ export default function YouTubeClipper({ url, initialStart, initialEnd, onClipCh
   const [dragging, setDragging] = useState<'start' | 'end' | null>(null)
 
   // Load YouTube IFrame API
-  useEffect(() => {
-    if (!videoId) return
-
-    if (window.YT) {
-      initPlayer()
-      return
-    }
-
-    const tag = document.createElement('script')
-    tag.src = 'https://www.youtube.com/iframe_api'
-    document.head.appendChild(tag)
-    window.onYouTubeIframeAPIReady = () => initPlayer()
-
-    return () => {
-      window.onYouTubeIframeAPIReady = undefined
-    }
-  }, [videoId])
-
-  function initPlayer() {
+  const initPlayer = useCallback(() => {
     if (!videoId || !containerRef.current) return
     // Clear any existing player
     if (playerRef.current) {
@@ -117,7 +99,25 @@ export default function YouTubeClipper({ url, initialStart, initialEnd, onClipCh
         },
       },
     })
-  }
+  }, [videoId, initialStart, initialEnd, onClipChange])
+
+  useEffect(() => {
+    if (!videoId) return
+
+    if (window.YT) {
+      initPlayer()
+      return
+    }
+
+    const tag = document.createElement('script')
+    tag.src = 'https://www.youtube.com/iframe_api'
+    document.head.appendChild(tag)
+    window.onYouTubeIframeAPIReady = () => initPlayer()
+
+    return () => {
+      window.onYouTubeIframeAPIReady = undefined
+    }
+  }, [videoId, initPlayer])
 
   // Time tracking interval
   useEffect(() => {

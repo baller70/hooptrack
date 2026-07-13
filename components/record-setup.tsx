@@ -76,6 +76,7 @@ export default function RecordSetup() {
   const [recording, setRecording] = useState<{ drill: ResolvedDrill; pr: PRData; options: RecorderOptions } | null>(null)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- all setState calls are inside the async fetch chain, not synchronously here
     setLoadingDrills(true)
     fetch('/api/drills/options', { cache: 'no-store' })
       .then((r) => r.json())

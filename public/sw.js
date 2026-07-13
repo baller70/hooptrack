@@ -1,6 +1,6 @@
 // Service worker for HoopTrack — push notifications + click navigation
 
-self.addEventListener('install', (event) => {
+self.addEventListener('install', () => {
   self.skipWaiting()
 })
 
