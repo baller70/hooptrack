@@ -28,7 +28,10 @@ export default function ViewAsBanner() {
     } catch {}
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- setMe is in the async fetch callback
+    load()
+  }, [])
 
   if (!me?.actual_id) return null
 

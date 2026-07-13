@@ -43,7 +43,14 @@ export default function NotificationBell() {
   const [open, setOpen] = useState(false)
   const [count, setCount] = useState(0)
   const [items, setItems] = useState<Notification[]>([])
-  const [pushEnabled, setPushEnabled] = useState<'unknown' | 'granted' | 'denied' | 'default'>('unknown')
+  const [pushEnabled, setPushEnabled] = useState<'unknown' | 'granted' | 'denied' | 'default'>(
+    () => {
+      // Read permission lazily on mount — this is a one-time read of an
+      // external browser API, not a re-render trigger.
+      if (typeof window === 'undefined' || !('Notification' in window)) return 'unknown'
+      return Notification.permission as 'granted' | 'denied' | 'default'
+    }
+  )
   const dropdownRef = useRef<HTMLDivElement>(null)
   const lastCountRef = useRef<number | null>(null)
 
@@ -89,16 +96,18 @@ export default function NotificationBell() {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- setCount is called from the async fetch callback, not synchronously here
     fetchCount()
     const t = setInterval(fetchCount, 30_000)
     return () => clearInterval(t)
   }, [fetchCount])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- setItems is called from the async fetch callback
     if (open) fetchItems()
   }, [open, fetchItems])
 
-  // Click-outside
+  // Click-outside — setState lives in the mousedown handler, not the effect body.
   useEffect(() => {
     if (!open) return
     function handler(e: MouseEvent) {
@@ -108,10 +117,16 @@ export default function NotificationBell() {
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
-  // Push permission state
+  // Push permission state — re-sync after focus so we pick up prompt answers.
+  // Initial value is set via lazy useState init above; this effect covers
+  // the case where the user grants/denies permission in another tab.
   useEffect(() => {
-    if (typeof window === 'undefined' || !('Notification' in window)) return
-    setPushEnabled(Notification.permission as 'granted' | 'denied' | 'default')
+    function sync() {
+      if (typeof window === 'undefined' || !('Notification' in window)) return
+      setPushEnabled(Notification.permission as 'granted' | 'denied' | 'default')
+    }
+    window.addEventListener('focus', sync)
+    return () => window.removeEventListener('focus', sync)
   }, [])
 
   async function markRead(n: Notification) {

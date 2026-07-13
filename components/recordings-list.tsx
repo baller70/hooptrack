@@ -42,7 +42,7 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
-export default function RecordingsList({ drillId, drillName: _drillName, defaultOpen = false, embedded = false, highlightId = null, viewerRole = 'player' }: Props) {
+export default function RecordingsList({ drillId, defaultOpen = false, embedded = false, highlightId = null, viewerRole = 'player' }: Props) {
   const [open, setOpen] = useState(defaultOpen)
   const [recordings, setRecordings] = useState<Recording[]>([])
   const [loading, setLoading] = useState(true)
@@ -82,6 +82,7 @@ export default function RecordingsList({ drillId, drillName: _drillName, default
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- setState is in the async fetch chain
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drillId])
@@ -115,7 +116,7 @@ export default function RecordingsList({ drillId, drillName: _drillName, default
     setEditingClipId(null)
   }
 
-  async function onNewClipCreated(_newId: number) {
+  async function onNewClipCreated() {
     setEditingClipId(null)
     await load()
   }

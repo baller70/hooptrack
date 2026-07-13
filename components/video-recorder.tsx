@@ -1,4 +1,7 @@
 'use client'
+/* eslint-disable react-hooks/purity -- Date.now() and Math.random() are used inside requestAnimationFrame
+ * callbacks and event handlers, never in the React render path. They are intentionally impure to
+ * generate time-varying visuals (countdown, flashes, voice cue selection). */
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'

@@ -74,6 +74,7 @@ export default function ComparisonPage() {
     const rec = recordings.find((r) => r.blob_key === leftKey)
     if (rec?.video_path) {
       if (leftUrl?.startsWith('blob:')) URL.revokeObjectURL(leftUrl)
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resolving from recordings list, not a fetch
       setLeftUrl(`/api/recordings/${rec.id}/video`)
       return
     }
@@ -91,6 +92,7 @@ export default function ComparisonPage() {
     const rec = recordings.find((r) => r.blob_key === rightKey)
     if (rec?.video_path) {
       if (rightUrl?.startsWith('blob:')) URL.revokeObjectURL(rightUrl)
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resolving from recordings list, not a fetch
       setRightUrl(`/api/recordings/${rec.id}/video`)
       return
     }

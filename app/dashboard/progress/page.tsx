@@ -209,7 +209,10 @@ export default function ProgressPage() {
       .finally(() => setLoading(false))
   }, [period, selectedPlayerId])
 
-  useEffect(() => { fetchReport() }, [fetchReport])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- setReport/setLoading are in the async fetch chain
+    fetchReport()
+  }, [fetchReport])
 
   return (
     <div className="p-4 max-w-5xl mx-auto">

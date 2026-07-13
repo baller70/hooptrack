@@ -49,7 +49,10 @@ export default function NotificationsPage() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- setItems/setLoading are in the async fetch chain
+    load()
+  }, [])
 
   async function markRead(n: Notification) {
     if (!n.read_at) {
