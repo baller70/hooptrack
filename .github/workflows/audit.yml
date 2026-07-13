@@ -1,0 +1,62 @@
+name: Audit
+
+# Code-quality audit: lint, typecheck, dead-code, dep vulns, license scan.
+# Runs on every push and PR. Does NOT block the deploy workflow — it runs
+# in parallel and posts results to the Actions tab.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        env:
+          NODE_OPTIONS: "--max-old-space-size=4096"
+        run: pnpm install --no-frozen-lockfile --ignore-scripts
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Type-check
+        run: pnpm exec tsc --noEmit
+
+      - name: Build (catch build-time errors)
+        env:
+          CI: "true"
+          NODE_OPTIONS: "--max-old-space-size=4096"
+        run: pnpm run build
+
+      - name: Dead code (knip)
+        run: pnpm run audit:knip || true
+        continue-on-error: true
+
+      - name: Unused dependencies (depcheck)
+        run: pnpm run audit:depcheck || true
+        continue-on-error: true
+
+      - name: Circular dependencies (madge)
+        run: pnpm run audit:madge
+
+      - name: License summary
+        run: pnpm run audit:licenses || true
+        continue-on-error: true
+
+      - name: Dep vulnerability scan (npm audit)
+        run: pnpm run audit:deps
+        continue-on-error: true
