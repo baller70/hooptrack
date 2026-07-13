@@ -30,6 +30,17 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=4096"
         run: pnpm install --no-frozen-lockfile --ignore-scripts
 
+      - name: Rebuild native bindings (better-sqlite3)
+        run: |
+          pnpm rebuild better-sqlite3 || true
+          PBI=$(ls node_modules/.pnpm/prebuild-install@*/node_modules/prebuild-install/bin.js 2>/dev/null | head -1)
+          for BS in $(find node_modules -type d -path '*/better-sqlite3' 2>/dev/null); do
+            [ -f "$BS/package.json" ] || continue
+            [ -f "$BS/build/Release/better_sqlite3.node" ] && continue
+            ( cd "$BS" && { [ -n "$PBI" ] && node "$PBI"; } || npx --yes node-gyp rebuild ) || true
+          done
+          echo 'better_sqlite3.node present:'; find node_modules -name better_sqlite3.node 2>/dev/null | head -1
+
       - name: Lint
         run: pnpm run lint
 
