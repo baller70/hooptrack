@@ -6,27 +6,31 @@ import { chromium } from 'playwright'
   const page = await browser.newPage()
 
   try {
-    console.log('Navigating to login page...')
-    await page.goto('https://hooptrack.194-146-12-139.sslip.io/login')
+    const testEmail = `trainer-${Date.now()}@example.com`
+    console.log('Navigating to register page...')
+    await page.goto('https://hooptrack.194-146-12-139.sslip.io/register')
     
-    console.log('Logging in...')
-    await page.fill('input[type="email"]', 'khouston721@gmail.com')
+    console.log('Registering new trainer account:', testEmail)
+    await page.fill('input[id="name"]', 'Test Trainer')
+    await page.fill('input[type="email"]', testEmail)
     await page.fill('input[type="password"]', 'password123')
-    await page.click('button:has-text("Sign in")')
+    await page.selectOption('select[id="role"]', 'trainer')
+    
+    await page.click('button:has-text("Create Account")')
     
     await page.waitForURL('**/dashboard**')
-    console.log('Login successful! Navigating to Profile...')
+    console.log('Registration successful! Navigating to Profile...')
     
     await page.goto('https://hooptrack.194-146-12-139.sslip.io/dashboard/profile')
     
     console.log('Waiting for App Settings to load...')
     await page.waitForSelector('h3:has-text("App Settings")')
     
-    console.log('Updating AI Engine to "MiniMax"...')
-    await page.selectOption('select', 'MiniMax')
+    console.log('Updating AI Engine to "Codex CLI"...')
+    await page.selectOption('select', 'Codex CLI')
     
-    console.log('Entering dummy API Key...')
-    await page.fill('input[placeholder="Paste MiniMax key here"]', 'test-minimax-key-123')
+    console.log('Entering dummy Codex path...')
+    await page.fill('input[placeholder="/usr/local/bin/codex"]', '/usr/bin/custom-codex')
     
     console.log('Saving settings...')
     await page.click('button:has-text("Save Settings")')
@@ -39,13 +43,13 @@ import { chromium } from 'playwright'
     await page.waitForSelector('h3:has-text("App Settings")')
     
     const selectedModel = await page.$eval('select', el => el.value)
-    if (selectedModel !== 'MiniMax') {
-      throw new Error(`Expected selected model to be MiniMax, but got ${selectedModel}`)
+    if (selectedModel !== 'Codex CLI') {
+      throw new Error(`Expected selected model to be Codex CLI, but got ${selectedModel}`)
     }
     
-    const apiInputValue = await page.$eval('input[placeholder="Paste MiniMax key here"]', el => el.value)
-    if (apiInputValue !== 'test-minimax-key-123') {
-      throw new Error(`Expected input value to be "test-minimax-key-123", but got "${apiInputValue}"`)
+    const apiInputValue = await page.$eval('input[placeholder="/usr/local/bin/codex"]', el => el.value)
+    if (apiInputValue !== '/usr/bin/custom-codex') {
+      throw new Error(`Expected input value to be "/usr/bin/custom-codex", but got "${apiInputValue}"`)
     }
     
     console.log('✅ Playwright test passed successfully! Settings persisted on the live production server.')
