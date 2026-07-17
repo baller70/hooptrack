@@ -45,6 +45,7 @@ export async function POST(request: Request) {
 
     return Response.json({ user: payload })
   } catch (err) {
+    console.error('LOGIN ERROR:', err)
     if (err instanceof z.ZodError) {
       return Response.json({ error: err.issues[0].message }, { status: 400 })
     }

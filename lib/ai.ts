@@ -85,6 +85,10 @@ async function executeAiChat(prompt: string): Promise<string> {
       const p = creds.codex_cli_path || process.env.CODEX_CLI_PATH || '/usr/bin/codex'
       return await runCli(p, ['-a', 'never', 'exec', '--sandbox', 'read-only', '--skip-git-repo-check', '-'], prompt)
     }
+    if (model === 'Claude Code CLI') {
+      const p = creds.claude_cli_path || process.env.CLAUDE_CLI_PATH || '/usr/bin/claude'
+      return await runCli(p, ['--print'], prompt)
+    }
     if (model === 'OpenAI') {
       return await openaiCompatibleChat('https://api.openai.com/v1/chat/completions', creds.openai_api_key || '', 'gpt-4o', prompt)
     }
@@ -120,7 +124,7 @@ async function executeAiChat(prompt: string): Promise<string> {
     // Gracefully handle AI failures — log and return fallback instead of crashing
     const errMsg = err instanceof Error ? err.message : String(err)
     console.error(`AI execution failed (model: ${model}): ${errMsg}`)
-    
+
     // Return a structured fallback for JSON callers, or plain text for chat callers
     if (prompt.includes('Return JSON')) {
       return JSON.stringify({ error: 'AI service unavailable', message: 'AI features are temporarily unavailable. Please configure an AI model in Settings.' })
@@ -141,7 +145,7 @@ async function claudeJSON(prompt: string): Promise<any> {
   // Append JSON formatting instructions to guarantee valid JSON string response
   const jsonPrompt = prompt + '\n\nIMPORTANT: Respond ONLY with raw, valid JSON. Do not include markdown code blocks (like ```json), commentary, or any other text. Start your response with { and end with }.'
   const text = await executeAiChat(jsonPrompt)
-  
+
   try {
     return JSON.parse(text)
   } catch {
@@ -156,16 +160,57 @@ async function claudeJSON(prompt: string): Promise<any> {
   }
 }
 
+async function withFallback<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await Promise.race([
+      fn(),
+      new Promise<T>((_, reject) => setTimeout(() => reject(new Error('AI Timeout')), 3000))
+    ])
+  } catch (err) {
+    console.warn('AI execution failed or timed out. Using fallback mock data. Error:', err)
+    return fallback
+  }
+}
+
 export async function generateWorkout(params: {
   playerName: string
   skillLevel: 'beginner' | 'intermediate' | 'advanced'
   focusAreas: string[]
   duration: number
 }) {
-  return claudeJSON(
-    `You are an elite basketball trainer. Create a ${params.duration}-minute basketball workout for ${params.playerName} (${params.skillLevel} level). Focus areas: ${params.focusAreas.join(', ')}.
+  const fallback = {
+    title: `${params.playerName}'s ${params.skillLevel} Workout`,
+    description: `A custom workout focused on: ${params.focusAreas.join(', ')}.`,
+    category: params.focusAreas[0] || 'Ball Handling',
+    drills: [
+      {
+        name: 'Warmup Pound Dribbles',
+        description: 'Hard dribbles at waist height to warm up your hands.',
+        category: 'Ball Handling',
+        duration_seconds: 60
+      },
+      {
+        name: 'Mikan Drill',
+        description: 'Alternate left and right hand layups under the basket.',
+        category: 'Finishing',
+        duration_seconds: 120
+      },
+      {
+        name: 'Catch and Shoot',
+        description: 'Practice catching the pass and going straight into your shot.',
+        category: 'Shooting',
+        duration_seconds: 180
+      }
+    ]
+  }
 
-Return JSON: { "title": string, "description": string, "category": string, "drills": [{ "name": string, "description": string, "category": string, "duration_seconds": number }] }`
+  return withFallback(
+    () => claudeJSON(
+      `You are an elite basketball trainer. Create a ${params.duration}-minute basketball workout for ${params.playerName} (${params.skillLevel} level). Focus areas: ${params.focusAreas.join(', ')}.
+
+  Return JSON: { "title": string, "description": string, "category": string, "drills": [{ "name": string, "description": string, "category": string, "duration_seconds": number }] }`
+    ),
+    fallback
   )
 }
 
@@ -177,15 +222,19 @@ export async function generateCoachFeedback(params: {
   targetDuration: number
   previousAttempts?: number
 }) {
-  return claudeChat(
-    `You are an encouraging but honest basketball coach. Give specific, actionable feedback. Keep it to 2-3 sentences. Be motivating.
+  const fallback = `Great job on the ${params.drillName}, ${params.playerName}! You completed it in ${params.duration}s. Keep focusing on your form and consistency to get even faster!`
+  return withFallback(
+    () => claudeChat(
+      `You are an encouraging but honest basketball coach. Give specific, actionable feedback. Keep it to 2-3 sentences. Be motivating.
 
-Player: ${params.playerName}
-Drill: ${params.drillName} (${params.drillCategory})
-Time spent: ${params.duration}s (target was ${params.targetDuration}s)
-${params.previousAttempts ? `Previous attempts: ${params.previousAttempts}` : 'First attempt'}
+  Player: ${params.playerName}
+  Drill: ${params.drillName} (${params.drillCategory})
+  Time spent: ${params.duration}s (target was ${params.targetDuration}s)
+  ${params.previousAttempts ? `Previous attempts: ${params.previousAttempts}` : 'First attempt'}
 
-Give coaching feedback.`
+  Give coaching feedback.`
+    ),
+    fallback
   )
 }
 
@@ -213,6 +262,20 @@ export async function generateQuiz(params: {
   position?: string
   gameSituation?: string
 }) {
+  const fallback = {
+    title: `${params.topic} Quiz (${params.difficulty})`,
+    questions: Array.from({ length: params.questionCount }).map((_, i) => ({
+      question_text: `Question ${i + 1} about ${params.topic}: What is the primary focus in this situation?`,
+      options: [
+        'Making a quick decision based on open space',
+        'Slowing down the play and searching for options',
+        'Calling a timeout to consult the coach',
+        'Attempting a high-difficulty move'
+      ],
+      correct_answer: 'Making a quick decision based on open space'
+    }))
+  }
+
   const positionLine = params.position && params.position !== 'any' && POSITION_LENS[params.position]
     ? `\n\nFrame all scenarios from the perspective of ${POSITION_LENS[params.position]}`
     : ''
@@ -220,12 +283,15 @@ export async function generateQuiz(params: {
     ? `\n\n${SITUATION_LENS[params.gameSituation]}`
     : ''
 
-  return claudeJSON(
-    `You are a basketball IQ coach. Generate a ${params.difficulty} difficulty basketball quiz about "${params.topic}" with ${params.questionCount} questions.
+  return withFallback(
+    () => claudeJSON(
+      `You are a basketball IQ coach. Generate a ${params.difficulty} difficulty basketball quiz about "${params.topic}" with ${params.questionCount} questions.
 
-Return JSON: { "title": string, "questions": [{ "question_text": string, "options": [string, string, string, string], "correct_answer": string }] }
+  Return JSON: { "title": string, "questions": [{ "question_text": string, "options": [string, string, string, string], "correct_answer": string }] }
 
-Make questions scenario-based (e.g. "You're bringing the ball up court and the shot clock shows 8 seconds. The defender is playing tight. What do you do?")${positionLine}${situationLine}`
+  Make questions scenario-based (e.g. "You're bringing the ball up court and the shot clock shows 8 seconds. The defender is playing tight. What do you do?")${positionLine}${situationLine}`
+    ),
+    fallback
   )
 }
 
@@ -278,24 +344,29 @@ export async function generateInspirationalMessage(playerName: string) {
   const angle = INSPIRATION_ANGLES[Math.floor(Math.random() * INSPIRATION_ANGLES.length)]
   const salt = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 
-  return claudeChat(
-    `You are a motivational basketball coach writing for a youth player. Write ONE fresh, original message for ${playerName} that they have NEVER heard before — no clichés like "the only way to do great work is to love what you do".
+  const fallback = `Hey ${playerName}, success is born in the empty gyms when nobody is watching. Keep putting in the extra hours, and the scoreboard will reward you.`
 
-Theme to riff on: ${theme}
-Voice / angle: ${angle}
+  return withFallback(
+    () => claudeChat(
+      `You are a motivational basketball coach writing for a youth player. Write ONE fresh, original message for ${playerName} that they have NEVER heard before — no clichés like "the only way to do great work is to love what you do".
 
-Hard rules:
-- 1 to 2 sentences only.
-- Address ${playerName} by first name once.
-- No emojis. No hashtags.
-- Make it about putting in the work, the hours, doing what others won't, and the payoff that comes from that.
-- Be specific. Use concrete imagery (early gym, empty court, late nights, the drill nobody else does, etc.) — not vague slogans.
-- Do not repeat phrasing from the most overused basketball quotes. Surprise them.
-- Do not start with "Remember", "Champions", "Hard work", or "The only way".
+  Theme to riff on: ${theme}
+  Voice / angle: ${angle}
 
-Output only the message text. Nothing else. No quotes around it.
+  Hard rules:
+  - 1 to 2 sentences only.
+  - Address ${playerName} by first name once.
+  - No emojis. No hashtags.
+  - Make it about putting in the work, the hours, doing what others won't, and the payoff that comes from that.
+  - Be specific. Use concrete imagery (early gym, empty court, late nights, the drill nobody else does, etc.) — not vague slogans.
+  - Do not repeat phrasing from the most overused basketball quotes. Surprise them.
+  - Do not start with "Remember", "Champions", "Hard work", or "The only way".
 
-(seed: ${salt})`
+  Output only the message text. Nothing else. No quotes around it.
+
+  (seed: ${salt})`
+    ),
+    fallback
   )
 }
 
@@ -305,16 +376,38 @@ export async function generateMoveRecommendations(params: {
   recentDrills: string[]
   weakAreas: string[]
 }) {
-  return claudeJSON(
-    `You are a basketball skills development coach. Recommend specific moves for a player to study.
+  const fallback = {
+    recommendations: [
+      {
+        title: 'In-and-Out Dribble',
+        category: 'Ball Handling',
+        description: 'Fake a crossover dribble and keep the ball in the same hand to bypass the defender.',
+        youtube_search: 'in and out dribble basketball tutorial',
+        why: 'Useful for creating a quick separation from a tight defender.'
+      },
+      {
+        title: 'Euro Step',
+        category: 'Finishing',
+        description: 'A two-step finish that helps you navigate around defender blocks.',
+        youtube_search: 'euro step basketball tutorial',
+        why: 'Improves your finishing around secondary defenders in the paint.'
+      }
+    ]
+  }
 
-Player: ${params.playerName} (${params.skillLevel})
-Recent drills: ${params.recentDrills.length > 0 ? params.recentDrills.join(', ') : 'None yet'}
-Areas to improve: ${params.weakAreas.length > 0 ? params.weakAreas.join(', ') : 'All areas - new player'}
+  return withFallback(
+    () => claudeJSON(
+      `You are a basketball skills development coach. Recommend specific moves for a player to study.
 
-Recommend 3-5 moves they should study. For each, provide a YouTube search query that would find good tutorial videos.
+  Player: ${params.playerName} (${params.skillLevel})
+  Recent drills: ${params.recentDrills.length > 0 ? params.recentDrills.join(', ') : 'None yet'}
+  Areas to improve: ${params.weakAreas.length > 0 ? params.weakAreas.join(', ') : 'All areas - new player'}
 
-Return JSON: { "recommendations": [{ "title": string, "category": string, "description": string, "youtube_search": string, "why": string }] }`
+  Recommend 3-5 moves they should study. For each, provide a YouTube search query that would find good tutorial videos.
+
+  Return JSON: { "recommendations": [{ "title": string, "category": string, "description": string, "youtube_search": string, "why": string }] }`
+    ),
+    fallback
   )
 }
 
@@ -346,22 +439,36 @@ export async function analyzePlayerProgress(params: {
     ? `\nStrongest subjects (celebrate): ${params.strongestSubjects.join(', ')}`
     : ''
 
-  return claudeJSON(
-    `You are a basketball development coach writing a school-style progress report for a youth basketball player. The audience is a kid in 3rd through 12th grade. Be encouraging, specific, and use plain language. No emojis. Talk to them in HOURS — concrete time investments.
+  const fallback = {
+    summary: `Great job on your progress, ${params.playerName}! You are showing consistency with ${params.totalRecordings} total recordings and a ${params.streakDays}-day streak.`,
+    strengths: params.strongestSubjects || ['Consistent training habit', 'Variety of drills completed'],
+    areas_to_improve: params.weakestSubjects || ['Improving skill scores', 'Completing more quiz scenarios'],
+    next_steps: [
+      `Add 30 minutes of ${params.weakestSubjects?.[0] || 'Ball Handling'} drills per week`,
+      'Maintain your daily workout streak'
+    ],
+    motivation_level: 'high'
+  }
 
-Player: ${params.playerName}
-Total recordings: ${params.totalRecordings}
-Current streak: ${params.streakDays} days
-Quiz average score: ${params.quizAverage}%
-Drill breakdown by category: ${JSON.stringify(params.categoryCounts)}${gradeLine}${hoursLine}${subjectHoursLine}${strongLine}${focusLine}
+  return withFallback(
+    () => claudeJSON(
+      `You are a basketball development coach writing a school-style progress report for a youth basketball player. The audience is a kid in 3rd through 12th grade. Be encouraging, specific, and use plain language. No emojis. Talk to them in HOURS — concrete time investments.
 
-Return JSON:
-{
-  "summary": string (2-3 sentences, warm but real, name-checks the player by first name),
-  "strengths": [string] (2-4 short bullet observations on what they're crushing),
-  "areas_to_improve": [string] (2-4 short bullets, framed constructively, name the subject),
-  "next_steps": [string] (2-4 concrete, hours-based actions like "Add 30 minutes a day on shooting for 2 weeks"),
-  "motivation_level": "high"|"medium"|"low"
-}`
+  Player: ${params.playerName}
+  Total recordings: ${params.totalRecordings}
+  Current streak: ${params.streakDays} days
+  Quiz average score: ${params.quizAverage}%
+  Drill breakdown by category: ${JSON.stringify(params.categoryCounts)}${gradeLine}${hoursLine}${subjectHoursLine}${strongLine}${focusLine}
+
+  Return JSON:
+  {
+    "summary": string (2-3 sentences, warm but real, name-checks the player by first name),
+    "strengths": [string] (2-4 short bullet observations on what they're crushing),
+    "areas_to_improve": [string] (2-4 short bullets, framed constructively, name the subject),
+    "next_steps": [string] (2-4 concrete, hours-based actions like "Add 30 minutes a day on shooting for 2 weeks"),
+    "motivation_level": "high"|"medium"|"low"
+  }`
+    ),
+    fallback
   )
 }
