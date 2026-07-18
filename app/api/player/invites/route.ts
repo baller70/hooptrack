@@ -38,6 +38,7 @@ export async function GET() {
       g.player_limit,
       g.description,
       m.joined_at,
+      coach.id AS coach_id,
       coach.name AS coach_name,
       COUNT(all_members.id) AS member_count
     FROM coach_group_members m

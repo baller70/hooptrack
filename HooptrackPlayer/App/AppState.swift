@@ -13,6 +13,9 @@ final class AppState: ObservableObject {
     @Published var phase: Phase = .loading
     @Published var selectedTab: PlayerTab = .today
     @Published var dashboard = DashboardSnapshot.empty
+    @Published var coachContacts: [MessageContact] = []
+    @Published var coachMessages: [DirectMessage] = []
+    @Published var selectedCoachId: Int?
     @Published var banner: AppBanner?
     @Published var isScreenshotMode = false
 
@@ -57,6 +60,9 @@ final class AppState: ObservableObject {
         client.clearSession()
         phase = .signedOut
         dashboard = .empty
+        coachContacts = []
+        coachMessages = []
+        selectedCoachId = nil
     }
 
     func refreshDashboard() async {
@@ -68,7 +74,8 @@ final class AppState: ObservableObject {
             async let recordings = client.recordings()
             async let invites = client.invites()
             async let progress = client.progress(period: "month")
-            dashboard = try await DashboardSnapshot(
+            async let contacts = client.contacts()
+            let refreshedDashboard = try await DashboardSnapshot(
                 workouts: workouts,
                 moves: moves,
                 schedule: schedule,
@@ -76,7 +83,15 @@ final class AppState: ObservableObject {
                 invites: invites,
                 progress: progress
             )
+            let connectedCoachIds = Set(refreshedDashboard.memberships.compactMap(\.coachId))
+            let connectedCoaches = try await contacts.filter { connectedCoachIds.contains($0.id) }
+            dashboard = refreshedDashboard
+            coachContacts = connectedCoaches
+            if !connectedCoaches.contains(where: { $0.id == selectedCoachId }) {
+                selectedCoachId = connectedCoaches.first?.id
+            }
             banner = nil
+            await refreshCoachMessages()
         } catch {
             banner = AppBanner(
                 title: String(localized: "offline.title"),
@@ -103,11 +118,50 @@ final class AppState: ObservableObject {
         }
     }
 
+    func selectCoach(_ coach: MessageContact) async {
+        selectedCoachId = coach.id
+        await refreshCoachMessages()
+    }
+
+    @discardableResult
+    func sendCoachMessage(_ body: String) async -> Bool {
+        let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let coachId = selectedCoachId, !trimmed.isEmpty else { return false }
+        do {
+            try await client.sendMessage(to: coachId, body: trimmed)
+            await refreshCoachMessages()
+            return true
+        } catch {
+            banner = AppBanner(title: String(localized: "retry.title"), message: error.localizedDescription)
+            return false
+        }
+    }
+
     func deleteAccount(password: String) async throws {
         try await client.deleteAccount(password: password)
         client.clearSession()
         phase = .signedOut
         dashboard = .empty
+        coachContacts = []
+        coachMessages = []
+        selectedCoachId = nil
+    }
+
+    var currentUserId: Int? {
+        guard case let .signedIn(user) = phase else { return nil }
+        return user.id
+    }
+
+    private func refreshCoachMessages() async {
+        guard !isScreenshotMode, let coachId = selectedCoachId else {
+            if selectedCoachId == nil { coachMessages = [] }
+            return
+        }
+        do {
+            coachMessages = try await client.messages(with: coachId)
+        } catch {
+            banner = AppBanner(title: String(localized: "retry.title"), message: error.localizedDescription)
+        }
     }
 
     private func authenticate(_ operation: () async throws -> User) async {
@@ -134,6 +188,9 @@ final class AppState: ObservableObject {
         let user = User(id: 7, email: "maya.player@example.com", role: .player, name: "Maya Johnson")
         phase = .signedIn(user)
         dashboard = DemoFixtures.snapshot
+        coachContacts = DemoFixtures.coachContacts
+        coachMessages = DemoFixtures.coachMessages
+        selectedCoachId = DemoFixtures.coachContacts.first?.id
         selectedTab = scene.tab
     }
     #endif
@@ -153,4 +210,3 @@ struct AppBanner: Identifiable, Equatable {
     let title: String
     let message: String
 }
-

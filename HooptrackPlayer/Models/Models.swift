@@ -96,12 +96,14 @@ struct ScheduleItem: Codable, Identifiable, Equatable {
 struct TeamInvite: Codable, Identifiable, Equatable {
     let id: Int
     let groupName: String?
+    let coachId: Int?
     let coachName: String?
     let status: String?
 
     enum CodingKeys: String, CodingKey {
         case id, status
         case groupName = "group_name"
+        case coachId = "coach_id"
         case coachName = "coach_name"
     }
 }
@@ -109,11 +111,13 @@ struct TeamInvite: Codable, Identifiable, Equatable {
 struct TeamMembership: Codable, Identifiable, Equatable {
     let id: Int
     let groupName: String?
+    let coachId: Int?
     let coachName: String?
 
     enum CodingKeys: String, CodingKey {
         case id
         case groupName = "group_name"
+        case coachId = "coach_id"
         case coachName = "coach_name"
     }
 }
@@ -149,4 +153,3 @@ enum InviteAction: String, Codable {
     case accept
     case decline
 }
-

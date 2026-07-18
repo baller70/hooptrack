@@ -33,6 +33,15 @@ final class HooptrackPlayerUITests: XCTestCase {
         XCTAssertTrue(moveApp.staticTexts["Hang Dribble Freeze"].exists)
     }
 
+    func testTeamScreenshotShowsConnectedCoachConversation() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--factory-screenshot", "team-messages"]
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["team-messages-screen"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Coach Rivera"].exists)
+        XCTAssertTrue(app.staticTexts["Strong work on the left-side finishes today."].exists)
+    }
+
     func testLaunchPerformance() throws {
         measure(metrics: [XCTApplicationLaunchMetric()]) {
             let app = XCUIApplication()
