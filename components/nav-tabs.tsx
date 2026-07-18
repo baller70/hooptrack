@@ -2,38 +2,71 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Film, Library, Video, CalendarDays, Award, Activity } from 'lucide-react'
+import { Film, Library, Video, CalendarDays, Award, Activity, Users, UserRound } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { appPath, type HoopApp } from '@/lib/app-routes'
 
 interface Props {
   role?: 'trainer' | 'player'
 }
 
-const baseTabs = [
-  { href: '/dashboard/capture', label: 'Capture', icon: Video, matchPrefixes: ['/dashboard/capture', '/dashboard/record', '/dashboard/moves/upload'] },
-  { href: '/dashboard/workouts', label: 'Library', icon: Library, matchPrefixes: ['/dashboard/workouts', '/dashboard/moves', '/dashboard/classroom'] },
-  { href: '/film/index.html', label: 'Film & Video', icon: Film, matchPrefixes: ['/dashboard/analyze', '/film'] },
-  { href: '/calendar/index.html', label: 'Calendar', icon: CalendarDays, matchPrefixes: ['/dashboard/calendar', '/calendar'] },
-  { href: '/dashboard/activity', label: 'Activity', icon: Activity },
-  { href: '/dashboard/progress', label: 'Progress', icon: Award },
+type TabSpec = {
+  path: string
+  label: string
+  icon: LucideIcon
+  externalHref?: string
+  matchPaths?: string[]
+}
+
+const playerTabs: TabSpec[] = [
+  { path: '/capture', label: 'Capture', icon: Video, matchPaths: ['/capture', '/record'] },
+  { path: '/workouts', label: 'Workouts', icon: Library, matchPaths: ['/workouts', '/moves', '/classroom'] },
+  { path: '/calendar', label: 'Plan', icon: CalendarDays, externalHref: '/calendar/index.html', matchPaths: ['/calendar'] },
+  { path: '/progress', label: 'Progress', icon: Award },
+  { path: '/me', label: 'Me', icon: UserRound, matchPaths: ['/me', '/profile'] },
 ]
 
-export default function NavTabs({ role: _role }: Props) {
-  void _role
-  const pathname = usePathname()
+const coachTabs: TabSpec[] = [
+  { path: '/players', label: 'Roster', icon: Users },
+  { path: '/activity', label: 'Activity', icon: Activity },
+  { path: '/capture', label: 'Capture', icon: Video, matchPaths: ['/capture', '/record', '/moves/upload'] },
+  { path: '/workouts', label: 'Library', icon: Library, matchPaths: ['/workouts', '/moves', '/classroom'] },
+  { path: '/progress', label: 'Progress', icon: Award },
+  { path: '/analyze', label: 'Film', icon: Film, externalHref: '/film/index.html', matchPaths: ['/analyze', '/film'] },
+]
 
-  const tabs = baseTabs
+function currentApp(pathname: string, role?: 'trainer' | 'player'): HoopApp {
+  if (pathname.startsWith('/coach')) return 'coach'
+  if (pathname.startsWith('/player')) return 'player'
+  return role === 'trainer' ? 'coach' : 'player'
+}
+
+function isActive(pathname: string, app: HoopApp, tab: TabSpec) {
+  if (tab.externalHref && pathname.startsWith(tab.externalHref.replace('/index.html', ''))) return true
+  const paths = tab.matchPaths ?? [tab.path]
+  return paths.some((path) => {
+    const full = appPath(app, path)
+    const legacy = `/dashboard${path}`
+    return pathname === full || pathname.startsWith(`${full}/`) || pathname === legacy || pathname.startsWith(`${legacy}/`)
+  })
+}
+
+export default function NavTabs({ role }: Props) {
+  const pathname = usePathname()
+  const app = currentApp(pathname, role)
+  const tabs = app === 'coach' ? coachTabs : playerTabs
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-black z-50 md:static md:border-t-0 md:border-b-2">
       <div className="flex justify-around items-center h-16 max-w-5xl mx-auto overflow-x-auto">
         {tabs.map((tab) => {
-          const prefixes = (tab as { matchPrefixes?: string[] }).matchPrefixes ?? [tab.href]
-          const active = prefixes.some((p) => pathname === p || pathname.startsWith(p + '/'))
+          const href = tab.externalHref ?? appPath(app, tab.path)
+          const active = isActive(pathname, app, tab)
           return (
             <Link
-              key={tab.href}
-              href={tab.href}
+              key={href}
+              href={href}
               className={cn(
                 'flex flex-col items-center gap-0.5 px-2 py-1 text-xs transition-colors shrink-0',
                 active ? 'text-hoop-orange' : 'text-muted-foreground hover:text-foreground'

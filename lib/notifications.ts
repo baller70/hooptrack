@@ -83,6 +83,12 @@ interface CreateOpts {
   push_now?: boolean
 }
 
+function fallbackUrlForUser(userId: number, area: 'calendar' | 'notifications') {
+  const row = db.prepare('SELECT role FROM users WHERE id = ?').get(userId) as { role: 'trainer' | 'player' } | undefined
+  const base = row?.role === 'trainer' ? '/coach' : '/player'
+  return `${base}/${area}`
+}
+
 export async function createNotification(opts: CreateOpts): Promise<number> {
   const now = new Date().toISOString()
   const scheduledFor = opts.scheduled_for || now
@@ -106,7 +112,7 @@ export async function createNotification(opts: CreateOpts): Promise<number> {
     sendPushToUser(opts.player_id, {
       title: opts.push_title || 'HoopTrack',
       body: opts.message,
-      url: opts.link_url || '/dashboard/notifications',
+      url: opts.link_url || fallbackUrlForUser(opts.player_id, 'notifications'),
       tag: `notif-${id}`,
     }).catch((e) => console.error('push fanout failed', e))
   }
@@ -130,7 +136,7 @@ export async function sendDuePushNotifications(userId: number): Promise<number> 
     await sendPushToUser(userId, {
       title: 'HoopTrack Reminder',
       body: row.message,
-      url: row.link_url || '/dashboard/calendar',
+      url: row.link_url || fallbackUrlForUser(userId, 'calendar'),
       tag: `notif-${row.id}`,
     })
     db.prepare('UPDATE notifications SET sent = 1 WHERE id = ?').run(row.id)

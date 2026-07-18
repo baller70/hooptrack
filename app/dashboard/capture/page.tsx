@@ -18,6 +18,7 @@ export default async function CapturePage() {
   return (
     <TrainingWorkspaceShell
       active="capture"
+      app={session.role === 'trainer' ? 'coach' : 'player'}
       title="Capture"
       description="Start with clean footage. Record on your phone, upload a move, then send the clip into analysis, workouts, or the calendar."
       primary={

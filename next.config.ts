@@ -14,6 +14,12 @@ const nextConfig: NextConfig = {
     serverSourceMaps: false,
     webpackMemoryOptimizations: true,
   },
+  async rewrites() {
+    return [
+      { source: '/player/:path*', destination: '/dashboard/:path*' },
+      { source: '/coach/:path*', destination: '/dashboard/:path*' },
+    ]
+  },
 }
 
 export default nextConfig

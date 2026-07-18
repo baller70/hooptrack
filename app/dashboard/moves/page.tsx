@@ -172,6 +172,7 @@ export default function MovesPage() {
   return (
     <TrainingWorkspaceShell
       active="moves"
+      app={userRole === 'trainer' ? 'coach' : 'player'}
       title="Moves"
       description="Keep teaching clips organized by skill, then open one clip when it is time to review the exact detail."
       primary={userRole === 'trainer' && (

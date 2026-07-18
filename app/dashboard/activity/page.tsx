@@ -5,7 +5,7 @@ import ActivityFeedClient from '@/components/activity-feed-client'
 export default async function ActivityPage() {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (session.role !== 'trainer') redirect('/dashboard/progress')
+  if (session.role !== 'trainer') redirect('/player/progress')
 
   return (
     <div className="p-4 max-w-4xl mx-auto">

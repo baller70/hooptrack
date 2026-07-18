@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
+import { appHomeForRole } from '@/lib/app-routes'
 
 const registerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -42,7 +43,7 @@ export default function RegisterPage() {
         return
       }
       toast.success('Account created!')
-      router.push('/dashboard/capture')
+      router.push(appHomeForRole(json.user.role))
     } catch {
       toast.error('Something went wrong')
     } finally {

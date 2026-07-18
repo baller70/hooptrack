@@ -76,6 +76,7 @@ export default async function WorkoutsPage() {
   return (
     <TrainingWorkspaceShell
       active="workouts"
+      app={session?.role === 'trainer' ? 'coach' : 'player'}
       title="Workouts"
       description="Organize drills into plans players can follow. Start here when the next training session needs structure."
       primary={session?.role === 'trainer' && (

@@ -60,6 +60,7 @@ export default function ClassroomPage() {
   return (
     <TrainingWorkspaceShell
       active="classroom"
+      app={userRole === 'trainer' ? 'coach' : 'player'}
       title="Classroom"
       description="Check whether players understand the reads, details, and decisions behind the work."
       primary={userRole === 'trainer' && (

@@ -2,10 +2,10 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'HoopTrack',
-    short_name: 'HoopTrack',
-    description: 'Basketball accountability workout tracker',
-    start_url: '/dashboard/calendar',
+    name: 'HoopTrack Player',
+    short_name: 'HT Player',
+    description: 'Player app for connected basketball training',
+    start_url: '/player',
     scope: '/',
     display: 'standalone',
     background_color: '#ffffff',

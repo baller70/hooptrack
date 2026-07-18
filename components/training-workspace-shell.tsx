@@ -2,24 +2,26 @@ import Link from 'next/link'
 import type { LucideIcon } from 'lucide-react'
 import { Camera, Dumbbell, GraduationCap, PlayCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { appPath, type HoopApp } from '@/lib/app-routes'
 
 type WorkspaceKey = 'capture' | 'workouts' | 'moves' | 'classroom'
 
 const workflow: Array<{
   key: WorkspaceKey
-  href: string
+  path: string
   label: string
   helper: string
   icon: LucideIcon
 }> = [
-  { key: 'capture', href: '/dashboard/capture', label: 'Capture', helper: 'Record or upload', icon: Camera },
-  { key: 'workouts', href: '/dashboard/workouts', label: 'Workouts', helper: 'Build the plan', icon: Dumbbell },
-  { key: 'moves', href: '/dashboard/moves', label: 'Moves', helper: 'Teach the details', icon: PlayCircle },
-  { key: 'classroom', href: '/dashboard/classroom', label: 'Classroom', helper: 'Check learning', icon: GraduationCap },
+  { key: 'capture', path: '/capture', label: 'Capture', helper: 'Record or upload', icon: Camera },
+  { key: 'workouts', path: '/workouts', label: 'Workouts', helper: 'Build the plan', icon: Dumbbell },
+  { key: 'moves', path: '/moves', label: 'Moves', helper: 'Teach the details', icon: PlayCircle },
+  { key: 'classroom', path: '/classroom', label: 'Classroom', helper: 'Check learning', icon: GraduationCap },
 ]
 
 export function TrainingWorkspaceShell({
   active,
+  app = 'player',
   title,
   eyebrow = 'Training workspace',
   description,
@@ -29,6 +31,7 @@ export function TrainingWorkspaceShell({
   sidebar,
 }: {
   active: WorkspaceKey
+  app?: HoopApp
   title: string
   eyebrow?: string
   description: string
@@ -61,7 +64,7 @@ export function TrainingWorkspaceShell({
             return (
               <Link
                 key={item.key}
-                href={item.href}
+                href={appPath(app, item.path)}
                 className={cn(
                   'min-h-[74px] border-black p-3 transition-colors sm:border-r-2 sm:last:border-r-0',
                   'border-b-2 sm:border-b-0',

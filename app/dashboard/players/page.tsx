@@ -102,7 +102,7 @@ async function loadPlayers(): Promise<PlayerRow[]> {
 export default async function PlayersRosterPage() {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (session.role !== 'trainer') redirect('/dashboard/progress')
+  if (session.role !== 'trainer') redirect('/player/progress')
 
   const players = await loadPlayers()
 

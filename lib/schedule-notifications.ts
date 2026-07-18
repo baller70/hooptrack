@@ -10,13 +10,13 @@ type NotifyOptions = {
 }
 
 const TYPE_META: Record<string, { type: NotificationType; verb: string; url: string }> = {
-  workout: { type: 'workout_assigned', verb: 'New workout assigned', url: '/dashboard/workouts' },
-  move: { type: 'move_assigned', verb: 'New move to study', url: '/dashboard/moves' },
-  quiz: { type: 'quiz_assigned', verb: 'New quiz to take', url: '/dashboard/classroom' },
-  quote: { type: 'quote_assigned', verb: 'New message for you', url: '/dashboard/calendar' },
-  event: { type: 'calendar_event', verb: 'New calendar event', url: '/dashboard/calendar' },
-  film: { type: 'calendar_event', verb: 'New film session', url: '/dashboard/calendar' },
-  game: { type: 'calendar_event', verb: 'New game scheduled', url: '/dashboard/calendar' },
+  workout: { type: 'workout_assigned', verb: 'New workout assigned', url: '/player/workouts' },
+  move: { type: 'move_assigned', verb: 'New move to study', url: '/player/moves' },
+  quiz: { type: 'quiz_assigned', verb: 'New quiz to take', url: '/player/classroom' },
+  quote: { type: 'quote_assigned', verb: 'New message for you', url: '/player/calendar' },
+  event: { type: 'calendar_event', verb: 'New calendar event', url: '/player/calendar' },
+  film: { type: 'calendar_event', verb: 'New film session', url: '/player/calendar' },
+  game: { type: 'calendar_event', verb: 'New game scheduled', url: '/player/calendar' },
 }
 
 function scheduledStart(date: string, startTime?: string | null) {

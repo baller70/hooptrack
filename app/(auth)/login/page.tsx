@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
+import { appHomeForRole } from '@/lib/app-routes'
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -38,7 +39,7 @@ export default function LoginPage() {
         toast.error(json.error || 'Login failed')
         return
       }
-      router.push('/dashboard/capture')
+      router.push(appHomeForRole(json.user.role))
     } catch {
       toast.error('Something went wrong')
     } finally {

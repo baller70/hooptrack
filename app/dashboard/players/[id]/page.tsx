@@ -19,7 +19,7 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ i
   const playerId = parseInt(id)
   // Trainers can view any player. Players can only view themselves (their own library).
   const isSelfView = session.role === 'player' && session.id === playerId
-  if (session.role !== 'trainer' && !isSelfView) redirect('/dashboard/progress')
+  if (session.role !== 'trainer' && !isSelfView) redirect('/player/progress')
 
   const player = db.prepare("SELECT id, name, email FROM users WHERE id = ? AND role = 'player'").get(id) as
     | Player

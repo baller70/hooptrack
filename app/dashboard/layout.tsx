@@ -6,6 +6,7 @@ import NotificationBell from '@/components/notification-bell'
 import PushBootstrap from '@/components/push-bootstrap'
 import ViewAsBanner from '@/components/view-as-banner'
 import ViewAsToggle from '@/components/view-as-toggle'
+import { appHomeForRole } from '@/lib/app-routes'
 
 export default async function DashboardLayout({
   children,
@@ -18,6 +19,7 @@ export default async function DashboardLayout({
   // The "real" role for the toggle: if impersonating, the trainer is in actual_role.
   const realRole = session.actual_role || session.role
   const isImpersonating = !!session.actual_id
+  const appHome = appHomeForRole(session.role)
 
   // Mode strip at the very top — tells the user exactly what view they're in.
   const modeStripClass = isImpersonating
@@ -28,7 +30,7 @@ export default async function DashboardLayout({
   const modeStripText = isImpersonating
     ? `PLAYER VIEW · viewing as ${session.name}`
     : session.role === 'trainer'
-    ? 'TRAINER MODE'
+    ? 'HOOPTRACK COACH'
     : 'PLAYER MODE'
 
   return (
@@ -38,17 +40,17 @@ export default async function DashboardLayout({
       </div>
       <ViewAsBanner />
       <header className="bg-white border-b-2 border-black px-4 py-3 flex items-center justify-between">
-        <Link href="/dashboard/capture" className="font-[family-name:var(--font-russo)] text-xl hover:text-hoop-orange transition-colors">
-          HoopTrack
+        <Link href={appHome} className="font-[family-name:var(--font-russo)] text-xl hover:text-hoop-orange transition-colors">
+          {session.role === 'trainer' ? 'HoopTrack Coach' : 'HoopTrack Player'}
         </Link>
         <div className="flex items-center gap-2">
           <ViewAsToggle actualRole={realRole} isImpersonating={isImpersonating} />
           <NotificationBell />
-          <Link href="/dashboard/profile" className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground">
+          <Link href={`${appHome}/profile`} className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground">
             {session.name}
           </Link>
           <Link
-            href="/dashboard/profile"
+            href={`${appHome}/profile`}
             className={`text-xs px-2 py-0.5 rounded-full font-bold capitalize border-2 ${
                 isImpersonating
                   ? 'bg-orange-500 text-white border-black'

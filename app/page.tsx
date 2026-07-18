@@ -1,12 +1,18 @@
 import Link from 'next/link'
 import { Dumbbell, Video, CalendarDays, GraduationCap } from 'lucide-react'
+import { redirect } from 'next/navigation'
+import { appHomeForRole } from '@/lib/app-routes'
+import { getSession } from '@/lib/session'
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await getSession()
+  if (session) redirect(appHomeForRole(session.role))
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-50">
       <div className="text-center mb-8">
         <h1 className="font-[family-name:var(--font-russo)] text-5xl mb-2">HoopTrack</h1>
-        <p className="text-lg text-muted-foreground">Basketball Accountability Workout Tracker</p>
+        <p className="text-lg text-muted-foreground">Player app and coach app for connected basketball training</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 mb-8 max-w-sm w-full">
@@ -30,18 +36,24 @@ export default function HomePage() {
 
       <div className="flex gap-3">
         <Link
-          href="/login"
+          href="/player"
           className="bg-hoop-black text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity"
         >
-          Sign In
+          Player App
         </Link>
         <Link
-          href="/register"
+          href="/coach"
           className="bg-hoop-orange text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity"
         >
-          Get Started
+          Coach App
         </Link>
       </div>
+      <p className="mt-4 text-sm text-muted-foreground">
+        New player?{' '}
+        <Link href="/register" className="font-semibold text-hoop-orange hover:underline">
+          Create an account
+        </Link>
+      </p>
     </div>
   )
 }
