@@ -3,8 +3,8 @@ import SwiftUI
 enum HT {
     static let ink = Color(red: 17/255, green: 24/255, blue: 39/255)
     static let slate = Color(red: 51/255, green: 65/255, blue: 85/255)
-    static let orange = Color(red: 249/255, green: 115/255, blue: 22/255)
-    static let teal = Color(red: 20/255, green: 184/255, blue: 166/255)
+    static let orange = Color(red: 194/255, green: 65/255, blue: 12/255)
+    static let teal = Color(red: 15/255, green: 118/255, blue: 110/255)
     static let paper = Color(red: 248/255, green: 250/255, blue: 252/255)
     static let line = Color(red: 226/255, green: 232/255, blue: 240/255)
 }
@@ -46,4 +46,3 @@ struct MetricPill: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
-
