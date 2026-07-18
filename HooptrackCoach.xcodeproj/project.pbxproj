@@ -1,0 +1,486 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 60;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		100000000000000000000001 /* HooptrackCoachApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000001 /* HooptrackCoachApp.swift */; };
+		100000000000000000000002 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000002 /* AppState.swift */; };
+		100000000000000000000003 /* FactoryScreenshotScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000003 /* FactoryScreenshotScene.swift */; };
+		100000000000000000000004 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000004 /* Models.swift */; };
+		100000000000000000000005 /* DashboardSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000005 /* DashboardSnapshot.swift */; };
+		100000000000000000000006 /* HoopTrackAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000006 /* HoopTrackAPI.swift */; };
+		100000000000000000000007 /* DemoFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000007 /* DemoFixtures.swift */; };
+		100000000000000000000008 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000008 /* RootView.swift */; };
+		100000000000000000000009 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000009 /* Theme.swift */; };
+		10000000000000000000000A /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000A /* AuthView.swift */; };
+		10000000000000000000000B /* PlayerShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000B /* PlayerShellView.swift */; };
+		10000000000000000000000C /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000C /* TodayView.swift */; };
+		10000000000000000000000D /* CaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000D /* CaptureView.swift */; };
+		10000000000000000000000E /* TrainingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000E /* TrainingView.swift */; };
+		10000000000000000000000F /* ProgressViewScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000F /* ProgressViewScreen.swift */; };
+		100000000000000000000010 /* TeamView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000010 /* TeamView.swift */; };
+		100000000000000000000011 /* AccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000011 /* AccountView.swift */; };
+		100000000000000000000012 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000012 /* Assets.xcassets */; };
+		100000000000000000000013 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000013 /* PrivacyInfo.xcprivacy */; };
+		100000000000000000000014 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000014 /* Localizable.xcstrings */; };
+		100000000000000000000015 /* HooptrackCoachTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000015 /* HooptrackCoachTests.swift */; };
+		100000000000000000000016 /* HooptrackCoachUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000016 /* HooptrackCoachUITests.swift */; };
+		100000000000000000000017 /* VideoExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001A /* VideoExport.swift */; };
+		100000000000000000000018 /* VideoPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001B /* VideoPicker.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		300000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 400000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 500000000000000000000001;
+			remoteInfo = HooptrackCoach;
+		};
+		300000000000000000000002 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 400000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 500000000000000000000001;
+			remoteInfo = HooptrackCoach;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		200000000000000000000001 /* HooptrackCoachApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HooptrackCoachApp.swift; sourceTree = "<group>"; };
+		200000000000000000000002 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		200000000000000000000003 /* FactoryScreenshotScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FactoryScreenshotScene.swift; sourceTree = "<group>"; };
+		200000000000000000000004 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		200000000000000000000005 /* DashboardSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardSnapshot.swift; sourceTree = "<group>"; };
+		200000000000000000000006 /* HoopTrackAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoopTrackAPI.swift; sourceTree = "<group>"; };
+		200000000000000000000007 /* DemoFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoFixtures.swift; sourceTree = "<group>"; };
+		200000000000000000000008 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		200000000000000000000009 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		20000000000000000000000A /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
+		20000000000000000000000B /* PlayerShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerShellView.swift; sourceTree = "<group>"; };
+		20000000000000000000000C /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
+		20000000000000000000000D /* CaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureView.swift; sourceTree = "<group>"; };
+		20000000000000000000000E /* TrainingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingView.swift; sourceTree = "<group>"; };
+		20000000000000000000000F /* ProgressViewScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressViewScreen.swift; sourceTree = "<group>"; };
+		200000000000000000000010 /* TeamView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamView.swift; sourceTree = "<group>"; };
+		200000000000000000000011 /* AccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountView.swift; sourceTree = "<group>"; };
+		200000000000000000000012 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		200000000000000000000013 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		200000000000000000000014 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		200000000000000000000015 /* HooptrackCoachTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HooptrackCoachTests.swift; sourceTree = "<group>"; };
+		200000000000000000000016 /* HooptrackCoachUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HooptrackCoachUITests.swift; sourceTree = "<group>"; };
+		200000000000000000000017 /* HooptrackCoach.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HooptrackCoach.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		200000000000000000000018 /* HooptrackCoachTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HooptrackCoachTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		200000000000000000000019 /* HooptrackCoachUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HooptrackCoachUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		20000000000000000000001A /* VideoExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoExport.swift; sourceTree = "<group>"; };
+		20000000000000000000001B /* VideoPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPicker.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		600000000000000000000001 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		600000000000000000000002 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		600000000000000000000003 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		700000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				700000000000000000000002 /* HooptrackCoach */,
+				700000000000000000000009 /* HooptrackCoachTests */,
+				70000000000000000000000A /* HooptrackCoachUITests */,
+				70000000000000000000000B /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		700000000000000000000002 /* HooptrackCoach */ = {
+			isa = PBXGroup;
+			children = (
+				700000000000000000000003 /* App */,
+				700000000000000000000004 /* Models */,
+				700000000000000000000005 /* Networking */,
+				700000000000000000000006 /* Stores */,
+				700000000000000000000007 /* Views */,
+				700000000000000000000008 /* Resources */,
+				200000000000000000000012 /* Assets.xcassets */,
+			);
+			path = HooptrackCoach;
+			sourceTree = "<group>";
+		};
+		700000000000000000000003 /* App */ = {
+			isa = PBXGroup;
+			children = (200000000000000000000001, 200000000000000000000002, 200000000000000000000003);
+			path = App;
+			sourceTree = "<group>";
+		};
+		700000000000000000000004 /* Models */ = {
+			isa = PBXGroup;
+			children = (200000000000000000000004, 200000000000000000000005);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		700000000000000000000005 /* Networking */ = {
+			isa = PBXGroup;
+			children = (200000000000000000000006);
+			path = Networking;
+			sourceTree = "<group>";
+		};
+		700000000000000000000006 /* Stores */ = {
+			isa = PBXGroup;
+			children = (200000000000000000000007, 20000000000000000000001A);
+			path = Stores;
+			sourceTree = "<group>";
+		};
+		700000000000000000000007 /* Views */ = {
+			isa = PBXGroup;
+			children = (200000000000000000000008, 200000000000000000000009, 20000000000000000000000A, 20000000000000000000000B, 20000000000000000000000C, 20000000000000000000000D, 20000000000000000000000E, 20000000000000000000000F, 200000000000000000000010, 200000000000000000000011, 20000000000000000000001B);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		700000000000000000000008 /* Resources */ = {
+			isa = PBXGroup;
+			children = (200000000000000000000013, 200000000000000000000014);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		700000000000000000000009 /* HooptrackCoachTests */ = {
+			isa = PBXGroup;
+			children = (200000000000000000000015);
+			path = HooptrackCoachTests;
+			sourceTree = "<group>";
+		};
+		70000000000000000000000A /* HooptrackCoachUITests */ = {
+			isa = PBXGroup;
+			children = (200000000000000000000016);
+			path = HooptrackCoachUITests;
+			sourceTree = "<group>";
+		};
+		70000000000000000000000B /* Products */ = {
+			isa = PBXGroup;
+			children = (200000000000000000000017, 200000000000000000000018, 200000000000000000000019);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		500000000000000000000001 /* HooptrackCoach */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 900000000000000000000002 /* Build configuration list for PBXNativeTarget "HooptrackCoach" */;
+			buildPhases = (800000000000000000000001, 600000000000000000000001, 800000000000000000000002);
+			buildRules = ();
+			dependencies = ();
+			name = HooptrackCoach;
+			productName = HooptrackCoach;
+			productReference = 200000000000000000000017 /* HooptrackCoach.app */;
+			productType = "com.apple.product-type.application";
+		};
+		500000000000000000000002 /* HooptrackCoachTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 900000000000000000000003 /* Build configuration list for PBXNativeTarget "HooptrackCoachTests" */;
+			buildPhases = (800000000000000000000003, 600000000000000000000002, 800000000000000000000004);
+			buildRules = ();
+			dependencies = (A00000000000000000000001 /* PBXTargetDependency */);
+			name = HooptrackCoachTests;
+			productName = HooptrackCoachTests;
+			productReference = 200000000000000000000018 /* HooptrackCoachTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		500000000000000000000003 /* HooptrackCoachUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 900000000000000000000004 /* Build configuration list for PBXNativeTarget "HooptrackCoachUITests" */;
+			buildPhases = (800000000000000000000005, 600000000000000000000003, 800000000000000000000006);
+			buildRules = ();
+			dependencies = (A00000000000000000000002 /* PBXTargetDependency */);
+			name = HooptrackCoachUITests;
+			productName = HooptrackCoachUITests;
+			productReference = 200000000000000000000019 /* HooptrackCoachUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		400000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2620;
+				LastUpgradeCheck = 2620;
+				TargetAttributes = {
+					500000000000000000000001 = {CreatedOnToolsVersion = 26.2;};
+					500000000000000000000002 = {CreatedOnToolsVersion = 26.2; TestTargetID = 500000000000000000000001;};
+					500000000000000000000003 = {CreatedOnToolsVersion = 26.2; TestTargetID = 500000000000000000000001;};
+				};
+			};
+			buildConfigurationList = 900000000000000000000001 /* Build configuration list for PBXProject "HooptrackCoach" */;
+			compatibilityVersion = "Xcode 15.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (en, "es-MX", "fr-CA", "zh-Hans", Base);
+			mainGroup = 700000000000000000000001;
+			productRefGroup = 70000000000000000000000B /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (500000000000000000000001, 500000000000000000000002, 500000000000000000000003);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		800000000000000000000002 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000012, 100000000000000000000013, 100000000000000000000014); runOnlyForDeploymentPostprocessing = 0; };
+		800000000000000000000004 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		800000000000000000000006 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		800000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000001, 100000000000000000000002, 100000000000000000000003, 100000000000000000000004, 100000000000000000000005, 100000000000000000000006, 100000000000000000000007, 100000000000000000000017, 100000000000000000000008, 100000000000000000000009, 10000000000000000000000A, 10000000000000000000000B, 10000000000000000000000C, 10000000000000000000000D, 10000000000000000000000E, 10000000000000000000000F, 100000000000000000000010, 100000000000000000000011, 100000000000000000000018); runOnlyForDeploymentPostprocessing = 0; };
+		800000000000000000000003 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000015); runOnlyForDeploymentPostprocessing = 0; };
+		800000000000000000000005 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000016); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A00000000000000000000001 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = 500000000000000000000001 /* HooptrackCoach */; targetProxy = 300000000000000000000001 /* PBXContainerItemProxy */; };
+		A00000000000000000000002 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = 500000000000000000000001 /* HooptrackCoach */; targetProxy = 300000000000000000000002 /* PBXContainerItemProxy */; };
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		B00000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ("DEBUG=1", "$(inherited)");
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		B00000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		B00000000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = DD9G8RP575;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = HooptrackCoach/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks");
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kevinhouston.hooptrackcoach;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		B00000000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = DD9G8RP575;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = HooptrackCoach/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks");
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kevinhouston.hooptrackcoach;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		B00000000000000000000005 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = DD9G8RP575;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@loader_path/Frameworks");
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kevinhouston.hooptrackcoach.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HooptrackCoach.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/HooptrackCoach";
+			};
+			name = Debug;
+		};
+		B00000000000000000000006 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = DD9G8RP575;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@loader_path/Frameworks");
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kevinhouston.hooptrackcoach.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HooptrackCoach.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/HooptrackCoach";
+			};
+			name = Release;
+		};
+		B00000000000000000000007 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = DD9G8RP575;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@loader_path/Frameworks");
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kevinhouston.hooptrackcoach.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = HooptrackCoach;
+			};
+			name = Debug;
+		};
+		B00000000000000000000008 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = DD9G8RP575;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@loader_path/Frameworks");
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kevinhouston.hooptrackcoach.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = HooptrackCoach;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		900000000000000000000001 /* Build configuration list for PBXProject "HooptrackCoach" */ = {isa = XCConfigurationList; buildConfigurations = (B00000000000000000000001, B00000000000000000000002); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		900000000000000000000002 /* Build configuration list for PBXNativeTarget "HooptrackCoach" */ = {isa = XCConfigurationList; buildConfigurations = (B00000000000000000000003, B00000000000000000000004); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		900000000000000000000003 /* Build configuration list for PBXNativeTarget "HooptrackCoachTests" */ = {isa = XCConfigurationList; buildConfigurations = (B00000000000000000000005, B00000000000000000000006); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		900000000000000000000004 /* Build configuration list for PBXNativeTarget "HooptrackCoachUITests" */ = {isa = XCConfigurationList; buildConfigurations = (B00000000000000000000007, B00000000000000000000008); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+	};
+	rootObject = 400000000000000000000001 /* Project object */;
+}
