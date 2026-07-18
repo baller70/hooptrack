@@ -8,6 +8,19 @@ struct NotificationsView: View {
             List {
                 Section {
                     HStack {
+                        Label("Native Push", systemImage: "iphone.radiowaves.left.and.right")
+                        Spacer()
+                        Text(appState.nativePushStatus)
+                            .font(.caption)
+                            .foregroundStyle(HT.slate)
+                    }
+                    Button {
+                        Task { await appState.requestNativePush() }
+                    } label: {
+                        Label("Enable Native Alerts", systemImage: "bell.and.waves.left.and.right")
+                    }
+                    .accessibilityIdentifier("notifications-enable-native-push")
+                    HStack {
                         Label("Unread", systemImage: "bell.badge")
                         Spacer()
                         Text("\(appState.snapshot.unreadNotificationCount)")

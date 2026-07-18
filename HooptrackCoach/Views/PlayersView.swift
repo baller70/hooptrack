@@ -10,12 +10,13 @@ struct PlayersView: View {
                     ForEach(appState.snapshot.players) { player in
                         NavigationLink {
                             PlayerDetailView(player: player)
+                                .onAppear {
+                                    appState.selectedPlayerId = player.id
+                                }
                         } label: {
                             PlayerRosterRow(player: player)
                         }
-                        .simultaneousGesture(TapGesture().onEnded {
-                            appState.selectedPlayerId = player.id
-                        })
+                        .accessibilityIdentifier("roster-player-\(player.id)")
                     }
                 } header: {
                     Text("Dedicated Roster")
@@ -55,6 +56,5 @@ private struct PlayerRosterRow: View {
                 }
             }
         }
-        .accessibilityIdentifier("roster-player-\(player.id)")
     }
 }

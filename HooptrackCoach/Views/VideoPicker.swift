@@ -1,10 +1,14 @@
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 struct MessagesView: View {
     @EnvironmentObject private var appState: CoachAppState
     @State private var draft = "Great work. I added one follow-up assignment."
     @State private var contextDraft = "Adding this note to the recording review thread."
+    @State private var selectedAttachment: MessageAttachment?
+    @State private var selectedAttachmentName: String?
+    @State private var isPickingAttachment = false
 
     var body: some View {
         NavigationStack {
@@ -29,18 +33,49 @@ struct MessagesView: View {
                                 ForEach(appState.snapshot.threadMessages) { message in
                                     DetailLine(title: message.senderName ?? "Coach", detail: message.attachmentType.map { "\(message.body) attachment: \($0)" } ?? message.body)
                                 }
+                                if let selectedAttachmentName {
+                                    HStack {
+                                        Label(selectedAttachmentName, systemImage: "paperclip")
+                                            .font(.caption)
+                                            .lineLimit(1)
+                                        Spacer()
+                                        Button {
+                                            selectedAttachment = nil
+                                            self.selectedAttachmentName = nil
+                                        } label: {
+                                            Image(systemName: "xmark.circle.fill")
+                                        }
+                                        .accessibilityLabel("Remove attachment")
+                                    }
+                                }
                                 HStack {
                                     TextField("Thread note", text: $contextDraft, axis: .vertical)
                                         .textFieldStyle(.roundedBorder)
                                     Button {
+                                        isPickingAttachment = true
+                                    } label: {
+                                        Image(systemName: "paperclip")
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .accessibilityLabel("Choose attachment")
+                                    .accessibilityIdentifier("messages-choose-attachment")
+                                    Button {
                                         Task {
                                             if let recording = appState.snapshot.recordings.first,
-                                               await appState.sendThreadMessage(contextType: "recording", contextID: recording.id, contextTitle: recording.drillName, body: contextDraft) {
+                                               await appState.sendThreadMessage(
+                                                contextType: "recording",
+                                                contextID: recording.id,
+                                                contextTitle: recording.drillName,
+                                                body: contextDraft,
+                                                attachment: selectedAttachment
+                                               ) {
                                                 contextDraft = ""
+                                                selectedAttachment = nil
+                                                selectedAttachmentName = nil
                                             }
                                         }
                                     } label: {
-                                        Image(systemName: "paperclip.badge.plus")
+                                        Image(systemName: "paperplane.fill")
                                     }
                                     .buttonStyle(.bordered)
                                     .accessibilityLabel(Text("Send context thread with attachment support"))
@@ -102,6 +137,30 @@ struct MessagesView: View {
                     Image(systemName: "calendar.badge.plus")
                 }
                 .accessibilityLabel(Text("tab.assign"))
+            }
+        }
+        .fileImporter(
+            isPresented: $isPickingAttachment,
+            allowedContentTypes: [.movie, .image, .pdf, .plainText],
+            allowsMultipleSelection: false
+        ) { result in
+            do {
+                guard let source = try result.get().first else { return }
+                let scoped = source.startAccessingSecurityScopedResource()
+                defer { if scoped { source.stopAccessingSecurityScopedResource() } }
+                let destination = FileManager.default.temporaryDirectory
+                    .appending(path: "coach-message-\(UUID().uuidString)-\(source.lastPathComponent)")
+                try FileManager.default.copyItem(at: source, to: destination)
+                let type = UTType(filenameExtension: source.pathExtension)
+                selectedAttachment = MessageAttachment(
+                    fileURL: destination,
+                    type: type?.conforms(to: .movie) == true ? "video" : type?.conforms(to: .image) == true ? "image" : "file",
+                    mimeType: type?.preferredMIMEType ?? "application/octet-stream",
+                    durationSeconds: nil
+                )
+                selectedAttachmentName = source.lastPathComponent
+            } catch {
+                appState.report(error)
             }
         }
         .accessibilityIdentifier("05-messages-controls-screen")

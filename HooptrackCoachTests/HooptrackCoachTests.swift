@@ -126,10 +126,10 @@ final class HooptrackCoachTests: XCTestCase {
         try await client.markNotificationRead(id: 721)
         try await client.markAllNotificationsRead()
         try await client.sendDueNotifications()
-        try await client.subscribePush(endpoint: "https://push.example.test/subscription", p256dh: "key", auth: "auth", userAgent: "HooptrackCoach iOS")
+        try await client.registerAPNS(deviceToken: String(repeating: "a", count: 64), environment: "sandbox", bundleID: "com.kevinhouston.hooptrackcoach")
         _ = try await client.threadMessages(contextType: "recording", contextID: 601)
         try await client.sendThreadMessage(contextType: "recording", contextID: 601, contextTitle: "Review", body: "Shared context")
-        _ = try await client.createRecording(drillID: 801, blobKey: "coach-test.mp4", duration: 20, notes: "Coach upload", reps: nil)
+        _ = try await client.createRecording(playerID: 7, drillID: 801, blobKey: "coach-test.mp4", duration: 20, notes: "Coach upload", reps: nil)
         try await client.uploadRecordingVideo(recordingID: 906, blobKey: "coach-test.mp4", fileURL: videoURL)
         _ = try await client.clipRecording(id: 601, start: 0, end: 10, title: "Coach review clip")
         _ = try await client.aiWorkout(playerName: "Maya", skillLevel: "intermediate", focusAreas: ["finishing"], duration: 30, autoSave: false)
@@ -154,10 +154,10 @@ final class HooptrackCoachTests: XCTestCase {
             "POST /api/suite/calendar/create",
             "GET /api/notifications?limit=50&unread_only=true&playerId=7",
             "GET /api/notifications/unread-count",
-            "POST /api/notifications/721/read",
+            "PUT /api/notifications/721/read",
             "POST /api/notifications/mark-all-read",
             "POST /api/notifications/due",
-            "POST /api/push/subscribe",
+            "POST /api/push/apns",
             "GET /api/messages/thread?context_type=recording&context_id=601",
             "POST /api/messages/thread",
             "POST /api/recordings",
@@ -172,7 +172,7 @@ final class HooptrackCoachTests: XCTestCase {
         ]
 
         for route in expectedRoutes {
-            XCTAssertTrue(requested.contains(route), "Missing shared backend request: \(route)")
+            XCTAssertTrue(requested.contains(route), "Missing shared backend request: \(route). Captured: \(requested.joined(separator: " | "))")
         }
         XCTAssertFalse(requested.contains { $0.contains("/mobile") || $0.contains("/ios") })
     }
@@ -190,44 +190,56 @@ final class HooptrackCoachTests: XCTestCase {
             let path = request.url?.path ?? ""
             let query = request.url?.query.map { "?\($0)" } ?? ""
             let method = request.httpMethod ?? "GET"
-            let route = "\(method) \(path)\(query)"
             let body: String
-            switch route {
-            case "GET /api/workouts/401":
+            switch (method, path, query) {
+            case ("GET", "/api/workouts/401", _):
                 body = #"{"workout":{"id":401,"title":"Finishing","description":"Shared","category":"Finishing","drill_count":1,"timer_mode":"timed","duration_seconds":60,"creator_name":"Coach"},"drills":[]}"#
-            case "GET /api/moves?playerId=7":
+            case ("GET", "/api/moves", "?playerId=7"):
                 body = #"{"moves":[]}"#
-            case "GET /api/quizzes":
+            case ("GET", "/api/quizzes", _):
                 body = #"{"quizzes":[]}"#
-            case "POST /api/schedule":
+            case ("POST", "/api/schedule", _):
                 schedulePostCount += 1
                 body = schedulePostCount == 2 ? #"{"count":1}"# : #"{"id":900}"#
-            case "POST /api/ai/workout":
+            case ("POST", "/api/ai/workout", _):
                 body = #"{"workout":{"title":"AI Workout","description":"Shared","category":"Skill","drills":[]}}"#
-            case "POST /api/ai/quiz":
+            case ("POST", "/api/ai/quiz", _):
                 body = #"{"quiz":{"title":"AI Quiz","questions":[]}}"#
-            case "GET /api/ai/progress?playerId=7":
+            case ("GET", "/api/ai/progress", "?playerId=7"):
                 body = #"{"period":"month","gpa":3.6,"overall_letter":"A-","total_hours":10.5,"streak_days":4,"total_recordings":12,"strongest":"Finishing","weakest":"Balance","analysis":"Shared report"}"#
-            case "POST /api/ai/feedback":
+            case ("POST", "/api/ai/feedback", _):
                 body = #"{"feedback":"Keep the base wider."}"#
-            case "POST /api/ai/moves":
+            case ("POST", "/api/ai/moves", _):
                 body = #"[]"#
-            case "POST /api/ai/inspiration":
+            case ("POST", "/api/ai/inspiration", _):
                 body = #"{"message":"Stay locked in."}"#
-            case "GET /api/notifications?limit=50&unread_only=true&playerId=7":
+            case ("GET", "/api/notifications", "?limit=50&unread_only=true&playerId=7"):
                 body = #"{"notifications":[]}"#
-            case "GET /api/notifications/unread-count":
+            case ("GET", "/api/notifications/unread-count", _):
                 body = #"{"count":2}"#
-            case "GET /api/messages/thread?context_type=recording&context_id=601":
+            case ("GET", "/api/messages/thread", "?context_type=recording&context_id=601"):
                 body = #"{"messages":[]}"#
-            case "POST /api/recordings/upload":
+            case ("POST", "/api/recordings/upload", _):
                 body = #"{"success":true}"#
-            case "POST /api/notifications/721/read",
-                 "POST /api/notifications/mark-all-read",
-                 "POST /api/notifications/due":
+            case ("PUT", "/api/notifications/721/read", _),
+                 ("POST", "/api/notifications/mark-all-read", _),
+                 ("POST", "/api/notifications/due", _),
+                 ("POST", "/api/push/apns", _):
                 body = #"{"success":true}"#
-            default:
+            case ("POST", "/api/workouts", _),
+                 ("POST", "/api/drills", _),
+                 ("POST", "/api/moves", _),
+                 ("POST", "/api/quizzes", _),
+                 ("POST", "/api/suite/calendar/create", _),
+                 ("POST", "/api/messages/thread", _),
+                 ("POST", "/api/recordings", _),
+                 ("POST", "/api/recordings/601/clip", _):
                 body = #"{"id":900}"#
+            default:
+                throw NSError(
+                    domain: "Unknown mock route: \(method) \(path)\(query)",
+                    code: 1
+                )
             }
             return (200, Data(body.utf8))
         }

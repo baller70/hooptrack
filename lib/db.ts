@@ -13,17 +13,23 @@ function getDb(): Database.Database {
   if (!global.__db) {
     fs.mkdirSync(path.dirname(DB_PATH), { recursive: true })
     global.__db = new Database(DB_PATH)
-    global.__db.pragma('journal_mode = WAL')
-    global.__db.pragma('busy_timeout = 10000')
+    global.__db.pragma('busy_timeout = 30000')
     global.__db.pragma('foreign_keys = ON')
     runMigrations(global.__db)
+    try {
+      global.__db.pragma('journal_mode = WAL')
+    } catch (error) {
+      if ((error as { code?: string }).code !== 'SQLITE_BUSY') throw error
+    }
   }
   return global.__db
 }
 
 function runMigrations(db: Database.Database) {
-  db.exec(`CREATE TABLE IF NOT EXISTS _migrations (version INTEGER PRIMARY KEY)`)
-  const current = (db.prepare('SELECT MAX(version) as v FROM _migrations').get() as { v: number | null })?.v ?? 0
+  db.exec('BEGIN IMMEDIATE')
+  try {
+    db.exec(`CREATE TABLE IF NOT EXISTS _migrations (version INTEGER PRIMARY KEY)`)
+    const current = (db.prepare('SELECT MAX(version) as v FROM _migrations').get() as { v: number | null })?.v ?? 0
 
   if (current < 1) {
     db.exec(SCHEMA_V1)
@@ -102,6 +108,15 @@ function runMigrations(db: Database.Database) {
     db.exec(SCHEMA_V17)
     db.prepare('INSERT OR IGNORE INTO _migrations VALUES (?)').run(17)
   }
+  if (current < 18) {
+    db.exec(SCHEMA_V18)
+    db.prepare('INSERT OR IGNORE INTO _migrations VALUES (?)').run(18)
+  }
+    db.exec('COMMIT')
+  } catch (error) {
+    if (db.inTransaction) db.exec('ROLLBACK')
+    throw error
+  }
 }
 
 function safeAddColumn(db: Database.Database, table: string, column: string, definition: string) {
@@ -122,6 +137,20 @@ ALTER TABLE messages ADD COLUMN attachment_mime TEXT;
 ALTER TABLE messages ADD COLUMN attachment_size_bytes INTEGER;
 ALTER TABLE messages ADD COLUMN attachment_duration_seconds INTEGER;
 ALTER TABLE messages ADD COLUMN attachment_filename TEXT;
+`
+
+const SCHEMA_V18 = `
+CREATE TABLE IF NOT EXISTS apns_device_tokens (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  device_token TEXT NOT NULL,
+  environment TEXT NOT NULL CHECK(environment IN ('sandbox','production')),
+  bundle_id TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(device_token, environment, bundle_id)
+);
+CREATE INDEX IF NOT EXISTS idx_apns_tokens_user ON apns_device_tokens(user_id);
 `
 
 const SCHEMA_V16 = `
@@ -211,7 +240,6 @@ ALTER TABLE recordings ADD COLUMN video_mime TEXT;
 `
 
 const SCHEMA_V8 = `
-BEGIN;
 DROP TABLE IF EXISTS messages_new;
 CREATE TABLE messages_new (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -231,7 +259,6 @@ ALTER TABLE messages_new RENAME TO messages;
 CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(context_type, context_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_messages_dm ON messages(sender_id, recipient_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_messages_recipient_unread ON messages(recipient_id, read_at);
-COMMIT;
 `
 
 const SCHEMA_V7 = `
@@ -251,7 +278,6 @@ CREATE INDEX IF NOT EXISTS idx_messages_recipient_unread ON messages(recipient_i
 `
 
 const SCHEMA_V6 = `
-BEGIN;
 DROP TABLE IF EXISTS notifications_new;
 CREATE TABLE notifications_new (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -282,7 +308,6 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id);
-COMMIT;
 `
 
 const SCHEMA_V5 = `

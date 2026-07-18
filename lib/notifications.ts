@@ -1,5 +1,7 @@
 import { db } from '@/lib/db'
 import webpush from 'web-push'
+import { connect } from 'node:http2'
+import { importPKCS8, SignJWT } from 'jose'
 
 export type NotificationType =
   | 'reminder'
@@ -43,7 +45,7 @@ interface PushSub {
   auth: string
 }
 
-async function sendPushToUser(userId: number, payload: { title: string; body: string; url?: string; tag?: string }) {
+async function sendWebPushToUser(userId: number, payload: { title: string; body: string; url?: string; tag?: string }) {
   if (!ensureVapid()) return
   const subs = db.prepare(
     'SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?'
@@ -71,6 +73,89 @@ async function sendPushToUser(userId: number, payload: { title: string; body: st
       }
     })
   )
+}
+
+interface ApnsToken {
+  id: number
+  device_token: string
+  environment: 'sandbox' | 'production'
+  bundle_id: string
+}
+
+let cachedApnsJwt: { token: string; expiresAt: number } | null = null
+
+async function apnsJwt() {
+  const now = Math.floor(Date.now() / 1000)
+  if (cachedApnsJwt && cachedApnsJwt.expiresAt > now + 60) return cachedApnsJwt.token
+  const teamId = process.env.APNS_TEAM_ID
+  const keyId = process.env.APNS_KEY_ID
+  const privateKey = process.env.APNS_PRIVATE_KEY_P8?.replace(/\\n/g, '\n')
+  if (!teamId || !keyId || !privateKey) return null
+  const key = await importPKCS8(privateKey, 'ES256')
+  const token = await new SignJWT({})
+    .setProtectedHeader({ alg: 'ES256', kid: keyId })
+    .setIssuer(teamId)
+    .setIssuedAt(now)
+    .sign(key)
+  cachedApnsJwt = { token, expiresAt: now + 50 * 60 }
+  return token
+}
+
+async function deliverApns(row: ApnsToken, payload: { title: string; body: string; url?: string; tag?: string }) {
+  const token = await apnsJwt()
+  if (!token) return
+  const host = row.environment === 'sandbox' ? 'api.sandbox.push.apple.com' : 'api.push.apple.com'
+  const client = connect(`https://${host}`)
+  await new Promise<void>((resolve, reject) => {
+    let status = 0
+    let responseBody = ''
+    const request = client.request({
+      ':method': 'POST',
+      ':path': `/3/device/${row.device_token}`,
+      authorization: `bearer ${token}`,
+      'apns-topic': row.bundle_id,
+      'apns-push-type': 'alert',
+      'apns-priority': '10',
+      'content-type': 'application/json',
+    })
+    request.setEncoding('utf8')
+    request.on('response', (headers) => { status = Number(headers[':status'] || 0) })
+    request.on('data', (chunk) => { responseBody += chunk })
+    request.on('error', reject)
+    request.on('end', () => {
+      client.close()
+      if (status === 200) return resolve()
+      if (status === 400 || status === 410) {
+        const reason = (() => { try { return JSON.parse(responseBody).reason } catch { return '' } })()
+        if (reason === 'BadDeviceToken' || reason === 'Unregistered') {
+          db.prepare('DELETE FROM apns_device_tokens WHERE id = ?').run(row.id)
+        }
+      }
+      reject(new Error(`APNs rejected notification with status ${status}`))
+    })
+    request.end(JSON.stringify({
+      aps: {
+        alert: { title: payload.title, body: payload.body },
+        sound: 'default',
+        'thread-id': payload.tag || 'hooptrack',
+      },
+      url: payload.url,
+    }))
+  }).finally(() => client.close())
+}
+
+async function sendApnsToUser(userId: number, payload: { title: string; body: string; url?: string; tag?: string }) {
+  const rows = db.prepare(
+    'SELECT id, device_token, environment, bundle_id FROM apns_device_tokens WHERE user_id = ?'
+  ).all(userId) as ApnsToken[]
+  await Promise.all(rows.map((row) => deliverApns(row, payload).catch((error) => console.error('APNs push failed:', error))))
+}
+
+async function sendPushToUser(userId: number, payload: { title: string; body: string; url?: string; tag?: string }) {
+  await Promise.all([
+    sendWebPushToUser(userId, payload),
+    sendApnsToUser(userId, payload),
+  ])
 }
 
 interface CreateOpts {

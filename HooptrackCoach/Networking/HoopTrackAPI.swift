@@ -253,13 +253,16 @@ final class HoopTrackAPI {
         return response.recordings
     }
 
-    func createRecording(drillID: Int, blobKey: String, duration: Int, notes: String, reps: Int?) async throws -> Int {
+    func createRecording(playerID: Int?, drillID: Int, blobKey: String, duration: Int, notes: String, reps: Int?) async throws -> Int {
         var payload: [String: EncodableValue] = [
             "drillId": .int(drillID),
             "blobKey": .string(blobKey),
             "duration": .int(duration),
             "notes": .string(notes)
         ]
+        if let playerID {
+            payload["playerId"] = .int(playerID)
+        }
         if let reps {
             payload["rep_count"] = .int(reps)
         }
@@ -280,7 +283,7 @@ final class HoopTrackAPI {
         let video = try Data(contentsOf: fileURL)
         data.appendMultipartFile(
             name: "video",
-            filename: fileURL.lastPathComponent,
+            filename: sanitizedMultipartToken(fileURL.lastPathComponent),
             mimeType: "video/mp4",
             fileData: video,
             boundary: boundary
@@ -334,7 +337,16 @@ final class HoopTrackAPI {
     }
 
     func threadMessages(contextType: String, contextID: Int) async throws -> [ThreadMessage] {
-        let response: ThreadMessagesEnvelope = try await request("api/messages/thread?context_type=\(contextType)&context_id=\(contextID)")
+        var components = URLComponents()
+        components.path = "/api/messages/thread"
+        components.queryItems = [
+            URLQueryItem(name: "context_type", value: contextType),
+            URLQueryItem(name: "context_id", value: String(contextID))
+        ]
+        guard let relativePath = components.string?.dropFirst() else {
+            throw APIError.invalidResponse
+        }
+        let response: ThreadMessagesEnvelope = try await request(String(relativePath))
         return response.messages
     }
 
@@ -368,7 +380,7 @@ final class HoopTrackAPI {
     }
 
     func markNotificationRead(id: Int) async throws {
-        let _: SuccessEnvelope = try await request("api/notifications/\(id)/read", method: "POST")
+        let _: SuccessEnvelope = try await request("api/notifications/\(id)/read", method: "PUT")
     }
 
     func markAllNotificationsRead() async throws {
@@ -379,14 +391,14 @@ final class HoopTrackAPI {
         let _: SuccessEnvelope = try await request("api/notifications/due", method: "POST")
     }
 
-    func subscribePush(endpoint: String, p256dh: String, auth: String, userAgent: String) async throws {
+    func registerAPNS(deviceToken: String, environment: String, bundleID: String) async throws {
         let _: SuccessEnvelope = try await request(
-            "api/push/subscribe",
+            "api/push/apns",
             method: "POST",
             body: [
-                "endpoint": endpoint,
-                "keys": ["p256dh": p256dh, "auth": auth],
-                "user_agent": userAgent
+                "device_token": deviceToken,
+                "environment": environment,
+                "bundle_id": bundleID
             ]
         )
     }
@@ -467,7 +479,16 @@ final class HoopTrackAPI {
     }
 
     private func performRequest<T: Decodable>(_ path: String, method: String, data: Data?) async throws -> T {
-        let url = path.hasPrefix("http") ? URL(string: path)! : baseURL.appending(path: path)
+        let pathAndQuery = path.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false)
+        var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)
+        components?.path = "/" + pathAndQuery[0].trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        components?.percentEncodedQuery = pathAndQuery.count == 2 ? String(pathAndQuery[1]) : nil
+        guard !path.contains("://"),
+              let url = components?.url,
+              url.scheme == baseURL.scheme,
+              url.host == baseURL.host else {
+            throw APIError.invalidResponse
+        }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.httpBody = data
@@ -512,7 +533,7 @@ final class HoopTrackAPI {
         let file = try Data(contentsOf: attachment.fileURL)
         data.appendMultipartFile(
             name: "attachment",
-            filename: attachment.fileURL.lastPathComponent,
+            filename: sanitizedMultipartToken(attachment.fileURL.lastPathComponent),
             mimeType: attachment.mimeType,
             fileData: file,
             boundary: boundary
@@ -606,10 +627,18 @@ private extension Data {
     }
 
     mutating func appendMultipartFile(name: String, filename: String, mimeType: String, fileData: Data, boundary: String) {
+        let safeName = sanitizedMultipartToken(name)
+        let safeFilename = sanitizedMultipartToken(filename)
         append("--\(boundary)\r\n".data(using: .utf8)!)
-        append("Content-Disposition: form-data; name=\"\(name)\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
+        append("Content-Disposition: form-data; name=\"\(safeName)\"; filename=\"\(safeFilename)\"\r\n".data(using: .utf8)!)
         append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
         append(fileData)
         append("\r\n".data(using: .utf8)!)
     }
+}
+
+private func sanitizedMultipartToken(_ value: String) -> String {
+    let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "._-"))
+    let scalars = value.unicodeScalars.map { allowed.contains($0) ? Character(String($0)) : "_" }
+    return String(scalars).prefix(180).description
 }

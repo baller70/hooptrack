@@ -19,9 +19,11 @@ struct LibraryView: View {
                         identifier: "library-create-workout"
                     ) {
                         Task {
-                            let drill = Drill(id: 0, workoutId: nil, name: "Closeout to slide", description: "Two reps each direction.", category: "Defense", durationSeconds: 60, timerMode: "timed", targetReps: nil)
-                            _ = try? await appState.client.createWorkout(title: workoutTitle, description: "Coach-created native workout", category: "Defense", drills: [drill])
-                            await appState.refresh()
+                            do {
+                                let drill = Drill(id: 0, workoutId: nil, name: "Closeout to slide", description: "Two reps each direction.", category: "Defense", durationSeconds: 60, timerMode: "timed", targetReps: nil)
+                                _ = try await appState.client.createWorkout(title: workoutTitle, description: "Coach-created native workout", category: "Defense", drills: [drill])
+                                await appState.refresh()
+                            } catch { appState.report(error) }
                         }
                     }
 
@@ -33,7 +35,8 @@ struct LibraryView: View {
                     ) {
                         Task {
                             if let workoutID = appState.selectedWorkoutId ?? appState.snapshot.workouts.first?.id {
-                                _ = try? await appState.client.createDrill(
+                                do {
+                                    _ = try await appState.client.createDrill(
                                     workoutID: workoutID,
                                     name: drillName,
                                     description: "Coach-created native drill",
@@ -41,8 +44,10 @@ struct LibraryView: View {
                                     durationSeconds: 60,
                                     timerMode: "timed",
                                     targetReps: nil
-                                )
-                                await appState.refresh()
+                                    )
+                                    await appState.loadDrills(workoutID: workoutID)
+                                    await appState.refresh()
+                                } catch { appState.report(error) }
                             }
                         }
                     }
@@ -54,8 +59,10 @@ struct LibraryView: View {
                         identifier: "library-create-move"
                     ) {
                         Task {
-                            _ = try? await appState.client.createMove(title: moveTitle, category: "Handle", description: "Native coach move study", youtubeURL: nil, assignedPlayerID: appState.selectedPlayerId)
-                            await appState.refresh()
+                            do {
+                                _ = try await appState.client.createMove(title: moveTitle, category: "Handle", description: "Native coach move study", youtubeURL: nil, assignedPlayerID: appState.selectedPlayerId)
+                                await appState.refresh()
+                            } catch { appState.report(error) }
                         }
                     }
 
@@ -67,8 +74,10 @@ struct LibraryView: View {
                     ) {
                         Task {
                             let question = QuizQuestion(questionText: "Which lane fills first in transition?", videoURL: nil, options: ["Rim", "Corner", "Trail"], correctAnswer: "Rim")
-                            _ = try? await appState.client.createQuiz(title: quizTitle, question: question)
-                            await appState.refresh()
+                            do {
+                                _ = try await appState.client.createQuiz(title: quizTitle, question: question)
+                                await appState.refresh()
+                            } catch { appState.report(error) }
                         }
                     }
 
@@ -80,8 +89,10 @@ struct LibraryView: View {
                     ) {
                         Task {
                             let question = QuizQuestion(questionText: "What should the trail player read first?", videoURL: nil, options: ["Matchup", "Shot clock", "Bench"], correctAnswer: "Matchup")
-                            _ = try? await appState.client.createClassroomWork(title: classroomTitle, position: "any", gameSituation: "late_game", question: question)
-                            await appState.refresh()
+                            do {
+                                _ = try await appState.client.createClassroomWork(title: classroomTitle, position: "any", gameSituation: "late_game", question: question)
+                                await appState.refresh()
+                            } catch { appState.report(error) }
                         }
                     }
 

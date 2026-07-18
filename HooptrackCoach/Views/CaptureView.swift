@@ -20,6 +20,28 @@ struct ReviewView: View {
                                 .font(.headline)
                             TextField("Coach notes", text: $uploadNotes, axis: .vertical)
                                 .textFieldStyle(.roundedBorder)
+                            Picker("Player", selection: $appState.selectedPlayerId) {
+                                ForEach(appState.snapshot.players) { player in
+                                    Text(player.name).tag(Optional(player.id))
+                                }
+                            }
+                            .accessibilityIdentifier("coach-upload-player")
+                            Picker("Workout", selection: $appState.selectedWorkoutId) {
+                                ForEach(appState.snapshot.workouts) { workout in
+                                    Text(workout.title).tag(Optional(workout.id))
+                                }
+                            }
+                            .accessibilityIdentifier("coach-upload-workout")
+                            .onChange(of: appState.selectedWorkoutId) { _, workoutID in
+                                guard let workoutID else { return }
+                                Task { await appState.loadDrills(workoutID: workoutID) }
+                            }
+                            Picker("Drill", selection: $appState.selectedDrillId) {
+                                ForEach(appState.availableDrills) { drill in
+                                    Text(drill.name).tag(Optional(drill.id))
+                                }
+                            }
+                            .accessibilityIdentifier("coach-upload-drill")
                             HStack {
                                 Button {
                                     pickerSource = .camera
@@ -27,7 +49,7 @@ struct ReviewView: View {
                                     Label("Capture", systemImage: "record.circle")
                                 }
                                 .buttonStyle(.borderedProminent)
-                                .disabled(isUploading || appState.isScreenshotMode)
+                                .disabled(isUploading || appState.isScreenshotMode || appState.selectedPlayerId == nil || appState.selectedDrillId == nil)
                                 .accessibilityIdentifier("coach-capture-start")
                                 Button {
                                     pickerSource = .photoLibrary
@@ -35,7 +57,7 @@ struct ReviewView: View {
                                     Label("Upload", systemImage: "square.and.arrow.up")
                                 }
                                 .buttonStyle(.bordered)
-                                .disabled(isUploading || appState.isScreenshotMode)
+                                .disabled(isUploading || appState.isScreenshotMode || appState.selectedPlayerId == nil || appState.selectedDrillId == nil)
                                 .accessibilityIdentifier("coach-upload-video")
                             }
                             if isUploading {
@@ -57,19 +79,8 @@ struct ReviewView: View {
                     ForEach(appState.snapshot.recordings) { recording in
                         Panel {
                             VStack(alignment: .leading, spacing: 12) {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(HT.ink)
-                                        .frame(height: 150)
-                                    VStack(spacing: 8) {
-                                        Image(systemName: "play.circle.fill")
-                                            .font(.system(size: 42))
-                                            .foregroundStyle(.white)
-                                        Text("review.recording")
-                                            .foregroundStyle(.white)
-                                            .font(.caption.weight(.semibold))
-                                    }
-                                }
+                                RecordingVideoView(recording: recording, autoplay: false)
+                                    .frame(height: 180)
                                 Text(recording.drillName ?? String(localized: "review.untitled"))
                                     .font(.headline)
                                 Text(recording.playerName ?? String(localized: "player.connected"))
@@ -107,8 +118,8 @@ struct ReviewView: View {
     }
 
     private func upload(url: URL) async {
-        guard let drillID = appState.snapshot.recordings.compactMap(\.drillId).first else {
-            appState.banner = AppBanner(title: String(localized: "retry.title"), message: "A shared drill is required before uploading coach media.")
+        guard let playerID = appState.selectedPlayerId, let drillID = appState.selectedDrillId else {
+            appState.banner = AppBanner(title: String(localized: "retry.title"), message: "Choose a player, workout, and drill before uploading coach media.")
             return
         }
         isUploading = true
@@ -116,7 +127,7 @@ struct ReviewView: View {
         do {
             let duration = await durationSeconds(for: url)
             let blobKey = "ios-coach-\(UUID().uuidString).mp4"
-            let recordingID = try await appState.client.createRecording(drillID: drillID, blobKey: blobKey, duration: duration, notes: uploadNotes, reps: nil)
+            let recordingID = try await appState.client.createRecording(playerID: playerID, drillID: drillID, blobKey: blobKey, duration: duration, notes: uploadNotes, reps: nil)
             try await appState.client.uploadRecordingVideo(recordingID: recordingID, blobKey: blobKey, fileURL: url)
             uploadNotes = ""
             await appState.refresh()

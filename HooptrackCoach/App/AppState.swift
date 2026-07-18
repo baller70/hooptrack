@@ -1,5 +1,7 @@
 import Foundation
 import SwiftUI
+import UIKit
+import UserNotifications
 
 @MainActor
 final class CoachAppState: ObservableObject {
@@ -17,6 +19,9 @@ final class CoachAppState: ObservableObject {
     @Published var selectedWorkoutId: Int?
     @Published var selectedGroupId: Int?
     @Published var selectedRecordingIds: Set<Int> = []
+    @Published var availableDrills: [Drill] = []
+    @Published var selectedDrillId: Int?
+    @Published var nativePushStatus = "Not enabled"
     @Published var banner: AppBanner?
     @Published var isScreenshotMode = false
 
@@ -109,6 +114,9 @@ final class CoachAppState: ObservableObject {
             selectedPlayerId = selectedPlayerId ?? loadedPlayers.first?.id
             selectedWorkoutId = selectedWorkoutId ?? snapshot.workouts.first?.id
             selectedGroupId = selectedGroupId ?? snapshot.groups.first?.id
+            if let selectedWorkoutId {
+                await loadDrills(workoutID: selectedWorkoutId)
+            }
             banner = nil
         } catch {
             banner = AppBanner(title: String(localized: "offline.title"), message: String(localized: "offline.message"))
@@ -235,11 +243,17 @@ final class CoachAppState: ObservableObject {
     }
 
     @discardableResult
-    func sendThreadMessage(contextType: String, contextID: Int, contextTitle: String?, body: String) async -> Bool {
+    func sendThreadMessage(contextType: String, contextID: Int, contextTitle: String?, body: String, attachment: MessageAttachment? = nil) async -> Bool {
         let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !isScreenshotMode, !trimmed.isEmpty else { return false }
+        guard !isScreenshotMode, !trimmed.isEmpty || attachment != nil else { return false }
         do {
-            try await client.sendThreadMessage(contextType: contextType, contextID: contextID, contextTitle: contextTitle, body: trimmed)
+            try await client.sendThreadMessage(
+                contextType: contextType,
+                contextID: contextID,
+                contextTitle: contextTitle,
+                body: trimmed.isEmpty ? "Shared an attachment." : trimmed,
+                attachment: attachment
+            )
             snapshot.threadMessages = try await client.threadMessages(contextType: contextType, contextID: contextID)
             return true
         } catch {
@@ -268,6 +282,58 @@ final class CoachAppState: ObservableObject {
         } catch {
             banner = AppBanner(title: String(localized: "retry.title"), message: error.localizedDescription)
         }
+    }
+
+    func loadDrills(workoutID: Int) async {
+        guard !isScreenshotMode else { return }
+        do {
+            availableDrills = try await client.workout(id: workoutID).drills ?? []
+            selectedDrillId = availableDrills.contains(where: { $0.id == selectedDrillId })
+                ? selectedDrillId
+                : availableDrills.first?.id
+        } catch {
+            report(error)
+        }
+    }
+
+    func requestNativePush() async {
+        guard !isScreenshotMode else { return }
+        do {
+            let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
+            guard granted else {
+                nativePushStatus = "Permission denied"
+                return
+            }
+            nativePushStatus = "Registering"
+            UIApplication.shared.registerForRemoteNotifications()
+        } catch {
+            nativePushStatus = "Registration failed"
+            report(error)
+        }
+    }
+
+    func registerAPNSToken(_ token: String) async {
+        guard !isScreenshotMode else { return }
+        do {
+            #if DEBUG
+            let environment = "sandbox"
+            #else
+            let environment = "production"
+            #endif
+            try await client.registerAPNS(
+                deviceToken: token,
+                environment: environment,
+                bundleID: Bundle.main.bundleIdentifier ?? "com.kevinhouston.hooptrackcoach"
+            )
+            nativePushStatus = "Enabled"
+        } catch {
+            nativePushStatus = "Registration failed"
+            report(error)
+        }
+    }
+
+    func report(_ error: Error) {
+        banner = AppBanner(title: String(localized: "retry.title"), message: error.localizedDescription)
     }
 
     func runAIWorkflow(kind: String) async {
@@ -326,6 +392,11 @@ final class CoachAppState: ObservableObject {
         selectedWorkoutId = DemoFixtures.snapshot.workouts.first?.id
         selectedGroupId = DemoFixtures.snapshot.groups.first?.id
         selectedRecordingIds = Set(DemoFixtures.snapshot.recordings.prefix(2).map(\.id))
+        availableDrills = [
+            Drill(id: 801, workoutId: 401, name: "Mikan Contact Series", description: nil, category: "Finishing", durationSeconds: 60, timerMode: "timed", targetReps: nil),
+            Drill(id: 802, workoutId: 402, name: "Wing Pull-Up Reads", description: nil, category: "Shooting", durationSeconds: 60, timerMode: "timed", targetReps: nil)
+        ]
+        selectedDrillId = availableDrills.first?.id
         selectedTab = scene.tab
     }
     #endif

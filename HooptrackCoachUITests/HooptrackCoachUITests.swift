@@ -41,7 +41,7 @@ final class HooptrackCoachUITests: XCTestCase {
             app.tabBars.buttons["Library"].tap()
         } else if app.tabBars.buttons["More"].exists {
             app.tabBars.buttons["More"].tap()
-            app.cells["Library"].tap()
+            app.staticTexts["Library"].firstMatch.tap()
         }
         XCTAssertTrue(app.descendants(matching: .any)["coach-library-screen"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["library-create-workout"].exists)
@@ -61,11 +61,11 @@ final class HooptrackCoachUITests: XCTestCase {
             app.tabBars.buttons["Players"].tap()
         } else if app.tabBars.buttons["More"].exists {
             app.tabBars.buttons["More"].tap()
-            app.cells["Players"].tap()
+            app.staticTexts["Players"].firstMatch.tap()
         }
 
         XCTAssertTrue(app.descendants(matching: .any)["coach-roster-screen"].waitForExistence(timeout: 5))
-        app.descendants(matching: .any)["roster-player-7"].tap()
+        app.buttons["roster-player-7"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["player-detail-screen"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["player-detail-open-calendar"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["player-detail-open-compare"].exists)

@@ -1,4 +1,5 @@
 import SwiftUI
+import AVKit
 
 struct RecordingCompareView: View {
     @EnvironmentObject private var appState: CoachAppState
@@ -40,15 +41,15 @@ struct RecordingCompareView: View {
                                 .font(.headline)
                             HStack(spacing: 8) {
                                 ForEach(recordings.filter { appState.selectedRecordingIds.contains($0.id) }.prefix(2)) { recording in
-                                    VStack {
-                                        Image(systemName: "play.rectangle.fill")
-                                            .font(.largeTitle)
+                                    VStack(spacing: 8) {
+                                        RecordingVideoView(recording: recording, autoplay: false)
+                                            .frame(minHeight: 150)
                                         Text(recording.drillName ?? "Clip")
                                             .font(.caption)
                                             .multilineTextAlignment(.center)
                                     }
-                                    .frame(maxWidth: .infinity, minHeight: 120)
-                                    .background(HT.ink)
+                                    .frame(maxWidth: .infinity)
+                                    .background(.black)
                                     .foregroundStyle(.white)
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                                 }
@@ -74,5 +75,46 @@ struct RecordingCompareView: View {
             .navigationTitle("Compare")
         }
         .accessibilityIdentifier("coach-recording-compare-screen")
+    }
+}
+
+struct RecordingVideoView: View {
+    @EnvironmentObject private var appState: CoachAppState
+    let recording: Recording
+    let autoplay: Bool
+    @State private var player: AVPlayer?
+
+    var body: some View {
+        Group {
+            if appState.isScreenshotMode {
+                ZStack {
+                    Color.black
+                    Image(systemName: "play.rectangle.fill")
+                        .font(.largeTitle)
+                        .foregroundStyle(.white)
+                }
+            } else if let player {
+                VideoPlayer(player: player)
+            } else {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(.black)
+                    .tint(.white)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .task(id: recording.id) {
+            guard !appState.isScreenshotMode else { return }
+            let cookies = HTTPCookieStorage.shared.cookies(for: appState.client.recordingVideoURL(id: recording.id)) ?? []
+            let asset = AVURLAsset(
+                url: appState.client.recordingVideoURL(id: recording.id),
+                options: [AVURLAssetHTTPCookiesKey: cookies]
+            )
+            let nextPlayer = AVPlayer(playerItem: AVPlayerItem(asset: asset))
+            player = nextPlayer
+            if autoplay { nextPlayer.play() }
+        }
+        .onDisappear { player?.pause() }
+        .accessibilityLabel("Playback for \(recording.drillName ?? "recording")")
     }
 }
