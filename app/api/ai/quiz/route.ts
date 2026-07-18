@@ -9,7 +9,7 @@ const POSITIONS = ['point_guard', 'shooting_guard', 'small_forward', 'power_forw
 const GAME_SITUATIONS = ['any', 'late_game', 'transition', 'half_court_offense', 'sideline_oob', 'press_break', 'zone_offense'] as const
 
 const schema = z.object({
-  topic: z.string().min(1),
+  topic: z.string().trim().min(1).max(120).regex(/^[\p{L}\p{N} &'’(),\/+_-]+$/u),
   difficulty: z.enum(['easy', 'medium', 'hard']),
   questionCount: z.number().int().min(3).max(15),
   position: z.enum(POSITIONS).optional(),
