@@ -36,6 +36,19 @@ final class HooptrackCoachUITests: XCTestCase {
                 "Missing native parity entry: \(entry)"
             )
         }
+
+        if app.tabBars.buttons["Library"].exists {
+            app.tabBars.buttons["Library"].tap()
+        } else if app.tabBars.buttons["More"].exists {
+            app.tabBars.buttons["More"].tap()
+            app.cells["Library"].tap()
+        }
+        XCTAssertTrue(app.descendants(matching: .any)["coach-library-screen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["library-create-workout"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["library-create-drill"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["library-create-move"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["library-create-quiz"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["library-create-classroom"].exists)
     }
 
     func testPlayerDetailFlowCoversCalendarAssignCompareAndReturn() throws {

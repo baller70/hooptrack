@@ -114,6 +114,23 @@ final class HoopTrackAPI {
         return response.id
     }
 
+    func createDrill(workoutID: Int, name: String, description: String?, category: String, durationSeconds: Int, timerMode: String, targetReps: Int?) async throws -> Int {
+        var payload: [String: Any] = [
+            "workout_id": workoutID,
+            "name": name,
+            "description": description ?? "",
+            "category": category,
+            "duration_seconds": durationSeconds,
+            "timer_mode": timerMode,
+            "rest_seconds": 0
+        ]
+        if let targetReps {
+            payload["target_reps"] = targetReps
+        }
+        let response: CreatedEnvelope = try await request("api/drills", method: "POST", body: payload)
+        return response.id
+    }
+
     func createMove(title: String, category: String, description: String?, youtubeURL: String?, assignedPlayerID: Int?) async throws -> Int {
         var payload: [String: Any] = [
             "title": title,
@@ -133,6 +150,25 @@ final class HoopTrackAPI {
         let payload: [String: Any] = [
             "title": title,
             "type": "multiple_choice",
+            "questions": [[
+                "question_text": question.questionText,
+                "video_url": question.videoURL ?? "",
+                "options": question.options,
+                "correct_answer": question.correctAnswer
+            ]]
+        ]
+        let response: CreatedEnvelope = try await request("api/quizzes", method: "POST", body: payload)
+        return response.id
+    }
+
+    func createClassroomWork(title: String, position: String, gameSituation: String, question: QuizQuestion) async throws -> Int {
+        let payload: [String: Any] = [
+            "title": title,
+            "type": "mixed",
+            "timer_mode": "stopwatch",
+            "duration_seconds": NSNull(),
+            "position": position,
+            "game_situation": gameSituation,
             "questions": [[
                 "question_text": question.questionText,
                 "video_url": question.videoURL ?? "",
@@ -341,6 +377,18 @@ final class HoopTrackAPI {
 
     func sendDueNotifications() async throws {
         let _: SuccessEnvelope = try await request("api/notifications/due", method: "POST")
+    }
+
+    func subscribePush(endpoint: String, p256dh: String, auth: String, userAgent: String) async throws {
+        let _: SuccessEnvelope = try await request(
+            "api/push/subscribe",
+            method: "POST",
+            body: [
+                "endpoint": endpoint,
+                "keys": ["p256dh": p256dh, "auth": auth],
+                "user_agent": userAgent
+            ]
+        )
     }
 
     func aiWorkout(playerName: String?, skillLevel: String, focusAreas: [String], duration: Int, autoSave: Bool) async throws -> AIWorkoutResult {

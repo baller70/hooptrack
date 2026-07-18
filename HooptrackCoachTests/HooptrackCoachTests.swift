@@ -106,10 +106,17 @@ final class HooptrackCoachTests: XCTestCase {
             category: "Defense",
             drills: [Drill(id: 0, workoutId: nil, name: "Closeout", description: nil, category: "Defense", durationSeconds: 60, timerMode: "timed", targetReps: nil)]
         )
+        _ = try await client.createDrill(workoutID: 401, name: "Closeout", description: "Shared drill", category: "Defense", durationSeconds: 60, timerMode: "timed", targetReps: nil)
         _ = try await client.createMove(title: "Escape Dribble", category: "Handle", description: nil, youtubeURL: nil, assignedPlayerID: 7)
         _ = try await client.createQuiz(
             title: "Late Clock Reads",
             question: QuizQuestion(questionText: "Best outlet?", videoURL: nil, options: ["Corner", "Rim"], correctAnswer: "Rim")
+        )
+        _ = try await client.createClassroomWork(
+            title: "Late Game Classroom",
+            position: "any",
+            gameSituation: "late_game",
+            question: QuizQuestion(questionText: "First read?", videoURL: nil, options: ["Matchup", "Clock"], correctAnswer: "Matchup")
         )
         _ = try await client.createScheduleItem(ScheduleAssignmentInput(playerID: 7, itemType: "film", itemID: nil, title: "Film", scheduledDate: "2026-07-18", notes: nil, startTime: nil, endTime: nil))
         _ = try await client.bulkAssign(BulkScheduleInput(playerID: 7, items: [BulkScheduleItem(itemType: "game", itemID: nil, title: "Game", notes: nil, startTime: nil, endTime: nil)], dates: ["2026-07-18"]))
@@ -119,6 +126,7 @@ final class HooptrackCoachTests: XCTestCase {
         try await client.markNotificationRead(id: 721)
         try await client.markAllNotificationsRead()
         try await client.sendDueNotifications()
+        try await client.subscribePush(endpoint: "https://push.example.test/subscription", p256dh: "key", auth: "auth", userAgent: "HooptrackCoach iOS")
         _ = try await client.threadMessages(contextType: "recording", contextID: 601)
         try await client.sendThreadMessage(contextType: "recording", contextID: 601, contextTitle: "Review", body: "Shared context")
         _ = try await client.createRecording(drillID: 801, blobKey: "coach-test.mp4", duration: 20, notes: "Coach upload", reps: nil)
@@ -139,6 +147,7 @@ final class HooptrackCoachTests: XCTestCase {
             "GET /api/moves?playerId=7",
             "GET /api/quizzes",
             "POST /api/workouts",
+            "POST /api/drills",
             "POST /api/moves",
             "POST /api/quizzes",
             "POST /api/schedule",
@@ -148,6 +157,7 @@ final class HooptrackCoachTests: XCTestCase {
             "POST /api/notifications/721/read",
             "POST /api/notifications/mark-all-read",
             "POST /api/notifications/due",
+            "POST /api/push/subscribe",
             "GET /api/messages/thread?context_type=recording&context_id=601",
             "POST /api/messages/thread",
             "POST /api/recordings",
