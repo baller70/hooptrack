@@ -5,6 +5,7 @@ import { createNotification, notifyAllTrainers } from '@/lib/notifications'
 import { resolvePlayerId } from '@/lib/access'
 
 const createRecordingSchema = z.object({
+  playerId: z.number().int().positive().optional(),
   drillId: z.number().int(),
   blobKey: z.string().min(1),
   duration: z.number().int().nonnegative(),
@@ -62,6 +63,12 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const data = createRecordingSchema.parse(body)
+    const ownerId = resolvePlayerId(session, data.playerId)
+    if (ownerId instanceof Response) return ownerId
+    if (session.role === 'trainer') {
+      const owner = db.prepare('SELECT role FROM users WHERE id = ?').get(ownerId) as { role: string } | undefined
+      if (!owner || owner.role !== 'player') return Response.json({ error: 'Player not found' }, { status: 404 })
+    }
 
     // Detect PR before insert
     type DrillRow = { name: string; timer_mode: string }
@@ -72,7 +79,7 @@ export async function POST(request: Request) {
       if (drill.timer_mode === 'stopwatch') {
         const best = db.prepare(
           'SELECT MIN(duration_seconds) as best FROM recordings WHERE drill_id = ? AND player_id = ?'
-        ).get(data.drillId, session.id) as { best: number | null }
+        ).get(data.drillId, ownerId) as { best: number | null }
         if (best.best != null && data.duration < best.best) {
           isPr = true
           prMessage = `New PR on ${drill.name}: ${Math.floor(data.duration / 60)}:${String(data.duration % 60).padStart(2, '0')} (was ${Math.floor(best.best / 60)}:${String(best.best % 60).padStart(2, '0')})`
@@ -80,7 +87,7 @@ export async function POST(request: Request) {
       } else if (drill.timer_mode === 'reps' && data.rep_count != null) {
         const best = db.prepare(
           'SELECT MAX(rep_count) as best FROM recordings WHERE drill_id = ? AND player_id = ? AND rep_count IS NOT NULL'
-        ).get(data.drillId, session.id) as { best: number | null }
+        ).get(data.drillId, ownerId) as { best: number | null }
         if (best.best != null && data.rep_count > best.best) {
           isPr = true
           prMessage = `New PR on ${drill.name}: ${data.rep_count} reps (was ${best.best})`
@@ -91,7 +98,7 @@ export async function POST(request: Request) {
     const result = db.prepare(
       'INSERT INTO recordings (player_id, drill_id, duration_seconds, blob_key, notes, rep_count) VALUES (?, ?, ?, ?, ?, ?)'
     ).run(
-      session.id,
+      ownerId,
       data.drillId,
       data.duration,
       data.blobKey,
@@ -103,7 +110,7 @@ export async function POST(request: Request) {
 
     if (isPr) {
       createNotification({
-        player_id: session.id,
+        player_id: ownerId,
         actor_id: session.id,
         type: 'pr_set',
         message: prMessage,
@@ -161,7 +168,7 @@ export async function POST(request: Request) {
         db.prepare(
           "INSERT INTO schedule (player_id, workout_id, scheduled_date, completed, completed_at, item_type, item_id, title, notes) VALUES (?, ?, ?, 1, ?, 'workout', ?, ?, ?)"
         ).run(
-          session.id,
+          ownerId,
           drillContext.workout_id,
           today,
           now,

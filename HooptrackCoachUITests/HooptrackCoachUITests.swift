@@ -19,6 +19,65 @@ final class HooptrackCoachUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Finishing Through Contact"].exists)
     }
 
+    func testCoachParityNavigationCoversWebWorkflows() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--factory-screenshot", "01-coach-dashboard"]
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["01-coach-dashboard-screen"].waitForExistence(timeout: 5))
+
+        let requiredEntries = ["Players", "Teams", "Assign", "Library", "Calendar", "Review", "Messages", "Alerts", "AI", "Progress"]
+        if app.tabBars.buttons["More"].exists {
+            app.tabBars.buttons["More"].tap()
+        }
+        for entry in requiredEntries {
+            XCTAssertTrue(
+                app.tabBars.buttons[entry].exists || app.buttons[entry].exists || app.staticTexts[entry].exists || app.cells[entry].exists,
+                "Missing native parity entry: \(entry)"
+            )
+        }
+
+        if app.tabBars.buttons["Library"].exists {
+            app.tabBars.buttons["Library"].tap()
+        } else if app.tabBars.buttons["More"].exists {
+            app.tabBars.buttons["More"].tap()
+            app.staticTexts["Library"].firstMatch.tap()
+        }
+        XCTAssertTrue(app.descendants(matching: .any)["coach-library-screen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["library-create-workout"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["library-create-drill"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["library-create-move"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["library-create-quiz"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["library-create-classroom"].exists)
+    }
+
+    func testPlayerDetailFlowCoversCalendarAssignCompareAndReturn() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--factory-screenshot", "01-coach-dashboard"]
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        if app.tabBars.buttons["Players"].exists {
+            app.tabBars.buttons["Players"].tap()
+        } else if app.tabBars.buttons["More"].exists {
+            app.tabBars.buttons["More"].tap()
+            app.staticTexts["Players"].firstMatch.tap()
+        }
+
+        XCTAssertTrue(app.descendants(matching: .any)["coach-roster-screen"].waitForExistence(timeout: 5))
+        app.buttons["roster-player-7"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["player-detail-screen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["player-detail-open-calendar"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["player-detail-open-compare"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["player-detail-assign-outcome"].exists)
+
+        app.descendants(matching: .any)["player-detail-open-compare"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["coach-recording-compare-screen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["recording-create-clip"].exists)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.descendants(matching: .any)["player-detail-screen"].waitForExistence(timeout: 5))
+    }
+
     func testSixScreenshotScenesAreDistinct() throws {
         let scenes = [
             "01-coach-dashboard",

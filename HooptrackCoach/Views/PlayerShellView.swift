@@ -8,18 +8,33 @@ struct CoachShellView: View {
             DashboardView()
                 .tabItem { Label("tab.dashboard", systemImage: "rectangle.grid.2x2") }
                 .tag(CoachTab.dashboard)
+            PlayersView()
+                .tabItem { Label("tab.players", systemImage: "person.crop.rectangle.stack") }
+                .tag(CoachTab.players)
             TeamView()
                 .tabItem { Label("tab.teams", systemImage: "person.3") }
                 .tag(CoachTab.teams)
             AssignWorkoutView()
                 .tabItem { Label("tab.assign", systemImage: "calendar.badge.plus") }
                 .tag(CoachTab.assign)
+            LibraryView()
+                .tabItem { Label("tab.library", systemImage: "books.vertical") }
+                .tag(CoachTab.library)
+            ScheduleComposerView()
+                .tabItem { Label("tab.calendar", systemImage: "calendar") }
+                .tag(CoachTab.calendar)
             ReviewView()
                 .tabItem { Label("tab.review", systemImage: "play.rectangle") }
                 .tag(CoachTab.review)
             MessagesView()
                 .tabItem { Label("tab.messages", systemImage: "bubble.left.and.bubble.right") }
                 .tag(CoachTab.messages)
+            NotificationsView()
+                .tabItem { Label("tab.notifications", systemImage: "bell.badge") }
+                .tag(CoachTab.notifications)
+            AIWorkflowView()
+                .tabItem { Label("tab.ai", systemImage: "sparkles") }
+                .tag(CoachTab.ai)
             ProgressViewScreen()
                 .tabItem { Label("tab.progress", systemImage: "chart.line.uptrend.xyaxis") }
                 .tag(CoachTab.progress)
