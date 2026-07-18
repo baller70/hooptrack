@@ -50,6 +50,8 @@ next-env.d.ts
 # KC-CURATED-IGNORE-20260618: build-rollback artifacts + manual edit backups
 .next.*
 *.bak-*
+.police/
+.kc-sealed-build
 
 # 2026-07-11: runtime dumps + Codex scratch + backup files
 core
