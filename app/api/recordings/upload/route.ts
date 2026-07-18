@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     const ext = mime.includes('webm') ? '.webm' : '.mp4'
     const filename = `${recordingId}_${Date.now()}_${Math.random().toString(36).slice(2)}${ext}`
 
-    const dir = path.isAbsolute(RECORDINGS_DIR) ? RECORDINGS_DIR : path.join(process.cwd(), RECORDINGS_DIR)
+    const dir = path.isAbsolute(RECORDINGS_DIR) ? RECORDINGS_DIR : path.join(/* turbopackIgnore: true */ process.cwd(), RECORDINGS_DIR)
     await mkdir(dir, { recursive: true })
     const fullPath = path.join(dir, filename)
 

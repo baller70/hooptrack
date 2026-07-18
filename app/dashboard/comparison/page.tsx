@@ -70,12 +70,13 @@ export default function ComparisonPage() {
   }, [filterPlayerId])
 
   useEffect(() => {
-    if (!leftKey) return
+    if (!leftKey) {
+      if (leftUrl?.startsWith('blob:')) URL.revokeObjectURL(leftUrl)
+      return
+    }
     const rec = recordings.find((r) => r.blob_key === leftKey)
     if (rec?.video_path) {
       if (leftUrl?.startsWith('blob:')) URL.revokeObjectURL(leftUrl)
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- resolving from recordings list, not a fetch
-      setLeftUrl(`/api/recordings/${rec.id}/video`)
       return
     }
     getVideoFromIndexedDB(leftKey).then((blob) => {
@@ -88,12 +89,13 @@ export default function ComparisonPage() {
   }, [leftKey, recordings])
 
   useEffect(() => {
-    if (!rightKey) return
+    if (!rightKey) {
+      if (rightUrl?.startsWith('blob:')) URL.revokeObjectURL(rightUrl)
+      return
+    }
     const rec = recordings.find((r) => r.blob_key === rightKey)
     if (rec?.video_path) {
       if (rightUrl?.startsWith('blob:')) URL.revokeObjectURL(rightUrl)
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- resolving from recordings list, not a fetch
-      setRightUrl(`/api/recordings/${rec.id}/video`)
       return
     }
     getVideoFromIndexedDB(rightKey).then((blob) => {
@@ -105,14 +107,6 @@ export default function ComparisonPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rightKey, recordings])
 
-  useEffect(() => {
-    if (leftVideoRef.current) leftVideoRef.current.playbackRate = leftRate
-  }, [leftRate, leftUrl])
-
-  useEffect(() => {
-    if (rightVideoRef.current) rightVideoRef.current.playbackRate = rightRate
-  }, [rightRate, rightUrl])
-
   function setLeftRateLinked(r: number) {
     setLeftRate(r)
     if (linkSpeeds) setRightRate(r)
@@ -121,6 +115,19 @@ export default function ComparisonPage() {
     setRightRate(r)
     if (linkSpeeds) setLeftRate(r)
   }
+
+  const leftSelected = recordings.find((r) => r.blob_key === leftKey)
+  const rightSelected = recordings.find((r) => r.blob_key === rightKey)
+  const leftSrc = leftSelected?.video_path ? `/api/recordings/${leftSelected.id}/video` : leftUrl
+  const rightSrc = rightSelected?.video_path ? `/api/recordings/${rightSelected.id}/video` : rightUrl
+
+  useEffect(() => {
+    if (leftVideoRef.current) leftVideoRef.current.playbackRate = leftRate
+  }, [leftRate, leftSrc])
+
+  useEffect(() => {
+    if (rightVideoRef.current) rightVideoRef.current.playbackRate = rightRate
+  }, [rightRate, rightSrc])
 
   function syncPlay() {
     leftVideoRef.current?.play()
@@ -151,6 +158,10 @@ export default function ComparisonPage() {
               setFilterPlayerId(e.target.value)
               setLeftKey('')
               setRightKey('')
+              if (leftUrl?.startsWith('blob:')) URL.revokeObjectURL(leftUrl)
+              if (rightUrl?.startsWith('blob:')) URL.revokeObjectURL(rightUrl)
+              setLeftUrl('')
+              setRightUrl('')
             }}
             className="flex-1 rounded-md border-2 border-input bg-white px-2 py-1.5 text-sm"
           >
@@ -176,7 +187,11 @@ export default function ComparisonPage() {
             <div className="space-y-2">
               <select
                 value={leftKey}
-                onChange={(e) => setLeftKey(e.target.value)}
+                onChange={(e) => {
+                  if (leftUrl?.startsWith('blob:')) URL.revokeObjectURL(leftUrl)
+                  setLeftUrl('')
+                  setLeftKey(e.target.value)
+                }}
                 className="w-full h-10 rounded-md border-2 border-input bg-background px-3 py-2 text-sm"
               >
                 <option value="">Select recording...</option>
@@ -187,11 +202,11 @@ export default function ComparisonPage() {
                 ))}
               </select>
               <div className="bg-white border-2 border-black rounded-xl overflow-hidden">
-                {leftUrl ? (
+                {leftSrc ? (
                   <div className="relative">
                     <AdaptiveVideo
                       ref={leftVideoRef}
-                      src={leftUrl}
+                      src={leftSrc}
                       controls={!synced}
                       playsInline
                     />
@@ -222,7 +237,11 @@ export default function ComparisonPage() {
             <div className="space-y-2">
               <select
                 value={rightKey}
-                onChange={(e) => setRightKey(e.target.value)}
+                onChange={(e) => {
+                  if (rightUrl?.startsWith('blob:')) URL.revokeObjectURL(rightUrl)
+                  setRightUrl('')
+                  setRightKey(e.target.value)
+                }}
                 className="w-full h-10 rounded-md border-2 border-input bg-background px-3 py-2 text-sm"
               >
                 <option value="">Select recording...</option>
@@ -233,11 +252,11 @@ export default function ComparisonPage() {
                 ))}
               </select>
               <div className="bg-white border-2 border-black rounded-xl overflow-hidden">
-                {rightUrl ? (
+                {rightSrc ? (
                   <div className="relative">
                     <AdaptiveVideo
                       ref={rightVideoRef}
-                      src={rightUrl}
+                      src={rightSrc}
                       controls={!synced}
                       playsInline
                     />

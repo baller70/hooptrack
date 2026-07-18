@@ -46,6 +46,12 @@ export default function UploadMovePage() {
       .catch(() => {})
   }, [])
 
+  useEffect(() => {
+    return () => {
+      if (videoPreview) URL.revokeObjectURL(videoPreview)
+    }
+  }, [videoPreview])
+
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -55,6 +61,7 @@ export default function UploadMovePage() {
       return
     }
 
+    if (videoPreview) URL.revokeObjectURL(videoPreview)
     setVideoFile(file)
     setVideoPreview(URL.createObjectURL(file))
 
@@ -176,6 +183,7 @@ export default function UploadMovePage() {
                   <button
                     type="button"
                     onClick={() => {
+                      if (videoPreview) URL.revokeObjectURL(videoPreview)
                       setVideoFile(null)
                       setVideoPreview('')
                       setUploadedPath('')

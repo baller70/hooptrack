@@ -23,16 +23,15 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const wantActivity = searchParams.get('activity') === 'true'
 
+  if (session.role !== 'trainer') {
+    return Response.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   if (!wantActivity) {
     const players = db.prepare(
       "SELECT id, name, email FROM users WHERE role = 'player' ORDER BY name"
     ).all()
     return Response.json({ players })
-  }
-
-  // Trainer-only aggregate view
-  if (session.role !== 'trainer') {
-    return Response.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const players = db.prepare(

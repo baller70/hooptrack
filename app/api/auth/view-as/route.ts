@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   const targetId = parseInt(body?.user_id)
   if (!Number.isFinite(targetId)) return Response.json({ error: 'Missing user_id' }, { status: 400 })
 
-  const target = db.prepare("SELECT id, name, role FROM users WHERE id = ?").get(targetId) as { id: number; name: string; role: string } | undefined
+  const target = db.prepare("SELECT id, name, role FROM users WHERE id = ? AND role = 'player'").get(targetId) as { id: number; name: string; role: string } | undefined
   if (!target) return Response.json({ error: 'User not found' }, { status: 404 })
 
   // If they pick themselves (the real trainer), just clear the impersonation cookie.

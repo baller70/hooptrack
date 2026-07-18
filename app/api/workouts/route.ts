@@ -47,24 +47,23 @@ export async function POST(request: Request) {
     const body = await request.json()
     const data = createWorkoutSchema.parse(body)
 
-    const result = db
-      .prepare('INSERT INTO workouts (title, description, category, created_by, timer_mode, duration_seconds) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(
-        data.title,
-        data.description || null,
-        data.category,
-        session.id,
-        data.timer_mode ?? null,
-        data.duration_seconds ?? null,
-      )
+    const createWorkout = db.transaction(() => {
+      const result = db
+        .prepare('INSERT INTO workouts (title, description, category, created_by, timer_mode, duration_seconds) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(
+          data.title,
+          data.description || null,
+          data.category,
+          session.id,
+          data.timer_mode ?? null,
+          data.duration_seconds ?? null,
+        )
 
-    const workoutId = result.lastInsertRowid as number
-
-    if (data.drills && data.drills.length > 0) {
+      const workoutId = result.lastInsertRowid as number
       const insertDrill = db.prepare(
         'INSERT INTO drills (workout_id, name, description, category, duration_seconds, drill_order, timer_mode, target_reps, rest_seconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
       )
-      data.drills.forEach((drill, index) => {
+      data.drills?.forEach((drill, index) => {
         insertDrill.run(
           workoutId,
           drill.name,
@@ -77,7 +76,10 @@ export async function POST(request: Request) {
           drill.rest_seconds,
         )
       })
-    }
+      return workoutId
+    })
+
+    const workoutId = createWorkout()
 
     return Response.json({ id: workoutId }, { status: 201 })
   } catch (err) {

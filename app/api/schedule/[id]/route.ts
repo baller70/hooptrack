@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { createNotification } from '@/lib/notifications'
+import { canAccessPlayer } from '@/lib/access'
 
 interface ScheduleRow {
   id: number
@@ -20,8 +21,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
   if (body.completed !== undefined) {
     const row = db.prepare('SELECT id, player_id, workout_id, scheduled_date, item_type, title FROM schedule WHERE id = ?').get(id) as ScheduleRow | undefined
-    db.prepare('UPDATE schedule SET completed = ?, completed_at = ? WHERE id = ?')
+    if (!row) return Response.json({ error: 'Schedule item not found' }, { status: 404 })
+    if (!canAccessPlayer(session, row.player_id)) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const result = db.prepare('UPDATE schedule SET completed = ?, completed_at = ? WHERE id = ?')
       .run(body.completed ? 1 : 0, body.completed ? new Date().toISOString() : null, id)
+    if (result.changes === 0) return Response.json({ error: 'Schedule item not found' }, { status: 404 })
 
     // If completing and the actor is the player themselves, notify their trainer(s)
     if (body.completed && row && row.player_id === session.id) {
@@ -50,6 +57,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   if (!session || session.role !== 'trainer') return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
-  db.prepare('DELETE FROM schedule WHERE id = ?').run(id)
+  const result = db.prepare('DELETE FROM schedule WHERE id = ?').run(id)
+  if (result.changes === 0) return Response.json({ error: 'Schedule item not found' }, { status: 404 })
   return Response.json({ success: true })
 }

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { ATTACHMENTS_DIR } from '@/lib/constants'
+import { resolveInside } from '@/lib/files'
 import { stat, open } from 'fs/promises'
 import path from 'path'
 
@@ -50,9 +51,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return new Response('Forbidden', { status: 403 })
   }
 
-  const dir = path.isAbsolute(ATTACHMENTS_DIR) ? ATTACHMENTS_DIR : path.join(process.cwd(), ATTACHMENTS_DIR)
-  const fullPath = path.join(dir, message.attachment_path)
-  if (!fullPath.startsWith(dir)) return new Response('Forbidden', { status: 403 })
+  const dir = path.isAbsolute(ATTACHMENTS_DIR) ? ATTACHMENTS_DIR : path.join(/* turbopackIgnore: true */ process.cwd(), ATTACHMENTS_DIR)
+  const fullPath = resolveInside(dir, message.attachment_path)
+  if (!fullPath) return new Response('Forbidden', { status: 403 })
 
   let fileStat
   try {

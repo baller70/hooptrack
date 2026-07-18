@@ -46,27 +46,30 @@ export async function POST(request: Request) {
     const body = await request.json()
     const data = createQuizSchema.parse(body)
 
-    const result = db.prepare(
-      'INSERT INTO quizzes (title, type, created_by, timer_mode, duration_seconds, position, game_situation) VALUES (?, ?, ?, ?, ?, ?, ?)'
-    ).run(
-      data.title,
-      data.type,
-      session.id,
-      data.timer_mode,
-      data.duration_seconds ?? null,
-      data.position ?? null,
-      data.game_situation ?? null,
-    )
+    const createQuiz = db.transaction(() => {
+      const result = db.prepare(
+        'INSERT INTO quizzes (title, type, created_by, timer_mode, duration_seconds, position, game_situation) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).run(
+        data.title,
+        data.type,
+        session.id,
+        data.timer_mode,
+        data.duration_seconds ?? null,
+        data.position ?? null,
+        data.game_situation ?? null,
+      )
 
-    const quizId = result.lastInsertRowid as number
-
-    const insertQ = db.prepare(
-      'INSERT INTO quiz_questions (quiz_id, question_text, video_url, options, correct_answer, question_order) VALUES (?, ?, ?, ?, ?, ?)'
-    )
-    data.questions.forEach((q, i) => {
-      insertQ.run(quizId, q.question_text, q.video_url || null, JSON.stringify(q.options), q.correct_answer, i)
+      const quizId = result.lastInsertRowid as number
+      const insertQ = db.prepare(
+        'INSERT INTO quiz_questions (quiz_id, question_text, video_url, options, correct_answer, question_order) VALUES (?, ?, ?, ?, ?, ?)'
+      )
+      data.questions.forEach((q, i) => {
+        insertQ.run(quizId, q.question_text, q.video_url || null, JSON.stringify(q.options), q.correct_answer, i)
+      })
+      return quizId
     })
 
+    const quizId = createQuiz()
     return Response.json({ id: quizId }, { status: 201 })
   } catch (err) {
     if (err instanceof z.ZodError) {

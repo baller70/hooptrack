@@ -21,7 +21,7 @@ export async function getSession(): Promise<UserPayload | null> {
   if (viewAsId === real.id) return real // viewing as self = no-op
 
   const target = db.prepare(
-    "SELECT id, name, email, role FROM users WHERE id = ?"
+    "SELECT id, name, email, role FROM users WHERE id = ? AND role = 'player'"
   ).get(viewAsId) as { id: number; name: string; email: string; role: 'trainer' | 'player' } | undefined
   if (!target) return real
 

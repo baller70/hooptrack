@@ -15,7 +15,7 @@ const registerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email(),
   password: z.string().min(6, 'Password must be at least 6 characters'),
-  role: z.enum(['trainer', 'player']),
+  role: z.literal('player'),
 })
 
 type RegisterForm = z.infer<typeof registerSchema>
@@ -78,15 +78,8 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <Label htmlFor="role">I am a...</Label>
-            <select
-              id="role"
-              {...register('role')}
-              className="w-full h-10 rounded-md border-2 border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="player">Player</option>
-              <option value="trainer">Trainer</option>
-            </select>
+            <input type="hidden" value="player" {...register('role')} />
+            <p className="text-sm text-muted-foreground">Trainer accounts are created by an administrator.</p>
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>

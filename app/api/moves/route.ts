@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { z } from 'zod'
+import { resolvePlayerId } from '@/lib/access'
 
 const TIMER_MODES = ['timed', 'stopwatch', 'reps'] as const
 
@@ -27,6 +28,8 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const category = searchParams.get('category')
   const playerId = searchParams.get('playerId')
+  const effectivePlayerId = resolvePlayerId(session, playerId)
+  if (effectivePlayerId instanceof Response) return effectivePlayerId
 
   let query = `
     SELECT pm.*, u.name as creator_name, p.name as assigned_player_name
@@ -41,12 +44,12 @@ export async function GET(request: Request) {
     conditions.push('pm.category = ?')
     params.push(category)
   }
-  if (playerId) {
+  if (session.role === 'trainer' && playerId) {
     conditions.push('(pm.assigned_to_player_id = ? OR pm.assigned_to_player_id IS NULL)')
-    params.push(parseInt(playerId))
+    params.push(effectivePlayerId)
   } else if (session.role === 'player') {
     conditions.push('(pm.assigned_to_player_id = ? OR pm.assigned_to_player_id IS NULL)')
-    params.push(session.id)
+    params.push(effectivePlayerId)
   }
 
   if (conditions.length > 0) query += ' WHERE ' + conditions.join(' AND ')

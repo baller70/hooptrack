@@ -1,15 +1,20 @@
 import { getSession } from '@/lib/session'
 import { analyzePlayerProgress } from '@/lib/ai'
 import { db } from '@/lib/db'
+import { resolvePlayerId } from '@/lib/access'
+import { rateLimit, requestIp } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const limited = rateLimit(`ai-progress:${session.id}:${requestIp(request)}`, 20, 60 * 60 * 1000)
+  if (limited) return limited
 
   const { searchParams } = new URL(request.url)
-  const playerId = searchParams.get('playerId') || session.id
+  const playerId = resolvePlayerId(session, searchParams.get('playerId'))
+  if (playerId instanceof Response) return playerId
 
   try {
     const player = db.prepare('SELECT name FROM users WHERE id = ?').get(playerId) as { name: string } | undefined

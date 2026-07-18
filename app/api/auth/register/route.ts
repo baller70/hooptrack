@@ -2,15 +2,19 @@ import { db } from '@/lib/db'
 import { hashPassword, createToken, UserPayload } from '@/lib/auth'
 import { cookies } from 'next/headers'
 import { z } from 'zod'
+import { rateLimit, requestIp } from '@/lib/rate-limit'
 
 const registerSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(6),
-  role: z.enum(['trainer', 'player']),
+  role: z.enum(['player']).default('player'),
 })
 
 export async function POST(request: Request) {
+  const limited = rateLimit(`register:${requestIp(request)}`, 5, 15 * 60 * 1000)
+  if (limited) return limited
+
   try {
     const body = await request.json()
     const data = registerSchema.parse(body)

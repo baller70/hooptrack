@@ -5,6 +5,7 @@ import { getSession } from '@/lib/session'
 import { z } from 'zod'
 import { createNotification } from '@/lib/notifications'
 import { ATTACHMENTS_DIR } from '@/lib/constants'
+import { canAccessContext, getContextParticipants } from '@/lib/access'
 import { writeFile, mkdir, unlink } from 'fs/promises'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
@@ -16,6 +17,8 @@ const CONTEXT_TYPES = ['workout', 'drill', 'move', 'quiz', 'recording', 'general
 const ATTACHMENT_TYPES = ['voice', 'image', 'video', 'file'] as const
 
 const MAX_BYTES = 50 * 1024 * 1024 // 50 MB
+
+class BadRequestError extends Error {}
 
 const postSchema = z.object({
   context_type: z.enum(CONTEXT_TYPES),
@@ -51,14 +54,18 @@ export async function GET(request: Request) {
   const contextType = searchParams.get('context_type')
   const contextId = searchParams.get('context_id')
   const since = searchParams.get('since')
-  if (!contextType || !contextId) {
+  const parsedContextId = contextId ? parseInt(contextId, 10) : NaN
+  if (!contextType || Number.isNaN(parsedContextId)) {
     return Response.json({ error: 'Missing context' }, { status: 400 })
+  }
+  if (!canAccessContext(session, contextType, parsedContextId)) {
+    return Response.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   let q = `SELECT m.*, u.name as sender_name FROM messages m
            JOIN users u ON u.id = m.sender_id
            WHERE m.context_type = ? AND m.context_id = ?`
-  const params: (string | number)[] = [contextType, parseInt(contextId)]
+  const params: (string | number)[] = [contextType, parsedContextId]
   if (since) {
     q += ' AND m.created_at > ?'
     params.push(since)
@@ -69,7 +76,7 @@ export async function GET(request: Request) {
 
   db.prepare(
     'UPDATE messages SET read_at = ? WHERE context_type = ? AND context_id = ? AND recipient_id = ? AND read_at IS NULL'
-  ).run(new Date().toISOString(), contextType, parseInt(contextId), session.id)
+  ).run(new Date().toISOString(), contextType, parsedContextId, session.id)
 
   return Response.json({ messages })
 }
@@ -98,12 +105,12 @@ async function parseInput(request: Request): Promise<ParsedInput> {
     const attType = String(fd.get('attachment_type') || '') as typeof ATTACHMENT_TYPES[number]
     const file = fd.get('attachment') as File | null
 
-    if (!CONTEXT_TYPES.includes(ctx as typeof CONTEXT_TYPES[number])) throw new Error('Invalid context_type')
-    if (Number.isNaN(ctxId)) throw new Error('Invalid context_id')
+    if (!CONTEXT_TYPES.includes(ctx as typeof CONTEXT_TYPES[number])) throw new BadRequestError('Invalid context_type')
+    if (Number.isNaN(ctxId)) throw new BadRequestError('Invalid context_id')
 
     let attachment: ParsedInput['attachment']
     if (file && ATTACHMENT_TYPES.includes(attType)) {
-      if (file.size > MAX_BYTES) throw new Error('Attachment too large (50 MB max)')
+      if (file.size > MAX_BYTES) throw new BadRequestError('Attachment too large (50 MB max)')
       const dur = fd.get('attachment_duration_seconds')
       attachment = {
         type: attType,
@@ -113,7 +120,7 @@ async function parseInput(request: Request): Promise<ParsedInput> {
       }
     }
 
-    if (!body && !attachment) throw new Error('Message must have body or attachment')
+    if (!body && !attachment) throw new BadRequestError('Message must have body or attachment')
 
     return {
       context_type: ctx as typeof CONTEXT_TYPES[number],
@@ -127,7 +134,7 @@ async function parseInput(request: Request): Promise<ParsedInput> {
   // JSON path (text-only)
   const json = await request.json()
   const data = postSchema.parse(json)
-  if (!data.body) throw new Error('Missing body')
+  if (!data.body) throw new BadRequestError('Missing body')
   return data as ParsedInput
 }
 
@@ -138,7 +145,7 @@ interface SavedAttachment {
 }
 
 async function saveAttachment(messageId: number, file: File, type: string): Promise<SavedAttachment> {
-  const dir = path.isAbsolute(ATTACHMENTS_DIR) ? ATTACHMENTS_DIR : path.join(process.cwd(), ATTACHMENTS_DIR)
+  const dir = path.isAbsolute(ATTACHMENTS_DIR) ? ATTACHMENTS_DIR : path.join(/* turbopackIgnore: true */ process.cwd(), ATTACHMENTS_DIR)
   await mkdir(dir, { recursive: true })
 
   // Pick extension from mime first, fallback to filename
@@ -198,36 +205,21 @@ export async function POST(request: Request) {
 
   try {
     const data = await parseInput(request)
+    if (!canAccessContext(session, data.context_type, data.context_id)) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
-    // Build recipients (same logic as before)
     const recipients = new Set<number>()
+    const participants = getContextParticipants(data.context_type, data.context_id)
+    if (!participants) return Response.json({ error: 'Context not found' }, { status: 404 })
+    for (const participantId of participants) {
+      if (participantId !== session.id) recipients.add(participantId)
+    }
+
     const past = db.prepare(
       'SELECT DISTINCT sender_id FROM messages WHERE context_type = ? AND context_id = ? AND sender_id != ?'
     ).all(data.context_type, data.context_id, session.id) as { sender_id: number }[]
     for (const r of past) recipients.add(r.sender_id)
-
-    if (data.context_type === 'workout') {
-      const w = db.prepare('SELECT created_by FROM workouts WHERE id = ?').get(data.context_id) as { created_by: number } | undefined
-      if (w && w.created_by !== session.id) recipients.add(w.created_by)
-    } else if (data.context_type === 'drill') {
-      const d = db.prepare('SELECT w.created_by FROM drills d JOIN workouts w ON w.id = d.workout_id WHERE d.id = ?').get(data.context_id) as { created_by: number } | undefined
-      if (d && d.created_by !== session.id) recipients.add(d.created_by)
-    } else if (data.context_type === 'move') {
-      const m = db.prepare('SELECT created_by, assigned_to_player_id FROM player_moves WHERE id = ?').get(data.context_id) as { created_by: number; assigned_to_player_id: number | null } | undefined
-      if (m) {
-        if (m.created_by !== session.id) recipients.add(m.created_by)
-        if (m.assigned_to_player_id && m.assigned_to_player_id !== session.id) recipients.add(m.assigned_to_player_id)
-      }
-    } else if (data.context_type === 'quiz') {
-      const q = db.prepare('SELECT created_by FROM quizzes WHERE id = ?').get(data.context_id) as { created_by: number } | undefined
-      if (q && q.created_by !== session.id) recipients.add(q.created_by)
-    } else if (data.context_type === 'recording') {
-      const r = db.prepare('SELECT r.player_id, w.created_by FROM recordings r JOIN drills d ON d.id = r.drill_id JOIN workouts w ON w.id = d.workout_id WHERE r.id = ?').get(data.context_id) as { player_id: number; created_by: number } | undefined
-      if (r) {
-        if (r.player_id !== session.id) recipients.add(r.player_id)
-        if (r.created_by !== session.id) recipients.add(r.created_by)
-      }
-    }
 
     if (session.role === 'player' && recipients.size === 0) {
       const trainers = db.prepare("SELECT id FROM users WHERE role = 'trainer'").all() as { id: number }[]
@@ -329,7 +321,7 @@ export async function POST(request: Request) {
     if (err instanceof z.ZodError) {
       return Response.json({ error: err.issues[0].message }, { status: 400 })
     }
-    if (err instanceof Error) {
+    if (err instanceof BadRequestError) {
       return Response.json({ error: err.message }, { status: 400 })
     }
     console.error('Thread post error:', err)

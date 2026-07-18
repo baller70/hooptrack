@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { verifyPassword, createToken, UserPayload } from '@/lib/auth'
 import { cookies } from 'next/headers'
 import { z } from 'zod'
+import { rateLimit, requestIp } from '@/lib/rate-limit'
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -9,6 +10,9 @@ const loginSchema = z.object({
 })
 
 export async function POST(request: Request) {
+  const limited = rateLimit(`login:${requestIp(request)}`, 10, 15 * 60 * 1000)
+  if (limited) return limited
+
   try {
     const body = await request.json()
     const data = loginSchema.parse(body)

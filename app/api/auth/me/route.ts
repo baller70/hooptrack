@@ -4,6 +4,11 @@ import { getSession } from '@/lib/session'
 
 import { db } from '@/lib/db'
 
+interface TrainerAiSettingsRow {
+  ai_model: string | null
+  ai_credentials: string | null
+}
+
 export async function GET() {
   const session = await getSession()
   if (!session) {
@@ -15,7 +20,9 @@ export async function GET() {
 
   // Get freshest data from DB for trainers (like ai_model, ai_credentials)
   if (session.role === 'trainer') {
-    const dbUser = db.prepare('SELECT ai_model, ai_credentials FROM users WHERE id = ?').get(session.id) as any
+    const dbUser = db
+      .prepare('SELECT ai_model, ai_credentials FROM users WHERE id = ?')
+      .get(session.id) as TrainerAiSettingsRow | undefined
     if (dbUser) {
       Object.assign(session, dbUser)
     }

@@ -3,7 +3,7 @@
  * callbacks and event handlers, never in the React render path. They are intentionally impure to
  * generate time-varying visuals (countdown, flashes, voice cue selection). */
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Video, Square, RotateCcw, Check, Circle, Sparkles, Loader2, Trophy, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -145,6 +145,7 @@ export default function VideoRecorder({
 
   const [phase, setPhase] = useState<'idle' | 'previewing' | 'recording' | 'reviewing' | 'saved'>('idle')
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null)
+  const reviewUrl = useMemo(() => recordedBlob ? URL.createObjectURL(recordedBlob) : '', [recordedBlob])
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [reps, setReps] = useState(0)
   const [saving, setSaving] = useState(false)
@@ -174,6 +175,11 @@ export default function VideoRecorder({
   const flashesRef = useRef<ActiveFlash[]>([])
   const lastFlashTimes = useRef<{ number: number; word: number; color: number }>({ number: 0, word: 0, color: 0 })
   const intervalTimersRef = useRef<number[]>([])
+
+  useEffect(() => {
+    if (!reviewUrl) return
+    return () => URL.revokeObjectURL(reviewUrl)
+  }, [reviewUrl])
 
   const cleanup = useCallback(() => {
     cancelAnimationFrame(animFrameRef.current)
@@ -389,7 +395,8 @@ export default function VideoRecorder({
           phaseColor = '#10B981'
           // Auto-stop
           cancelAnimationFrame(animFrameRef.current)
-          mediaRecorderRef.current?.stop()
+          if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop()
+          return
         } else {
           timeStr = formatTime(ip.remaining)
           phaseLabel = `${ip.phase.toUpperCase()} · R${ip.round}/${effective.intervalRounds}`
@@ -482,7 +489,7 @@ export default function VideoRecorder({
       // Auto-stop for reps
       if (mode === 'reps' && effective.targetReps && repsRef.current >= effective.targetReps) {
         cancelAnimationFrame(animFrameRef.current)
-        mediaRecorderRef.current?.stop()
+        if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop()
       }
     }
 
@@ -823,10 +830,10 @@ export default function VideoRecorder({
           }
         />
 
-        {phase === 'reviewing' && recordedBlob && (
+        {phase === 'reviewing' && reviewUrl && (
           <video
             ref={reviewVideoRef}
-            src={URL.createObjectURL(recordedBlob)}
+            src={reviewUrl}
             controls
             playsInline
             className="w-full h-full object-contain"

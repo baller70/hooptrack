@@ -82,11 +82,11 @@ async function executeAiChat(prompt: string): Promise<string> {
 
   try {
     if (model === 'Codex CLI') {
-      const p = creds.codex_cli_path || process.env.CODEX_CLI_PATH || '/usr/bin/codex'
+      const p = process.env.CODEX_CLI_PATH || '/usr/bin/codex'
       return await runCli(p, ['-a', 'never', 'exec', '--sandbox', 'read-only', '--skip-git-repo-check', '-'], prompt)
     }
     if (model === 'Claude Code CLI') {
-      const p = creds.claude_cli_path || process.env.CLAUDE_CLI_PATH || '/usr/bin/claude'
+      const p = process.env.CLAUDE_CLI_PATH || '/usr/bin/claude'
       return await runCli(p, ['--print'], prompt)
     }
     if (model === 'OpenAI') {

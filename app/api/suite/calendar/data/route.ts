@@ -35,6 +35,7 @@ function mapType(itemType: string | null): 'practice' | 'game' | 'event' {
 
 export async function GET(request: Request) {
   const session = await getSession()
+  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   const { searchParams } = new URL(request.url)
   const from = searchParams.get('from')
   const to = searchParams.get('to')

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { RECORDINGS_DIR } from '@/lib/constants'
+import { resolveInside } from '@/lib/files'
 import { stat, open } from 'fs/promises'
 import path from 'path'
 
@@ -28,11 +29,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return new Response('Forbidden', { status: 403 })
   }
 
-  const dir = path.isAbsolute(RECORDINGS_DIR) ? RECORDINGS_DIR : path.join(process.cwd(), RECORDINGS_DIR)
-  const fullPath = path.join(dir, row.video_path)
-
-  // Prevent path traversal
-  if (!fullPath.startsWith(dir)) return new Response('Forbidden', { status: 403 })
+  const dir = path.isAbsolute(RECORDINGS_DIR) ? RECORDINGS_DIR : path.join(/* turbopackIgnore: true */ process.cwd(), RECORDINGS_DIR)
+  const fullPath = resolveInside(dir, row.video_path)
+  if (!fullPath) return new Response('Forbidden', { status: 403 })
 
   let fileStat
   try {

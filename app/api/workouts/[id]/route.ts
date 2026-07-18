@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { RECORDINGS_DIR } from '@/lib/constants'
+import { resolveInside } from '@/lib/files'
 import { unlink } from 'fs/promises'
 import path from 'path'
 
@@ -89,13 +90,13 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
 
   const uniqueVideoPaths = [...new Set(recordings.map((r) => r.video_path).filter((p): p is string => !!p))]
   if (uniqueVideoPaths.length > 0) {
-    const dir = path.isAbsolute(RECORDINGS_DIR) ? RECORDINGS_DIR : path.join(process.cwd(), RECORDINGS_DIR)
+    const dir = path.isAbsolute(RECORDINGS_DIR) ? RECORDINGS_DIR : path.join(/* turbopackIgnore: true */ process.cwd(), RECORDINGS_DIR)
     for (const videoPath of uniqueVideoPaths) {
       const remaining = db.prepare('SELECT COUNT(*) as c FROM recordings WHERE video_path = ?')
         .get(videoPath) as { c: number }
       if (remaining.c > 0) continue
-      const fullPath = path.join(dir, videoPath)
-      if (fullPath.startsWith(dir)) {
+      const fullPath = resolveInside(dir, videoPath)
+      if (fullPath) {
         try { await unlink(fullPath) } catch { /* file may already be gone */ }
       }
     }

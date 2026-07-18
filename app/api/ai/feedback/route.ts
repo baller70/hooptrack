@@ -2,10 +2,13 @@ export const dynamic = "force-dynamic"
 import { getSession } from '@/lib/session'
 import { generateCoachFeedback } from '@/lib/ai'
 import { db } from '@/lib/db'
+import { rateLimit, requestIp } from '@/lib/rate-limit'
 
 export async function POST(request: Request) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const limited = rateLimit(`ai-feedback:${session.id}:${requestIp(request)}`, 30, 60 * 60 * 1000)
+  if (limited) return limited
 
   try {
     const body = await request.json()

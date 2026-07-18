@@ -62,6 +62,7 @@ export default function YouTubeClipper({ url, initialStart, initialEnd, onClipCh
   const containerRef = useRef<HTMLDivElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const onClipChangeRef = useRef(onClipChange)
 
   const [ready, setReady] = useState(false)
   const [duration, setDuration] = useState(0)
@@ -70,6 +71,10 @@ export default function YouTubeClipper({ url, initialStart, initialEnd, onClipCh
   const [clipEnd, setClipEnd] = useState(initialEnd || 0)
   const [playing, setPlaying] = useState(false)
   const [dragging, setDragging] = useState<'start' | 'end' | null>(null)
+
+  useEffect(() => {
+    onClipChangeRef.current = onClipChange
+  }, [onClipChange])
 
   // Load YouTube IFrame API
   const initPlayer = useCallback(() => {
@@ -93,13 +98,13 @@ export default function YouTubeClipper({ url, initialStart, initialEnd, onClipCh
           setDuration(dur)
           if (!initialEnd || initialEnd <= 0) {
             setClipEnd(dur)
-            onClipChange(initialStart || 0, dur)
+            onClipChangeRef.current(initialStart || 0, dur)
           }
           setReady(true)
         },
       },
     })
-  }, [videoId, initialStart, initialEnd, onClipChange])
+  }, [videoId, initialStart, initialEnd])
 
   useEffect(() => {
     if (!videoId) return
@@ -175,12 +180,12 @@ export default function YouTubeClipper({ url, initialStart, initialEnd, onClipCh
       if (dragging === 'start') {
         const newStart = Math.min(time, clipEnd - 1)
         setClipStart(newStart)
-        onClipChange(newStart, clipEnd)
+        onClipChangeRef.current(newStart, clipEnd)
         playerRef.current?.seekTo(newStart, true)
       } else {
         const newEnd = Math.max(time, clipStart + 1)
         setClipEnd(newEnd)
-        onClipChange(clipStart, newEnd)
+        onClipChangeRef.current(clipStart, newEnd)
       }
     }
 

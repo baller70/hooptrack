@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { RECORDINGS_DIR } from '@/lib/constants'
+import { resolveInside } from '@/lib/files'
 import { unlink } from 'fs/promises'
 import path from 'path'
 import { z } from 'zod'
@@ -81,9 +82,9 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   }
 
   if (canDeleteFile && row.video_path) {
-    const dir = path.isAbsolute(RECORDINGS_DIR) ? RECORDINGS_DIR : path.join(process.cwd(), RECORDINGS_DIR)
-    const fullPath = path.join(dir, row.video_path)
-    if (fullPath.startsWith(dir)) {
+    const dir = path.isAbsolute(RECORDINGS_DIR) ? RECORDINGS_DIR : path.join(/* turbopackIgnore: true */ process.cwd(), RECORDINGS_DIR)
+    const fullPath = resolveInside(dir, row.video_path)
+    if (fullPath) {
       try { await unlink(fullPath) } catch { /* file may already be gone */ }
     }
   }

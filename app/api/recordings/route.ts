@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { z } from 'zod'
 import { createNotification, notifyAllTrainers } from '@/lib/notifications'
+import { resolvePlayerId } from '@/lib/access'
 
 const createRecordingSchema = z.object({
   drillId: z.number().int(),
@@ -18,6 +19,8 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const playerId = searchParams.get('playerId')
   const drillId = searchParams.get('drillId')
+  const effectivePlayerId = resolvePlayerId(session, playerId)
+  if (effectivePlayerId instanceof Response) return effectivePlayerId
 
   let query = `
     SELECT r.*, d.name as drill_name, d.category as drill_category, w.title as workout_title,
@@ -30,12 +33,12 @@ export async function GET(request: Request) {
   const conditions: string[] = []
   const params: (string | number)[] = []
 
-  if (playerId) {
+  if (session.role === 'trainer' && playerId) {
     conditions.push('r.player_id = ?')
-    params.push(parseInt(playerId))
+    params.push(effectivePlayerId)
   } else if (session.role === 'player') {
     conditions.push('r.player_id = ?')
-    params.push(session.id)
+    params.push(effectivePlayerId)
   }
 
   if (drillId) {

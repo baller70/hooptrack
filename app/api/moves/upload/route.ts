@@ -2,6 +2,14 @@ import { getSession } from '@/lib/session'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 
+const MAX_UPLOAD_BYTES = 250 * 1024 * 1024
+const MIME_EXTENSIONS: Record<string, string> = {
+  'video/mp4': '.mp4',
+  'video/webm': '.webm',
+  'video/quicktime': '.mov',
+  'video/mov': '.mov',
+}
+
 export async function POST(request: Request) {
   const session = await getSession()
   if (!session || session.role !== 'trainer') {
@@ -14,15 +22,18 @@ export async function POST(request: Request) {
     if (!file) {
       return Response.json({ error: 'No video file provided' }, { status: 400 })
     }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return Response.json({ error: 'Video file is too large' }, { status: 413 })
+    }
 
     // Validate file type
-    const allowedTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/mov']
-    if (!allowedTypes.includes(file.type) && !file.name.match(/\.(mp4|webm|mov)$/i)) {
+    const mime = (file.type || '').toLowerCase()
+    if (!MIME_EXTENSIONS[mime]) {
       return Response.json({ error: 'Only MP4, WebM, and MOV files are allowed' }, { status: 400 })
     }
 
     // Generate unique filename
-    const ext = path.extname(file.name) || '.mp4'
+    const ext = MIME_EXTENSIONS[mime]
     const filename = `move_${Date.now()}_${Math.random().toString(36).slice(2)}${ext}`
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'moves')
     await mkdir(uploadDir, { recursive: true })

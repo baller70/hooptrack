@@ -34,17 +34,28 @@ export default function QuizPlayerPage() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState<string[]>([])
   const [phase, setPhase] = useState<'loading' | 'intro' | 'question' | 'results'>('loading')
+  const [loadError, setLoadError] = useState('')
   const [result, setResult] = useState<{ score: number; correct: number; total: number } | null>(null)
   const [me, setMe] = useState<AuthUser | null>(null)
 
   useEffect(() => {
     fetch(`/api/quizzes/${params.id}`)
-      .then((r) => r.json())
+      .then(async (r) => {
+        const data = await r.json().catch(() => ({}))
+        if (!r.ok || !data.quiz || !Array.isArray(data.questions)) {
+          throw new Error(data.error || 'Quiz unavailable')
+        }
+        return data
+      })
       .then((data) => {
         setQuiz(data.quiz)
         setQuestions(data.questions)
         setAnswers(new Array(data.questions.length).fill(''))
         setPhase('intro')
+      })
+      .catch((err) => {
+        setLoadError(err instanceof Error ? err.message : 'Quiz unavailable')
+        setPhase('loading')
       })
     fetch('/api/auth/me', { cache: 'no-store' }).then(r => r.json()).then(d => { if (d?.user) setMe(d.user) }).catch(() => {})
   }, [params.id])
@@ -94,6 +105,20 @@ export default function QuizPlayerPage() {
   }
 
   if (phase === 'loading') {
+    if (loadError) {
+      return (
+        <div className="p-4 max-w-2xl mx-auto">
+          <Link href="/dashboard/classroom" className="flex items-center gap-1 text-sm text-muted-foreground mb-4 hover:text-foreground">
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Link>
+          <div className="bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_#0A0A0A] p-6 text-center">
+            <p className="font-semibold">Quiz unavailable</p>
+            <p className="text-sm text-muted-foreground mt-1">{loadError}</p>
+          </div>
+        </div>
+      )
+    }
     return <div className="p-4 text-center">Loading...</div>
   }
 

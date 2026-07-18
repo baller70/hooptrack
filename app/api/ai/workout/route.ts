@@ -3,6 +3,7 @@ import { getSession } from '@/lib/session'
 import { generateWorkout } from '@/lib/ai'
 import { db } from '@/lib/db'
 import { z } from 'zod'
+import { rateLimit, requestIp } from '@/lib/rate-limit'
 
 const schema = z.object({
   playerName: z.string().optional(),
@@ -15,6 +16,8 @@ const schema = z.object({
 export async function POST(request: Request) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const limited = rateLimit(`ai-workout:${session.id}:${requestIp(request)}`, 20, 60 * 60 * 1000)
+  if (limited) return limited
 
   try {
     const body = await request.json()
@@ -29,21 +32,22 @@ export async function POST(request: Request) {
 
     // Auto-save to DB if requested
     if (data.autoSave && session.role === 'trainer') {
-      const result = db.prepare(
-        'INSERT INTO workouts (title, description, category, created_by) VALUES (?, ?, ?, ?)'
-      ).run(workout.title, workout.description, workout.category, session.id)
+      const saveWorkout = db.transaction(() => {
+        const result = db.prepare(
+          'INSERT INTO workouts (title, description, category, created_by) VALUES (?, ?, ?, ?)'
+        ).run(workout.title, workout.description, workout.category, session.id)
 
-      const workoutId = result.lastInsertRowid as number
-
-      if (workout.drills && workout.drills.length > 0) {
+        const workoutId = result.lastInsertRowid as number
         const insertDrill = db.prepare(
           'INSERT INTO drills (workout_id, name, description, category, duration_seconds, drill_order) VALUES (?, ?, ?, ?, ?, ?)'
         )
-        workout.drills.forEach((drill: { name: string; description: string; category: string; duration_seconds: number }, index: number) => {
+        workout.drills?.forEach((drill: { name: string; description: string; category: string; duration_seconds: number }, index: number) => {
           insertDrill.run(workoutId, drill.name, drill.description, drill.category, drill.duration_seconds, index)
         })
-      }
+        return workoutId
+      })
 
+      const workoutId = saveWorkout()
       return Response.json({ workout, saved: true, workoutId })
     }
 
