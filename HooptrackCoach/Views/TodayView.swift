@@ -9,6 +9,13 @@ struct DashboardView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    Text("HoopTrack Coach")
+                        .font(.largeTitle.bold())
+                        .foregroundStyle(HT.ink)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 2), spacing: 10) {
                         MetricPill(title: "metric.roster", value: "\(snapshot.acceptedRosterCount)", color: HT.orange)
                         MetricPill(title: "metric.openWork", value: "\(snapshot.openAssignments)", color: HT.ink)
@@ -51,7 +58,6 @@ struct DashboardView: View {
                 .padding()
             }
             .background(HT.paper)
-            .navigationTitle("HoopTrack Coach")
             .toolbar {
                 Button {
                     Task { await appState.refresh() }
