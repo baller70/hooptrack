@@ -17,8 +17,7 @@
     "audit:licenses": "license-checker --summary",
     "audit:deps": "npm audit --omit=dev",
     "audit:all": "npm run lint && npm run typecheck && npm run audit:knip && npm run audit:depcheck && npm run audit:madge && npm run audit:licenses && npm run audit:deps",
-    "analyze": "ANALYZE=true next build",
-    "test:coach-live-parity": "mkdir -p test-results/ISSUE-00005 && cp .factory/evidence/ISSUE-00005/live-web-parity.spec.mjs test-results/ISSUE-00005/live-web-parity.spec.mjs && node ./node_modules/@playwright/test/cli.js test test-results/ISSUE-00005/live-web-parity.spec.mjs --output test-results/ISSUE-00005/playwright-output"
+    "analyze": "ANALYZE=true next build"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
