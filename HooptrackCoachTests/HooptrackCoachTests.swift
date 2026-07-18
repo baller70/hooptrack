@@ -97,6 +97,10 @@ final class HooptrackCoachTests: XCTestCase {
         let videoURL = URL(fileURLWithPath: "/private/tmp/coach-api-upload-test.mp4")
         try Data("video".utf8).write(to: videoURL)
 
+        _ = try await client.login(email: "trainer@example.test", password: "password")
+        _ = try await client.currentUser()
+        _ = try await client.players()
+        _ = try await client.groups()
         _ = try await client.workout(id: 401)
         _ = try await client.moves(playerID: 7)
         _ = try await client.quizzes()
@@ -143,6 +147,10 @@ final class HooptrackCoachTests: XCTestCase {
             "\(request.httpMethod ?? "GET") \(request.url?.path ?? "")\(request.url?.query.map { "?\($0)" } ?? "")"
         }
         let expectedRoutes = [
+            "POST /api/auth/login",
+            "GET /api/auth/me",
+            "GET /api/players?activity=true",
+            "GET /api/coach/groups",
             "GET /api/workouts/401",
             "GET /api/moves?playerId=7",
             "GET /api/quizzes",
@@ -175,11 +183,51 @@ final class HooptrackCoachTests: XCTestCase {
             XCTAssertTrue(requested.contains(route), "Missing shared backend request: \(route). Captured: \(requested.joined(separator: " | "))")
         }
         XCTAssertFalse(requested.contains { $0.contains("/mobile") || $0.contains("/ios") })
+        XCTAssertTrue(MockURLProtocol.requests.allSatisfy { $0.url?.host == "example.test" })
     }
 
     func testServerErrorMessageIsUserVisible() {
         let error = APIError.server(status: 403, message: "Coach access only")
         XCTAssertEqual(error.errorDescription, "Coach access only")
+    }
+
+    func testReleaseEvidenceBundleMatchesAppStoreAssertions() throws {
+        let projectRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let evidenceRoot = projectRoot.appending(path: ".factory/evidence/ISSUE-00005")
+        let report = try String(contentsOf: evidenceRoot.appending(path: "parity-report.md"))
+        let checklist = try String(contentsOf: evidenceRoot.appending(path: "ios-release-checklist.md"))
+        let submissionData = try Data(contentsOf: evidenceRoot.appending(path: "app-store-submission.json"))
+        let submission = try XCTUnwrap(JSONSerialization.jsonObject(with: submissionData) as? [String: Any])
+
+        XCTAssertTrue(report.contains("https://hooptrack.194-146-12-139.sslip.io"))
+        XCTAssertTrue(report.contains("HOOPTRACK_TRAINER_EMAIL"))
+        XCTAssertTrue(report.contains("/api/auth/login"))
+        XCTAssertTrue(report.contains("/api/auth/me"))
+        XCTAssertTrue(checklist.contains("xcodebuild -scheme HooptrackCoach build"))
+        XCTAssertTrue(checklist.contains("performAccessibilityAudit"))
+
+        XCTAssertEqual(submission["bundleId"] as? String, "com.kevinhouston.hooptrackcoach")
+        XCTAssertEqual(submission["version"] as? String, "1.0")
+        XCTAssertEqual(submission["build"] as? String, "1")
+        XCTAssertEqual(submission["appStoreConnectStatus"] as? String, "WAITING_FOR_REVIEW")
+        XCTAssertNotNil(submission["pricing"])
+        XCTAssertNotNil(submission["metadata"])
+        XCTAssertNotNil(submission["reviewAccount"])
+
+        let screenshots = try XCTUnwrap(submission["localizedScreenshots"] as? [[String: String]])
+        let requiredScenes = Set([
+            "01-coach-dashboard",
+            "02-create-group-invite",
+            "03-assign-workout",
+            "04-recording-review",
+            "05-messages-controls",
+            "06-completed-outcome"
+        ])
+        XCTAssertEqual(Set(screenshots.compactMap { $0["scene"] }), requiredScenes)
+        XCTAssertEqual(Set(screenshots.compactMap { $0["locale"] }), ["en-US"])
+        XCTAssertEqual(Set(screenshots.compactMap { $0["file"] }).count, 6)
     }
 
     private func makeMockClient() -> HoopTrackAPI {
@@ -192,6 +240,13 @@ final class HooptrackCoachTests: XCTestCase {
             let method = request.httpMethod ?? "GET"
             let body: String
             switch (method, path, query) {
+            case ("POST", "/api/auth/login", _),
+                 ("GET", "/api/auth/me", _):
+                body = #"{"user":{"id":1,"name":"Coach","email":"trainer@example.test","role":"trainer"}}"#
+            case ("GET", "/api/players", "?activity=true"):
+                body = #"{"players":[]}"#
+            case ("GET", "/api/coach/groups", _):
+                body = #"{"groups":[],"members":[],"invites":[]}"#
             case ("GET", "/api/workouts/401", _):
                 body = #"{"workout":{"id":401,"title":"Finishing","description":"Shared","category":"Finishing","drill_count":1,"timer_mode":"timed","duration_seconds":60,"creator_name":"Coach"},"drills":[]}"#
             case ("GET", "/api/moves", "?playerId=7"):

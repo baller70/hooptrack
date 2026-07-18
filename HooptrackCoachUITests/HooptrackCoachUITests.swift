@@ -87,6 +87,11 @@ final class HooptrackCoachUITests: XCTestCase {
             "05-messages-controls",
             "06-completed-outcome"
         ]
+        let screenshotDirectory = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("ISSUE-00005-coach-scenes", isDirectory: true)
+        try? FileManager.default.removeItem(at: screenshotDirectory)
+        try FileManager.default.createDirectory(at: screenshotDirectory, withIntermediateDirectories: true)
+        var screenshotPayloads: [Data] = []
 
         for scene in scenes {
             let app = XCUIApplication()
@@ -94,8 +99,18 @@ final class HooptrackCoachUITests: XCTestCase {
             app.launch()
             XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
             XCTAssertTrue(app.descendants(matching: .any)["\(scene)-screen"].waitForExistence(timeout: 5))
+
+            let screenshotData = XCUIScreen.main.screenshot().pngRepresentation
+            let screenshotURL = screenshotDirectory.appendingPathComponent("\(scene).png")
+            try screenshotData.write(to: screenshotURL)
+            XCTAssertTrue(FileManager.default.fileExists(atPath: screenshotURL.path))
+            XCTAssertGreaterThan(screenshotData.count, 1_000)
+            screenshotPayloads.append(screenshotData)
             app.terminate()
         }
+
+        XCTAssertEqual(screenshotPayloads.count, 6)
+        XCTAssertEqual(Set(screenshotPayloads).count, 6, "Factory store screenshots must be six distinct image files.")
     }
 
     func testLaunchPerformance() throws {
