@@ -4,8 +4,10 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   MessageSquare, Send, Loader2, ChevronDown, ChevronUp,
   Mic, Image as ImageIcon, Film, Paperclip, X, Pause, Trash2, Download, FileIcon,
+  Flag, Ban,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
 
 type ContextType = 'workout' | 'drill' | 'move' | 'quiz' | 'recording' | 'general'
 type AttachmentType = 'voice' | 'image' | 'video' | 'file'
@@ -74,6 +76,7 @@ export default function EntityChat({ contextType, contextId, contextTitle, defau
   const [pending, setPending] = useState<PendingAttachment | null>(null)
   const [recording, setRecording] = useState(false)
   const [recordSeconds, setRecordSeconds] = useState(0)
+  const [safetyActionId, setSafetyActionId] = useState<number | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const fileImageRef = useRef<HTMLInputElement>(null)
   const fileVideoRef = useRef<HTMLInputElement>(null)
@@ -142,6 +145,9 @@ export default function EntityChat({ contextType, contextId, contextTitle, defau
           setPending(null)
         }
         load()
+      } else {
+        const result = await res.json().catch(() => ({}))
+        toast.error(result.error || 'Message could not be sent')
       }
     } finally {
       setSending(false)
@@ -236,6 +242,46 @@ export default function EntityChat({ contextType, contextId, contextTitle, defau
     setPending(null)
   }
 
+  async function reportMessage(message: Message) {
+    if (safetyActionId != null) return
+    setSafetyActionId(message.id)
+    try {
+      const response = await fetch('/api/safety/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message_id: message.id, reason: 'other' }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Report could not be submitted')
+      toast.success('Message reported for review')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Report could not be submitted')
+    } finally {
+      setSafetyActionId(null)
+    }
+  }
+
+  async function blockSender(message: Message) {
+    if (safetyActionId != null) return
+    if (!window.confirm(`Block ${message.sender_name}? You will no longer see or receive messages from this person.`)) return
+    setSafetyActionId(message.id)
+    try {
+      const response = await fetch('/api/safety/block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: message.sender_id }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'User could not be blocked')
+      setMessages((current) => current.filter((item) => item.sender_id !== message.sender_id))
+      toast.success(`${message.sender_name} was blocked`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'User could not be blocked')
+    } finally {
+      setSafetyActionId(null)
+    }
+  }
+
   const wrapperClass = embedded
     ? 'border-t-2 border-gray-100'
     : 'bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_#0A0A0A] overflow-hidden'
@@ -281,7 +327,33 @@ export default function EntityChat({ contextType, contextId, contextTitle, defau
                         <AttachmentRenderer message={m} mine={mine} />
                       )}
                       {m.body && <p className="text-sm whitespace-pre-wrap break-words mt-1 first:mt-0">{m.body}</p>}
-                      <p className={`text-[10px] mt-1 ${mine ? 'text-white/60' : 'text-muted-foreground'}`}>{timeShort(m.created_at)}</p>
+                      <div className="mt-1 flex items-center justify-between gap-3">
+                        <p className={`text-[10px] ${mine ? 'text-white/60' : 'text-muted-foreground'}`}>{timeShort(m.created_at)}</p>
+                        {!mine && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => reportMessage(m)}
+                              disabled={safetyActionId != null}
+                              className="rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+                              title="Report message"
+                              aria-label={`Report message from ${m.sender_name}`}
+                            >
+                              <Flag className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => blockSender(m)}
+                              disabled={safetyActionId != null}
+                              className="rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+                              title="Block sender"
+                              aria-label={`Block ${m.sender_name}`}
+                            >
+                              <Ban className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )

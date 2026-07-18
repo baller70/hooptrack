@@ -6,6 +6,7 @@ import { ATTACHMENTS_DIR } from '@/lib/constants'
 import { resolveInside } from '@/lib/files'
 import { stat, open } from 'fs/promises'
 import path from 'path'
+import { usersAreBlocked } from '@/lib/content-safety'
 
 interface MessageRow {
   id: number
@@ -47,6 +48,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   ).get(id) as MessageRow | undefined
 
   if (!message || !message.attachment_path) return new Response('Not found', { status: 404 })
+  const otherUserId = message.sender_id === session.id ? message.recipient_id : message.sender_id
+  if (otherUserId != null && usersAreBlocked(session.id, otherUserId)) {
+    return new Response('Forbidden', { status: 403 })
+  }
   if (!(await isAuthorized(message, session.id, session.role))) {
     return new Response('Forbidden', { status: 403 })
   }

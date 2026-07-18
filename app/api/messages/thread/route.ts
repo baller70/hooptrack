@@ -10,6 +10,7 @@ import { writeFile, mkdir, unlink } from 'fs/promises'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
 import path from 'path'
+import { objectionableContentReason, usersAreBlocked } from '@/lib/content-safety'
 
 const execFileAsync = promisify(execFile)
 
@@ -64,8 +65,13 @@ export async function GET(request: Request) {
 
   let q = `SELECT m.*, u.name as sender_name FROM messages m
            JOIN users u ON u.id = m.sender_id
-           WHERE m.context_type = ? AND m.context_id = ?`
-  const params: (string | number)[] = [contextType, parsedContextId]
+           WHERE m.context_type = ? AND m.context_id = ?
+             AND NOT EXISTS (
+               SELECT 1 FROM blocked_users b
+               WHERE (b.blocker_id = ? AND b.blocked_id = m.sender_id)
+                  OR (b.blocked_id = ? AND b.blocker_id = m.sender_id)
+             )`
+  const params: (string | number)[] = [contextType, parsedContextId, session.id, session.id]
   if (since) {
     q += ' AND m.created_at > ?'
     params.push(since)
@@ -205,6 +211,8 @@ export async function POST(request: Request) {
 
   try {
     const data = await parseInput(request)
+    const unsafeReason = objectionableContentReason(data.body)
+    if (unsafeReason) return Response.json({ error: unsafeReason }, { status: 422 })
     if (!canAccessContext(session, data.context_type, data.context_id)) {
       return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -226,7 +234,10 @@ export async function POST(request: Request) {
       for (const t of trainers) recipients.add(t.id)
     }
 
-    const recipientArr = Array.from(recipients)
+    const recipientArr = Array.from(recipients).filter((recipientId) => !usersAreBlocked(session.id, recipientId))
+    if (recipients.size > 0 && recipientArr.length === 0) {
+      return Response.json({ error: 'Messaging is unavailable for this conversation' }, { status: 403 })
+    }
     const primaryRecipient = recipientArr.length > 0 ? recipientArr[0] : null
 
     const result = db.prepare(

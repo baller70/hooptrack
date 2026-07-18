@@ -98,6 +98,10 @@ function runMigrations(db: Database.Database) {
     db.exec(SCHEMA_V16)
     db.prepare('INSERT OR IGNORE INTO _migrations VALUES (?)').run(16)
   }
+  if (current < 17) {
+    db.exec(SCHEMA_V17)
+    db.prepare('INSERT OR IGNORE INTO _migrations VALUES (?)').run(17)
+  }
 }
 
 function safeAddColumn(db: Database.Database, table: string, column: string, definition: string) {
@@ -159,6 +163,33 @@ CREATE INDEX IF NOT EXISTS idx_coach_group_invites_group_status ON coach_group_i
 CREATE UNIQUE INDEX IF NOT EXISTS idx_coach_group_invites_pending_unique
   ON coach_group_invites(group_id, player_id)
   WHERE status = 'pending';
+`
+
+const SCHEMA_V17 = `
+CREATE TABLE IF NOT EXISTS blocked_users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  blocker_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  blocked_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  CHECK(blocker_id != blocked_id),
+  UNIQUE(blocker_id, blocked_id)
+);
+CREATE INDEX IF NOT EXISTS idx_blocked_users_pair ON blocked_users(blocker_id, blocked_id);
+
+CREATE TABLE IF NOT EXISTS content_reports (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  reporter_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reported_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  message_id INTEGER REFERENCES messages(id) ON DELETE SET NULL,
+  reason TEXT NOT NULL CHECK(reason IN ('harassment','hate','threat','sexual','spam','other')),
+  details TEXT,
+  status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','reviewing','resolved','dismissed')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_content_reports_status ON content_reports(status, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_content_reports_once
+  ON content_reports(reporter_id, message_id)
+  WHERE message_id IS NOT NULL;
 `
 
 const SCHEMA_V11 = `

@@ -6,6 +6,8 @@ import { LogOut, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import AIProgressReport from '@/components/ai-progress-report'
+import AccountDeletion from '@/components/account-deletion'
+import Link from 'next/link'
 
 interface UserInfo {
   id: number
@@ -96,6 +98,11 @@ export default function ProfilePage() {
           <LogOut className="h-4 w-4" />
           Sign Out
         </Button>
+        <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm font-semibold">
+          <Link href="/privacy" className="hover:text-hoop-orange">Privacy</Link>
+          <Link href="/terms" className="hover:text-hoop-orange">Terms</Link>
+          <Link href="/support" className="hover:text-hoop-orange">Support</Link>
+        </div>
       </div>
 
       {user.role === 'trainer' && (
@@ -232,9 +239,16 @@ export default function ProfilePage() {
 
       {/* AI Progress Report */}
       {user.role === 'player' && (
-        <div>
-          <AIProgressReport />
-        </div>
+        <>
+          <div>
+            <AIProgressReport />
+          </div>
+          <div className="space-y-3 rounded-xl border-2 border-black bg-white p-6 shadow-[4px_4px_0px_0px_#0A0A0A]">
+            <h3 className="text-xl font-semibold">Account And Data</h3>
+            <p className="text-sm leading-6 text-muted-foreground">Manage permanent removal of your HoopTrack account and associated content.</p>
+            <AccountDeletion />
+          </div>
+        </>
       )}
     </div>
   )

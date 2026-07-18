@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { z } from 'zod'
 import { createNotification } from '@/lib/notifications'
+import { blockedUserIdsFor, objectionableContentReason, usersAreBlocked } from '@/lib/content-safety'
 
 const CONTEXT_TYPES = ['workout', 'drill', 'move', 'quiz', 'recording', 'general'] as const
 
@@ -26,7 +27,8 @@ export async function GET(request: Request) {
 
   if (!withParam) {
     // Return conversation summaries: every user this session has chatted with, with last message + unread count
-    const rows = db.prepare(`
+    const blockedIds = new Set(blockedUserIdsFor(session.id))
+    const rows = (db.prepare(`
       SELECT
         CASE WHEN sender_id = ? THEN recipient_id ELSE sender_id END AS other_id,
         MAX(created_at) AS last_at,
@@ -35,7 +37,9 @@ export async function GET(request: Request) {
       WHERE sender_id = ? OR recipient_id = ?
       GROUP BY other_id
       ORDER BY last_at DESC
-    `).all(session.id, session.id, session.id, session.id) as Array<{ other_id: number; last_at: string; unread: number }>
+    `).all(session.id, session.id, session.id, session.id) as Array<{ other_id: number; last_at: string; unread: number }>).filter(
+      (row) => !blockedIds.has(row.other_id),
+    )
 
     const userIds = rows.map((r) => r.other_id)
     const users: Record<number, { id: number; name: string; role: string }> = {}
@@ -59,6 +63,10 @@ export async function GET(request: Request) {
   }
 
   const otherId = parseInt(withParam)
+  if (!Number.isInteger(otherId)) return Response.json({ error: 'Invalid user' }, { status: 400 })
+  if (usersAreBlocked(session.id, otherId)) {
+    return Response.json({ messages: [], other: null, blocked: true })
+  }
   let query = `SELECT m.*, u.name as sender_name FROM messages m
                JOIN users u ON u.id = m.sender_id
                WHERE ((m.sender_id = ? AND m.recipient_id = ?) OR (m.sender_id = ? AND m.recipient_id = ?))`
@@ -93,6 +101,11 @@ export async function POST(request: Request) {
     }
     const recipient = db.prepare('SELECT id, name FROM users WHERE id = ?').get(data.recipient_id) as { id: number; name: string } | undefined
     if (!recipient) return Response.json({ error: 'Recipient not found' }, { status: 404 })
+    if (usersAreBlocked(session.id, data.recipient_id)) {
+      return Response.json({ error: 'Messaging is unavailable for this conversation' }, { status: 403 })
+    }
+    const unsafeReason = objectionableContentReason(data.body)
+    if (unsafeReason) return Response.json({ error: unsafeReason }, { status: 422 })
 
     const result = db.prepare(
       'INSERT INTO messages (sender_id, recipient_id, body, context_type, context_id, context_title) VALUES (?, ?, ?, ?, ?, ?)'
