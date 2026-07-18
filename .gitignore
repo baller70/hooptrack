@@ -60,3 +60,10 @@ __codex_upload_tmp__/
 
 # 2026-07-11: macOS AppleDouble metadata files
 ._*
+.factory/
+DerivedData/
+build/
+*.xcarchive
+*.ipa
+xcuserdata/
+*.xcuserstate
