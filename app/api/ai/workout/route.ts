@@ -6,9 +6,11 @@ import { z } from 'zod'
 import { rateLimit, requestIp } from '@/lib/rate-limit'
 
 const schema = z.object({
-  playerName: z.string().optional(),
+  playerName: z.string().trim().min(1).max(80).regex(/^[\p{L}\p{N} .,'’_-]+$/u).optional(),
   skillLevel: z.enum(['beginner', 'intermediate', 'advanced']),
-  focusAreas: z.array(z.string()).min(1),
+  focusAreas: z.array(
+    z.string().trim().min(1).max(80).regex(/^[\p{L}\p{N} &'’(),\/+_-]+$/u),
+  ).min(1).max(10),
   duration: z.number().int().min(10).max(120),
   autoSave: z.boolean().optional(),
 })

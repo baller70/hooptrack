@@ -97,6 +97,10 @@ final class HooptrackCoachTests: XCTestCase {
         let videoURL = URL(fileURLWithPath: "/private/tmp/coach-api-upload-test.mp4")
         try Data("video".utf8).write(to: videoURL)
 
+        _ = try await client.login(email: "trainer@example.test", password: "password")
+        _ = try await client.currentUser()
+        _ = try await client.players()
+        _ = try await client.groups()
         _ = try await client.workout(id: 401)
         _ = try await client.moves(playerID: 7)
         _ = try await client.quizzes()
@@ -143,6 +147,10 @@ final class HooptrackCoachTests: XCTestCase {
             "\(request.httpMethod ?? "GET") \(request.url?.path ?? "")\(request.url?.query.map { "?\($0)" } ?? "")"
         }
         let expectedRoutes = [
+            "POST /api/auth/login",
+            "GET /api/auth/me",
+            "GET /api/players?activity=true",
+            "GET /api/coach/groups",
             "GET /api/workouts/401",
             "GET /api/moves?playerId=7",
             "GET /api/quizzes",
@@ -175,6 +183,7 @@ final class HooptrackCoachTests: XCTestCase {
             XCTAssertTrue(requested.contains(route), "Missing shared backend request: \(route). Captured: \(requested.joined(separator: " | "))")
         }
         XCTAssertFalse(requested.contains { $0.contains("/mobile") || $0.contains("/ios") })
+        XCTAssertTrue(MockURLProtocol.requests.allSatisfy { $0.url?.host == "example.test" })
     }
 
     func testServerErrorMessageIsUserVisible() {
@@ -192,6 +201,13 @@ final class HooptrackCoachTests: XCTestCase {
             let method = request.httpMethod ?? "GET"
             let body: String
             switch (method, path, query) {
+            case ("POST", "/api/auth/login", _),
+                 ("GET", "/api/auth/me", _):
+                body = #"{"user":{"id":1,"name":"Coach","email":"trainer@example.test","role":"trainer"}}"#
+            case ("GET", "/api/players", "?activity=true"):
+                body = #"{"players":[]}"#
+            case ("GET", "/api/coach/groups", _):
+                body = #"{"groups":[],"members":[],"invites":[]}"#
             case ("GET", "/api/workouts/401", _):
                 body = #"{"workout":{"id":401,"title":"Finishing","description":"Shared","category":"Finishing","drill_count":1,"timer_mode":"timed","duration_seconds":60,"creator_name":"Coach"},"drills":[]}"#
             case ("GET", "/api/moves", "?playerId=7"):
