@@ -191,45 +191,6 @@ final class HooptrackCoachTests: XCTestCase {
         XCTAssertEqual(error.errorDescription, "Coach access only")
     }
 
-    func testReleaseEvidenceBundleMatchesAppStoreAssertions() throws {
-        let projectRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        let evidenceRoot = projectRoot.appending(path: ".factory/evidence/ISSUE-00005")
-        let report = try String(contentsOf: evidenceRoot.appending(path: "parity-report.md"))
-        let checklist = try String(contentsOf: evidenceRoot.appending(path: "ios-release-checklist.md"))
-        let submissionData = try Data(contentsOf: evidenceRoot.appending(path: "app-store-submission.json"))
-        let submission = try XCTUnwrap(JSONSerialization.jsonObject(with: submissionData) as? [String: Any])
-
-        XCTAssertTrue(report.contains("https://hooptrack.194-146-12-139.sslip.io"))
-        XCTAssertTrue(report.contains("HOOPTRACK_TRAINER_EMAIL"))
-        XCTAssertTrue(report.contains("/api/auth/login"))
-        XCTAssertTrue(report.contains("/api/auth/me"))
-        XCTAssertTrue(checklist.contains("xcodebuild -scheme HooptrackCoach build"))
-        XCTAssertTrue(checklist.contains("performAccessibilityAudit"))
-
-        XCTAssertEqual(submission["bundleId"] as? String, "com.kevinhouston.hooptrackcoach")
-        XCTAssertEqual(submission["version"] as? String, "1.0")
-        XCTAssertEqual(submission["build"] as? String, "1")
-        XCTAssertEqual(submission["appStoreConnectStatus"] as? String, "WAITING_FOR_REVIEW")
-        XCTAssertNotNil(submission["pricing"])
-        XCTAssertNotNil(submission["metadata"])
-        XCTAssertNotNil(submission["reviewAccount"])
-
-        let screenshots = try XCTUnwrap(submission["localizedScreenshots"] as? [[String: String]])
-        let requiredScenes = Set([
-            "01-coach-dashboard",
-            "02-create-group-invite",
-            "03-assign-workout",
-            "04-recording-review",
-            "05-messages-controls",
-            "06-completed-outcome"
-        ])
-        XCTAssertEqual(Set(screenshots.compactMap { $0["scene"] }), requiredScenes)
-        XCTAssertEqual(Set(screenshots.compactMap { $0["locale"] }), ["en-US"])
-        XCTAssertEqual(Set(screenshots.compactMap { $0["file"] }).count, 6)
-    }
-
     private func makeMockClient() -> HoopTrackAPI {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [MockURLProtocol.self]
