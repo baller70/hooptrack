@@ -1,7 +1,7 @@
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Award, CalendarDays, Camera, CheckCircle2, Clock, Dumbbell, UserPlus, Video } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { AppActionButton } from '@/components/app-action-button'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 
@@ -43,13 +43,14 @@ export default async function PlayerHomePage() {
               Train, record, complete assigned work, and track your progress from one player-first app.
             </p>
           </div>
-          <Link
+          <AppActionButton
             href="/player/capture"
+            aria-label="Start Capture"
             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border-2 border-black bg-hoop-orange px-4 text-sm font-black text-white shadow-[2px_2px_0px_0px_#0A0A0A] hover:opacity-90"
           >
-            <Camera className="h-4 w-4" />
-            Start Capture
-          </Link>
+            <Camera aria-hidden="true" className="h-4 w-4" />
+            <span aria-hidden="true">Start Capture</span>
+          </AppActionButton>
         </div>
 
         <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -129,11 +130,12 @@ function ActionCard({
   body: string
 }) {
   return (
-    <Link
+    <AppActionButton
       href={href}
-      className="rounded-lg border-2 border-black bg-white p-4 shadow-[3px_3px_0px_0px_#0A0A0A] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:bg-orange-50 hover:shadow-[1px_1px_0px_0px_#0A0A0A]"
+      aria-label={`${title}. ${body}`}
+      className="w-full rounded-lg border-2 border-black bg-white p-4 text-left shadow-[3px_3px_0px_0px_#0A0A0A] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:bg-orange-50 hover:shadow-[1px_1px_0px_0px_#0A0A0A]"
     >
-      <div className="flex gap-3">
+      <div aria-hidden="true" className="flex gap-3">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-hoop-black text-hoop-orange">
           <Icon className="h-5 w-5" />
         </span>
@@ -142,6 +144,6 @@ function ActionCard({
           <span className="mt-2 block text-sm leading-6 text-muted-foreground">{body}</span>
         </span>
       </div>
-    </Link>
+    </AppActionButton>
   )
 }

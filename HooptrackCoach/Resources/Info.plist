@@ -33,6 +33,12 @@
 	<false/>
 	<key>LSApplicationQueriesSchemes</key>
 	<array/>
+	<key>NSCameraUsageDescription</key>
+	<string>HoopTrack Coach uses the camera to record basketball training videos you choose to upload.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>HoopTrack Coach uses the microphone when you record training video with audio.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>HoopTrack Coach lets you choose training videos from your library to review and upload.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

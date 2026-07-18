@@ -18,6 +18,17 @@ enum FactoryScreenshotScene: String {
         return FactoryScreenshotScene(rawValue: arguments[index + 1])
     }
 
+    var routePath: String {
+        switch self {
+        case .dashboard: return "/coach"
+        case .teams: return "/dashboard/teams"
+        case .assignWorkout: return "/dashboard/workouts"
+        case .recordingReview: return "/dashboard/activity"
+        case .messages: return "/dashboard/chat"
+        case .completedOutcome: return "/dashboard/progress"
+        }
+    }
+
     var tab: CoachTab {
         switch self {
         case .dashboard: return .dashboard

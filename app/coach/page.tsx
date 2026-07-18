@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Activity, CalendarDays, ClipboardList, Clock, Dumbbell, Trophy, Upload, UserPlus, Users, Video } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { AppActionButton } from '@/components/app-action-button'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
 
@@ -116,13 +117,14 @@ function CoachButton({
   label: string
 }) {
   return (
-    <Link
+    <AppActionButton
       href={href}
+      aria-label={label}
       className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border-2 border-white bg-white px-4 text-sm font-black text-hoop-black shadow-[2px_2px_0px_0px_#F97316] hover:bg-orange-50"
     >
-      <Icon className="h-4 w-4 text-hoop-orange" />
-      {label}
-    </Link>
+      <Icon aria-hidden="true" className="h-4 w-4 text-hoop-orange" />
+      <span aria-hidden="true">{label}</span>
+    </AppActionButton>
   )
 }
 
@@ -158,11 +160,12 @@ function ActionCard({
   body: string
 }) {
   return (
-    <Link
+    <AppActionButton
       href={href}
-      className="rounded-lg border-2 border-black bg-white p-4 shadow-[3px_3px_0px_0px_#0A0A0A] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:bg-orange-50 hover:shadow-[1px_1px_0px_0px_#0A0A0A]"
+      aria-label={`${title}. ${body}`}
+      className="w-full rounded-lg border-2 border-black bg-white p-4 text-left shadow-[3px_3px_0px_0px_#0A0A0A] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:bg-orange-50 hover:shadow-[1px_1px_0px_0px_#0A0A0A]"
     >
-      <div className="flex gap-3">
+      <div aria-hidden="true" className="flex gap-3">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-hoop-black text-hoop-orange">
           <Icon className="h-5 w-5" />
         </span>
@@ -171,6 +174,6 @@ function ActionCard({
           <span className="mt-2 block text-sm leading-6 text-muted-foreground">{body}</span>
         </span>
       </div>
-    </Link>
+    </AppActionButton>
   )
 }

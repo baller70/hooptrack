@@ -36,27 +36,10 @@ final class CoachAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
 @main
 struct HooptrackCoachApp: App {
     @UIApplicationDelegateAdaptor(CoachAppDelegate.self) private var appDelegate
-    @StateObject private var appState = CoachAppState()
 
     var body: some Scene {
         WindowGroup {
             CoachRootView()
-                .environmentObject(appState)
-                .task {
-                    await appState.bootstrap()
-                }
-                .onOpenURL { url in
-                    appState.handleDeepLink(url)
-                }
-                .onReceive(NotificationCenter.default.publisher(for: .coachPushToken)) { notification in
-                    guard let token = notification.object as? String else { return }
-                    Task { await appState.registerAPNSToken(token) }
-                }
-                .onReceive(NotificationCenter.default.publisher(for: .coachPushRegistrationFailed)) { notification in
-                    guard let error = notification.object as? Error else { return }
-                    appState.nativePushStatus = "Registration failed"
-                    appState.report(error)
-                }
         }
     }
 }
