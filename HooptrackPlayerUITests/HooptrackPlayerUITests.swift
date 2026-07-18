@@ -18,6 +18,21 @@ final class HooptrackPlayerUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["workout-flow-screen"].waitForExistence(timeout: 5))
     }
 
+    func testWorkoutAndMoveScreenshotScenesAreDistinct() throws {
+        let workoutApp = XCUIApplication()
+        workoutApp.launchArguments = ["--factory-screenshot", "workout-flow"]
+        workoutApp.launch()
+        XCTAssertTrue(workoutApp.descendants(matching: .any)["workout-flow-screen"].waitForExistence(timeout: 10))
+        XCTAssertTrue(workoutApp.staticTexts["Finishing Through Contact"].exists)
+        workoutApp.terminate()
+
+        let moveApp = XCUIApplication()
+        moveApp.launchArguments = ["--factory-screenshot", "move-study"]
+        moveApp.launch()
+        XCTAssertTrue(moveApp.descendants(matching: .any)["move-study-screen"].waitForExistence(timeout: 10))
+        XCTAssertTrue(moveApp.staticTexts["Hang Dribble Freeze"].exists)
+    }
+
     func testLaunchPerformance() throws {
         measure(metrics: [XCTApplicationLaunchMetric()]) {
             let app = XCUIApplication()
@@ -27,4 +42,3 @@ final class HooptrackPlayerUITests: XCTestCase {
         }
     }
 }
-

@@ -2,7 +2,15 @@ import SwiftUI
 
 struct TrainingView: View {
     @EnvironmentObject private var appState: AppState
-    @State private var segment = 0
+    @State private var segment: Int
+
+    init() {
+        #if DEBUG
+        _segment = State(initialValue: FactoryScreenshotScene.current == .moveStudy ? 1 : 0)
+        #else
+        _segment = State(initialValue: 0)
+        #endif
+    }
 
     var body: some View {
         NavigationStack {
@@ -106,4 +114,3 @@ private struct PlanList: View {
         }
     }
 }
-
