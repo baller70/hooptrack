@@ -2,6 +2,24 @@ import XCTest
 @testable import HooptrackPlayer
 
 final class HooptrackPlayerTests: XCTestCase {
+    func testAppBundleDeclaresExecutableMetadata() {
+        let expectedBundleIdentifier = "com.kevinhouston.hooptrackplayer"
+        let appBundle = Bundle(identifier: expectedBundleIdentifier) ?? Bundle.main
+
+        XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundleExecutable") as? String, "HooptrackPlayer")
+        XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundleName") as? String, "HooptrackPlayer")
+        XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundlePackageType") as? String, "APPL")
+        XCTAssertEqual(appBundle.bundleIdentifier, expectedBundleIdentifier)
+
+        guard let executableURL = appBundle.executableURL else {
+            XCTFail("Expected the app bundle to resolve an executable URL")
+            return
+        }
+
+        XCTAssertEqual(executableURL.lastPathComponent, "HooptrackPlayer")
+        XCTAssertTrue(FileManager.default.isExecutableFile(atPath: executableURL.path))
+    }
+
     func testFactoryFixtureCoversCorePlayerSurface() {
         #if DEBUG
         let snapshot = DemoFixtures.snapshot
@@ -20,4 +38,3 @@ final class HooptrackPlayerTests: XCTestCase {
         XCTAssertEqual(error.errorDescription, "Player access only")
     }
 }
-
