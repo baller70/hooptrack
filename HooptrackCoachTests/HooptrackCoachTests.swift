@@ -20,12 +20,43 @@ final class HooptrackCoachTests: XCTestCase {
         XCTAssertFalse(snapshot.members.isEmpty)
         XCTAssertFalse(snapshot.invites.isEmpty)
         XCTAssertFalse(snapshot.workouts.isEmpty)
+        XCTAssertFalse(snapshot.moves.isEmpty)
+        XCTAssertFalse(snapshot.quizzes.isEmpty)
         XCTAssertFalse(snapshot.schedule.isEmpty)
         XCTAssertFalse(snapshot.recordings.isEmpty)
         XCTAssertFalse(snapshot.activity.isEmpty)
         XCTAssertFalse(snapshot.messages.isEmpty)
+        XCTAssertFalse(snapshot.threadMessages.isEmpty)
+        XCTAssertFalse(snapshot.notifications.isEmpty)
+        XCTAssertGreaterThan(snapshot.unreadNotificationCount, 0)
         XCTAssertNotNil(snapshot.progress)
         #endif
+    }
+
+    func testCoachParityFixtureCoversRequiredWorkflowTypes() {
+        #if DEBUG
+        let snapshot = DemoFixtures.snapshot
+        XCTAssertTrue(snapshot.supportedScheduleTypes.contains("workout"))
+        XCTAssertTrue(snapshot.supportedScheduleTypes.contains("move"))
+        XCTAssertTrue(snapshot.supportedScheduleTypes.contains("quiz"))
+        XCTAssertTrue(snapshot.supportedScheduleTypes.contains("quote"))
+        XCTAssertTrue(snapshot.supportedScheduleTypes.contains("event"))
+        XCTAssertTrue(snapshot.supportedScheduleTypes.contains("film"))
+        XCTAssertTrue(snapshot.supportedScheduleTypes.contains("game"))
+        XCTAssertTrue(snapshot.schedule.contains { $0.itemType == "film" })
+        XCTAssertTrue(snapshot.threadMessages.contains { $0.attachmentType != nil })
+        XCTAssertTrue(snapshot.notifications.contains { $0.readAt == nil })
+        XCTAssertGreaterThanOrEqual(snapshot.recordings.count, 2)
+        #endif
+    }
+
+    func testCoachTabSetIncludesRecoveredParitySurfaces() {
+        let recoveredTabs: Set<CoachTab> = [.players, .library, .calendar, .notifications, .ai, .review, .messages]
+        XCTAssertTrue(recoveredTabs.contains(.players))
+        XCTAssertTrue(recoveredTabs.contains(.library))
+        XCTAssertTrue(recoveredTabs.contains(.calendar))
+        XCTAssertTrue(recoveredTabs.contains(.notifications))
+        XCTAssertTrue(recoveredTabs.contains(.ai))
     }
 
     func testServerErrorMessageIsUserVisible() {

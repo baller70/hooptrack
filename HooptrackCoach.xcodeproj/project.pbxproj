@@ -31,6 +31,13 @@
 		100000000000000000000016 /* HooptrackCoachUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000016 /* HooptrackCoachUITests.swift */; };
 		100000000000000000000017 /* VideoExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001A /* VideoExport.swift */; };
 		100000000000000000000018 /* VideoPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001B /* VideoPicker.swift */; };
+		100000000000000000000019 /* PlayersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001C /* PlayersView.swift */; };
+		10000000000000000000001A /* PlayerDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001D /* PlayerDetailView.swift */; };
+		10000000000000000000001B /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001E /* LibraryView.swift */; };
+		10000000000000000000001C /* ScheduleComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001F /* ScheduleComposerView.swift */; };
+		10000000000000000000001D /* NotificationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000020 /* NotificationsView.swift */; };
+		10000000000000000000001E /* RecordingCompareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000021 /* RecordingCompareView.swift */; };
+		10000000000000000000001F /* AIWorkflowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000022 /* AIWorkflowView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -78,6 +85,13 @@
 		200000000000000000000019 /* HooptrackCoachUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HooptrackCoachUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		20000000000000000000001A /* VideoExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoExport.swift; sourceTree = "<group>"; };
 		20000000000000000000001B /* VideoPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPicker.swift; sourceTree = "<group>"; };
+		20000000000000000000001C /* PlayersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayersView.swift; sourceTree = "<group>"; };
+		20000000000000000000001D /* PlayerDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerDetailView.swift; sourceTree = "<group>"; };
+		20000000000000000000001E /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
+		20000000000000000000001F /* ScheduleComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleComposerView.swift; sourceTree = "<group>"; };
+		200000000000000000000020 /* NotificationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsView.swift; sourceTree = "<group>"; };
+		200000000000000000000021 /* RecordingCompareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingCompareView.swift; sourceTree = "<group>"; };
+		200000000000000000000022 /* AIWorkflowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIWorkflowView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -137,7 +151,7 @@
 		};
 		700000000000000000000007 /* Views */ = {
 			isa = PBXGroup;
-			children = (200000000000000000000008, 200000000000000000000009, 20000000000000000000000A, 20000000000000000000000B, 20000000000000000000000C, 20000000000000000000000D, 20000000000000000000000E, 20000000000000000000000F, 200000000000000000000010, 200000000000000000000011, 20000000000000000000001B);
+			children = (200000000000000000000008, 200000000000000000000009, 20000000000000000000000A, 20000000000000000000000B, 20000000000000000000000C, 20000000000000000000000D, 20000000000000000000000E, 20000000000000000000000F, 200000000000000000000010, 200000000000000000000011, 20000000000000000000001B, 20000000000000000000001C, 20000000000000000000001D, 20000000000000000000001E, 20000000000000000000001F, 200000000000000000000020, 200000000000000000000021, 200000000000000000000022);
 			path = Views;
 			sourceTree = "<group>";
 		};
@@ -236,7 +250,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		800000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000001, 100000000000000000000002, 100000000000000000000003, 100000000000000000000004, 100000000000000000000005, 100000000000000000000006, 100000000000000000000007, 100000000000000000000017, 100000000000000000000008, 100000000000000000000009, 10000000000000000000000A, 10000000000000000000000B, 10000000000000000000000C, 10000000000000000000000D, 10000000000000000000000E, 10000000000000000000000F, 100000000000000000000010, 100000000000000000000011, 100000000000000000000018); runOnlyForDeploymentPostprocessing = 0; };
+		800000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000001, 100000000000000000000002, 100000000000000000000003, 100000000000000000000004, 100000000000000000000005, 100000000000000000000006, 100000000000000000000007, 100000000000000000000017, 100000000000000000000008, 100000000000000000000009, 10000000000000000000000A, 10000000000000000000000B, 10000000000000000000000C, 10000000000000000000000D, 10000000000000000000000E, 10000000000000000000000F, 100000000000000000000010, 100000000000000000000011, 100000000000000000000018, 100000000000000000000019, 10000000000000000000001A, 10000000000000000000001B, 10000000000000000000001C, 10000000000000000000001D, 10000000000000000000001E, 10000000000000000000001F); runOnlyForDeploymentPostprocessing = 0; };
 		800000000000000000000003 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000015); runOnlyForDeploymentPostprocessing = 0; };
 		800000000000000000000005 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000016); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */

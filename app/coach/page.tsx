@@ -37,9 +37,9 @@ export default async function CoachHomePage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2 lg:justify-end">
-            <CoachButton href="/coach/players" icon={Users} label="Roster" />
-            <CoachButton href="/coach/teams" icon={UserPlus} label="Teams" />
-            <CoachButton href="/coach/activity" icon={Activity} label="Live Activity" />
+            <CoachButton href="/dashboard/players" icon={Users} label="Roster" />
+            <CoachButton href="/dashboard/teams" icon={UserPlus} label="Teams" />
+            <CoachButton href="/dashboard/activity" icon={Activity} label="Live Activity" />
           </div>
         </div>
 
@@ -54,31 +54,31 @@ export default async function CoachHomePage() {
 
       <section className="mt-5 grid gap-4 md:grid-cols-2">
         <ActionCard
-          href="/coach/teams"
+          href="/dashboard/teams"
           icon={UserPlus}
           title="Teams And Sessions"
           body="Create a team or one-on-one training group, then send player join requests."
         />
         <ActionCard
-          href="/coach/players"
+          href="/dashboard/players"
           icon={Users}
           title="Roster Command"
           body="Open player profiles, view progress, and jump into each athlete's library."
         />
         <ActionCard
-          href="/coach/workouts"
+          href="/dashboard/workouts"
           icon={Dumbbell}
           title="Build And Assign"
           body="Create workouts, moves, classroom checks, and schedule them for players."
         />
         <ActionCard
-          href="/coach/moves/upload"
+          href="/dashboard/moves/upload"
           icon={Upload}
           title="Upload Teaching Film"
           body="Add player clips or reference videos so the library is ready for review."
         />
         <ActionCard
-          href="/coach/progress"
+          href="/dashboard/progress"
           icon={Trophy}
           title="Team Progress"
           body="Compare player output, review weak areas, and decide the next training focus."
@@ -94,7 +94,7 @@ export default async function CoachHomePage() {
             </p>
           </div>
           <Link
-            href="/coach/activity"
+            href="/dashboard/activity"
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border-2 border-black bg-white px-4 text-sm font-bold shadow-[2px_2px_0px_0px_#0A0A0A] hover:bg-orange-50"
           >
             <ClipboardList className="h-4 w-4 text-hoop-orange" />

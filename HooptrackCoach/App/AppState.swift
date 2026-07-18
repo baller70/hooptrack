@@ -16,6 +16,7 @@ final class CoachAppState: ObservableObject {
     @Published var selectedPlayerId: Int?
     @Published var selectedWorkoutId: Int?
     @Published var selectedGroupId: Int?
+    @Published var selectedRecordingIds: Set<Int> = []
     @Published var banner: AppBanner?
     @Published var isScreenshotMode = false
 
@@ -66,11 +67,15 @@ final class CoachAppState: ObservableObject {
             async let players = client.players()
             async let groupsEnvelope = client.groups()
             async let workouts = client.workouts()
+            async let moves = client.moves()
+            async let quizzes = client.quizzes()
             async let schedule = client.schedule()
             async let recordings = client.recordings()
             async let activity = client.activity()
             async let progress = client.progress()
             async let contacts = client.contacts()
+            async let notifications = client.notifications()
+            async let unreadNotifications = client.unreadNotificationCount()
 
             let loadedPlayers = try await players
             let loadedGroups = try await groupsEnvelope
@@ -89,11 +94,16 @@ final class CoachAppState: ObservableObject {
                 members: loadedGroups.members,
                 invites: loadedGroups.invites,
                 workouts: try await workouts,
+                moves: (try? await moves) ?? [],
+                quizzes: (try? await quizzes) ?? [],
                 schedule: try await schedule,
                 recordings: try await recordings,
                 activity: try await activity,
                 contacts: loadedContacts,
                 messages: messages,
+                threadMessages: [],
+                notifications: (try? await notifications) ?? [],
+                unreadNotificationCount: (try? await unreadNotifications) ?? 0,
                 progress: try? await progress
             )
             selectedPlayerId = selectedPlayerId ?? loadedPlayers.first?.id
@@ -135,6 +145,62 @@ final class CoachAppState: ObservableObject {
         }
     }
 
+    func createScheduleItem(itemType: String, itemID: Int?, title: String?, date: Date, notes: String?) async {
+        guard !isScreenshotMode, let playerID = selectedPlayerId else { return }
+        do {
+            _ = try await client.createScheduleItem(ScheduleAssignmentInput(
+                playerID: playerID,
+                itemType: itemType,
+                itemID: itemID,
+                title: title,
+                scheduledDate: HoopTrackAPI.dayFormatter.string(from: date),
+                notes: notes,
+                startTime: nil,
+                endTime: nil
+            ))
+            await refresh()
+        } catch {
+            banner = AppBanner(title: String(localized: "retry.title"), message: error.localizedDescription)
+        }
+    }
+
+    func bulkAssign(itemTypes: [String], date: Date, notes: String?) async {
+        guard !isScreenshotMode, let playerID = selectedPlayerId else { return }
+        do {
+            let items = itemTypes.map {
+                BulkScheduleItem(itemType: $0, itemID: nil, title: "\($0.capitalized) assignment", notes: notes, startTime: nil, endTime: nil)
+            }
+            _ = try await client.bulkAssign(BulkScheduleInput(
+                playerID: playerID,
+                items: items,
+                dates: [HoopTrackAPI.dayFormatter.string(from: date)]
+            ))
+            await refresh()
+        } catch {
+            banner = AppBanner(title: String(localized: "retry.title"), message: error.localizedDescription)
+        }
+    }
+
+    func createCalendarEvent(title: String, type: String, date: Date, notes: String?) async {
+        guard !isScreenshotMode, let playerID = selectedPlayerId else { return }
+        do {
+            let day = HoopTrackAPI.dayFormatter.string(from: date)
+            _ = try await client.createCalendarEvent(CalendarEventInput(
+                playerID: playerID,
+                title: title,
+                type: type,
+                startsAt: "\(day)T09:00",
+                endsAt: "\(day)T10:00",
+                location: nil,
+                opponent: nil,
+                notes: notes
+            ))
+            await refresh()
+        } catch {
+            banner = AppBanner(title: String(localized: "retry.title"), message: error.localizedDescription)
+        }
+    }
+
     @discardableResult
     func sendMessage(_ body: String) async -> Bool {
         let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -159,12 +225,86 @@ final class CoachAppState: ObservableObject {
         }
     }
 
+    func refreshThread(contextType: String, contextID: Int) async {
+        guard !isScreenshotMode else { return }
+        do {
+            snapshot.threadMessages = try await client.threadMessages(contextType: contextType, contextID: contextID)
+        } catch {
+            banner = AppBanner(title: String(localized: "retry.title"), message: error.localizedDescription)
+        }
+    }
+
+    @discardableResult
+    func sendThreadMessage(contextType: String, contextID: Int, contextTitle: String?, body: String) async -> Bool {
+        let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !isScreenshotMode, !trimmed.isEmpty else { return false }
+        do {
+            try await client.sendThreadMessage(contextType: contextType, contextID: contextID, contextTitle: contextTitle, body: trimmed)
+            snapshot.threadMessages = try await client.threadMessages(contextType: contextType, contextID: contextID)
+            return true
+        } catch {
+            banner = AppBanner(title: String(localized: "retry.title"), message: error.localizedDescription)
+            return false
+        }
+    }
+
+    func markNotificationRead(_ notification: NotificationItem) async {
+        guard !isScreenshotMode else { return }
+        do {
+            try await client.markNotificationRead(id: notification.id)
+            snapshot.notifications = try await client.notifications()
+            snapshot.unreadNotificationCount = try await client.unreadNotificationCount()
+        } catch {
+            banner = AppBanner(title: String(localized: "retry.title"), message: error.localizedDescription)
+        }
+    }
+
+    func markAllNotificationsRead() async {
+        guard !isScreenshotMode else { return }
+        do {
+            try await client.markAllNotificationsRead()
+            snapshot.notifications = try await client.notifications()
+            snapshot.unreadNotificationCount = try await client.unreadNotificationCount()
+        } catch {
+            banner = AppBanner(title: String(localized: "retry.title"), message: error.localizedDescription)
+        }
+    }
+
+    func runAIWorkflow(kind: String) async {
+        guard !isScreenshotMode else { return }
+        do {
+            let playerName = snapshot.players.first(where: { $0.id == selectedPlayerId })?.name
+            switch kind {
+            case "workout":
+                _ = try await client.aiWorkout(playerName: playerName, skillLevel: "intermediate", focusAreas: ["finishing", "footwork"], duration: 30, autoSave: false)
+            case "quiz":
+                _ = try await client.aiQuiz(topic: "late game spacing", difficulty: "medium", questionCount: 3, autoSave: false)
+            case "progress":
+                if let selectedPlayerId { _ = try await client.aiProgress(playerID: selectedPlayerId) }
+            case "feedback":
+                if let drillID = snapshot.recordings.first?.drillId { _ = try await client.aiFeedback(drillID: drillID, duration: 60) }
+            case "moves":
+                if let selectedPlayerId { _ = try await client.aiMoves(playerID: selectedPlayerId, skillLevel: "intermediate") }
+            default:
+                _ = try await client.aiInspiration(playerName: playerName)
+            }
+            banner = AppBanner(title: "AI workflow complete", message: "\(kind.capitalized) request used the shared HoopTrack backend.")
+        } catch {
+            banner = AppBanner(title: String(localized: "retry.title"), message: error.localizedDescription)
+        }
+    }
+
     func handleDeepLink(_ url: URL) {
         guard url.host == "coach" || url.path.contains("/coach") || url.path.contains("/dashboard") else { return }
         if url.path.contains("teams") { selectedTab = .teams }
+        else if url.path.contains("players") { selectedTab = .players }
+        else if url.path.contains("workouts") || url.path.contains("moves") || url.path.contains("classroom") { selectedTab = .library }
+        else if url.path.contains("calendar") { selectedTab = .calendar }
+        else if url.path.contains("notifications") { selectedTab = .notifications }
+        else if url.path.contains("ai") || url.path.contains("analyze") { selectedTab = .ai }
         else if url.path.contains("progress") { selectedTab = .progress }
         else if url.path.contains("messages") || url.path.contains("chat") { selectedTab = .messages }
-        else if url.path.contains("recordings") || url.path.contains("activity") { selectedTab = .review }
+        else if url.path.contains("recordings") || url.path.contains("activity") || url.path.contains("capture") { selectedTab = .review }
         else { selectedTab = .dashboard }
     }
 
@@ -185,6 +325,7 @@ final class CoachAppState: ObservableObject {
         selectedPlayerId = DemoFixtures.snapshot.players.first?.id
         selectedWorkoutId = DemoFixtures.snapshot.workouts.first?.id
         selectedGroupId = DemoFixtures.snapshot.groups.first?.id
+        selectedRecordingIds = Set(DemoFixtures.snapshot.recordings.prefix(2).map(\.id))
         selectedTab = scene.tab
     }
     #endif
@@ -192,10 +333,15 @@ final class CoachAppState: ObservableObject {
 
 enum CoachTab: Hashable {
     case dashboard
+    case players
     case teams
     case assign
+    case library
+    case calendar
     case review
     case messages
+    case notifications
+    case ai
     case progress
     case account
 }
