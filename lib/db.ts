@@ -94,6 +94,10 @@ function runMigrations(db: Database.Database) {
     safeAddColumn(db, 'schedule', 'end_time', 'TEXT')
     db.prepare('INSERT OR IGNORE INTO _migrations VALUES (?)').run(15)
   }
+  if (current < 16) {
+    db.exec(SCHEMA_V16)
+    db.prepare('INSERT OR IGNORE INTO _migrations VALUES (?)').run(16)
+  }
 }
 
 function safeAddColumn(db: Database.Database, table: string, column: string, definition: string) {
@@ -114,6 +118,47 @@ ALTER TABLE messages ADD COLUMN attachment_mime TEXT;
 ALTER TABLE messages ADD COLUMN attachment_size_bytes INTEGER;
 ALTER TABLE messages ADD COLUMN attachment_duration_seconds INTEGER;
 ALTER TABLE messages ADD COLUMN attachment_filename TEXT;
+`
+
+const SCHEMA_V16 = `
+CREATE TABLE IF NOT EXISTS coach_groups (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  coach_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  group_type TEXT NOT NULL CHECK(group_type IN ('team','training_session')),
+  player_limit INTEGER CHECK(player_limit IS NULL OR player_limit > 0),
+  description TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  archived_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_coach_groups_coach ON coach_groups(coach_id, archived_at, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS coach_group_members (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  group_id INTEGER NOT NULL REFERENCES coach_groups(id) ON DELETE CASCADE,
+  player_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  added_by INTEGER NOT NULL REFERENCES users(id),
+  joined_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(group_id, player_id)
+);
+CREATE INDEX IF NOT EXISTS idx_coach_group_members_player ON coach_group_members(player_id);
+CREATE INDEX IF NOT EXISTS idx_coach_group_members_group ON coach_group_members(group_id);
+
+CREATE TABLE IF NOT EXISTS coach_group_invites (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  group_id INTEGER NOT NULL REFERENCES coach_groups(id) ON DELETE CASCADE,
+  coach_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  player_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','accepted','declined','cancelled')),
+  message TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  responded_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_coach_group_invites_player_status ON coach_group_invites(player_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_coach_group_invites_group_status ON coach_group_invites(group_id, status);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_coach_group_invites_pending_unique
+  ON coach_group_invites(group_id, player_id)
+  WHERE status = 'pending';
 `
 
 const SCHEMA_V11 = `

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Bell, BellOff, Dumbbell, PlayCircle, GraduationCap, MessageSquareQuote, Trophy, Flame, Info, Check, BellRing } from 'lucide-react'
+import { Bell, BellOff, Dumbbell, PlayCircle, GraduationCap, MessageSquareQuote, Trophy, Flame, Info, Check, BellRing, UserPlus } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 interface Notification {
@@ -26,6 +26,7 @@ const TYPE_ICON: Record<string, LucideIcon> = {
   streak_milestone: Flame,
   reminder: Bell,
   inspirational: MessageSquareQuote,
+  team_invite: UserPlus,
   system: Info,
 }
 

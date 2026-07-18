@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Activity, CalendarDays, ClipboardList, Clock, Dumbbell, Trophy, Upload, Users, Video } from 'lucide-react'
+import { Activity, CalendarDays, ClipboardList, Clock, Dumbbell, Trophy, Upload, UserPlus, Users, Video } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
@@ -17,6 +17,7 @@ export default async function CoachHomePage() {
   if ((session.actual_role || session.role) !== 'trainer') redirect('/player')
 
   const players = count("SELECT COUNT(*) as count FROM users WHERE role = 'player'")
+  const groups = count('SELECT COUNT(*) as count FROM coach_groups WHERE coach_id = ? AND archived_at IS NULL', session.actual_id || session.id)
   const overdue = count("SELECT COUNT(*) as count FROM schedule WHERE completed = 0 AND scheduled_date < date('now')")
   const upcoming = count("SELECT COUNT(*) as count FROM schedule WHERE completed = 0 AND scheduled_date >= date('now')")
   const recentVideo = count(
@@ -37,12 +38,14 @@ export default async function CoachHomePage() {
           </div>
           <div className="flex flex-wrap gap-2 lg:justify-end">
             <CoachButton href="/coach/players" icon={Users} label="Roster" />
+            <CoachButton href="/coach/teams" icon={UserPlus} label="Teams" />
             <CoachButton href="/coach/activity" icon={Activity} label="Live Activity" />
           </div>
         </div>
 
-        <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-5">
           <Metric icon={Users} label="Players" value={players} />
+          <Metric icon={UserPlus} label="Groups" value={groups} />
           <Metric icon={Clock} label="Overdue" value={overdue} />
           <Metric icon={CalendarDays} label="Upcoming" value={upcoming} />
           <Metric icon={Video} label="7-day clips" value={recentVideo} />
@@ -50,6 +53,12 @@ export default async function CoachHomePage() {
       </section>
 
       <section className="mt-5 grid gap-4 md:grid-cols-2">
+        <ActionCard
+          href="/coach/teams"
+          icon={UserPlus}
+          title="Teams And Sessions"
+          body="Create a team or one-on-one training group, then send player join requests."
+        />
         <ActionCard
           href="/coach/players"
           icon={Users}

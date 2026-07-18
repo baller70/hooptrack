@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Film, Library, Video, CalendarDays, Award, Activity, Users, UserRound } from 'lucide-react'
+import { Film, Library, Video, CalendarDays, Award, Activity, Users, UserRound, UserPlus } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { appPath, type HoopApp } from '@/lib/app-routes'
@@ -22,6 +22,7 @@ type TabSpec = {
 const playerTabs: TabSpec[] = [
   { path: '/capture', label: 'Capture', icon: Video, matchPaths: ['/capture', '/record'] },
   { path: '/workouts', label: 'Workouts', icon: Library, matchPaths: ['/workouts', '/moves', '/classroom'] },
+  { path: '/requests', label: 'Requests', icon: UserPlus },
   { path: '/calendar', label: 'Plan', icon: CalendarDays, externalHref: '/calendar/index.html', matchPaths: ['/calendar'] },
   { path: '/progress', label: 'Progress', icon: Award },
   { path: '/me', label: 'Me', icon: UserRound, matchPaths: ['/me', '/profile'] },
@@ -29,6 +30,7 @@ const playerTabs: TabSpec[] = [
 
 const coachTabs: TabSpec[] = [
   { path: '/players', label: 'Roster', icon: Users },
+  { path: '/teams', label: 'Teams', icon: UserPlus },
   { path: '/activity', label: 'Activity', icon: Activity },
   { path: '/capture', label: 'Capture', icon: Video, matchPaths: ['/capture', '/record', '/moves/upload'] },
   { path: '/workouts', label: 'Library', icon: Library, matchPaths: ['/workouts', '/moves', '/classroom'] },

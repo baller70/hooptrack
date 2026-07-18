@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Award, CalendarDays, Camera, CheckCircle2, Clock, Dumbbell, Video } from 'lucide-react'
+import { Award, CalendarDays, Camera, CheckCircle2, Clock, Dumbbell, UserPlus, Video } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
@@ -26,6 +26,10 @@ export default async function PlayerHomePage() {
   )
   const completed = count('SELECT COUNT(*) as count FROM schedule WHERE player_id = ? AND completed = 1', session.id)
   const recordings = count('SELECT COUNT(*) as count FROM recordings WHERE player_id = ? AND parent_recording_id IS NULL', session.id)
+  const pendingRequests = count(
+    "SELECT COUNT(*) as count FROM coach_group_invites WHERE player_id = ? AND status = 'pending'",
+    session.id,
+  )
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6">
@@ -48,7 +52,8 @@ export default async function PlayerHomePage() {
           </Link>
         </div>
 
-        <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-5">
+          <Metric icon={UserPlus} label="Requests" value={pendingRequests} />
           <Metric icon={CalendarDays} label="Upcoming" value={upcoming} />
           <Metric icon={Clock} label="Overdue" value={overdue} />
           <Metric icon={CheckCircle2} label="Completed" value={completed} />
@@ -57,6 +62,12 @@ export default async function PlayerHomePage() {
       </section>
 
       <section className="mt-5 grid gap-4 md:grid-cols-2">
+        <ActionCard
+          href="/player/requests"
+          icon={UserPlus}
+          title="Team Requests"
+          body="Accept or decline coach requests to join teams and training sessions."
+        />
         <ActionCard
           href="/player/workouts"
           icon={Dumbbell}

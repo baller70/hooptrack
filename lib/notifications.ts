@@ -12,6 +12,7 @@ export type NotificationType =
   | 'pr_set'
   | 'streak_milestone'
   | 'message_received'
+  | 'team_invite'
   | 'system'
   | 'recording_created'
   | 'video_uploaded'
