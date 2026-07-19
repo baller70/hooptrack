@@ -54,6 +54,8 @@ struct CoachShellView: View {
                     Spacer()
                     Button("retry.title") { Task { await appState.refresh() } }
                         .font(.caption.weight(.semibold))
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .padding(10)
                 .background(Color.yellow.opacity(0.22))
