@@ -10,6 +10,7 @@ struct User: Codable, Identifiable, Equatable {
 enum UserRole: String, Codable, Equatable {
     case player
     case trainer
+    case coach
 }
 
 struct Player: Codable, Identifiable, Equatable {

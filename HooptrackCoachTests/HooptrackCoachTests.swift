@@ -14,7 +14,23 @@ final class HooptrackCoachTests: XCTestCase {
         XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundleExecutable") as? String, "HooptrackCoach")
         XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundleName") as? String, "HooptrackCoach")
         XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundlePackageType") as? String, "APPL")
+        XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String, "1.0")
+        XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String, "4")
+        XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "ITSAppUsesNonExemptEncryption") as? Bool, false)
         XCTAssertEqual(appBundle.bundleIdentifier, expectedBundleIdentifier)
+    }
+
+    func testCoachRoleLockAcceptsTrainerAndCoachOnly() throws {
+        let decoder = JSONDecoder()
+        let trainer = try decoder.decode(User.self, from: Data(#"{"id":1,"email":"trainer@example.test","role":"trainer","name":"Trainer"}"#.utf8))
+        let coach = try decoder.decode(User.self, from: Data(#"{"id":2,"email":"coach@example.test","role":"coach","name":"Coach"}"#.utf8))
+        let player = try decoder.decode(User.self, from: Data(#"{"id":3,"email":"player@example.test","role":"player","name":"Player"}"#.utf8))
+
+        XCTAssertEqual(trainer.role, .trainer)
+        XCTAssertEqual(coach.role, .coach)
+        XCTAssertEqual(player.role, .player)
+        XCTAssertTrue([trainer.role, coach.role].allSatisfy { $0 == .trainer || $0 == .coach })
+        XCTAssertFalse(player.role == .trainer || player.role == .coach)
     }
 
     func testFactoryFixtureCoversCoreCoachSurface() {

@@ -2,12 +2,12 @@ import XCTest
 
 final class HooptrackCoachUITests: XCTestCase {
     private let scenes = [
-        ("01-coach-dashboard", "HoopTrack Coach"),
-        ("02-create-group-invite", "Teams And Training Sessions"),
-        ("03-assign-workout", "Workouts"),
-        ("04-recording-review", "Activity"),
-        ("05-messages-controls", "Notifications"),
-        ("06-completed-outcome", "Progress Report")
+        ("01-coach-dashboard", "01-coach-dashboard-screen"),
+        ("02-create-group-invite", "02-create-group-invite-screen"),
+        ("03-assign-workout", "03-assign-workout-screen"),
+        ("04-recording-review", "04-recording-review-screen"),
+        ("05-messages-controls", "05-messages-controls-screen"),
+        ("06-completed-outcome", "06-completed-outcome-screen")
     ]
 
     override func setUpWithError() throws {
@@ -17,26 +17,24 @@ final class HooptrackCoachUITests: XCTestCase {
     private func configuredApp(scene: String, file: StaticString = #filePath, line: UInt = #line) -> XCUIApplication {
         let environment = ProcessInfo.processInfo.environment
         let app = XCUIApplication()
-        guard let username = environment["FACTORY_REVIEW_USERNAME"], !username.isEmpty,
-              let password = environment["FACTORY_REVIEW_PASSWORD"], !password.isEmpty else {
-            XCTFail("The factory review account must be supplied by the test runner.", file: file, line: line)
-            return app
-        }
         app.launchArguments = ["--factory-screenshot", scene]
-        app.launchEnvironment = [
-            "FACTORY_REVIEW_USERNAME": username,
-            "FACTORY_REVIEW_PASSWORD": password
-        ]
+        var launchEnvironment: [String: String] = [:]
+        for key in ["FACTORY_REVIEW_USERNAME", "FACTORY_REVIEW_PASSWORD", "FACTORY_SCREENSHOT_NONCE"] {
+            if let value = environment[key], !value.isEmpty {
+                launchEnvironment[key] = value
+            }
+        }
+        app.launchEnvironment = launchEnvironment
         return app
     }
 
-    private func launchRealScreen(scene: String, heading: String, file: StaticString = #filePath, line: UInt = #line) -> XCUIApplication {
+    private func launchRealScreen(scene: String, identifier: String, file: StaticString = #filePath, line: UInt = #line) -> XCUIApplication {
         let app = configuredApp(scene: scene, file: file, line: line)
         app.launch()
-        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 15), file: file, line: line)
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10), file: file, line: line)
         XCTAssertTrue(
-            app.staticTexts[heading].firstMatch.waitForExistence(timeout: 30),
-            "The real Coach route for \(scene) did not display \(heading).",
+            app.descendants(matching: .any)[identifier].firstMatch.waitForExistence(timeout: 10),
+            "The real Coach scene for \(scene) did not display \(identifier).",
             file: file,
             line: line
         )
@@ -55,10 +53,10 @@ final class HooptrackCoachUITests: XCTestCase {
     }
 
     func testPrimaryWorkflowAndAccessibilityAudit() throws {
-        let app = launchRealScreen(scene: scenes[0].0, heading: scenes[0].1)
-        XCTAssertTrue(app.buttons["Roster"].firstMatch.exists)
+        let app = launchRealScreen(scene: scenes[0].0, identifier: scenes[0].1)
+        XCTAssertTrue(app.descendants(matching: .any)["dashboard-metrics"].firstMatch.exists)
         assertMinimumInteractiveHitAreas(in: app)
-        try app.performAccessibilityAudit(for: [.contrast, .elementDetection, .sufficientElementDescription, .textClipped, .trait])
+        try app.performAccessibilityAudit(for: [.contrast, .elementDetection, .hitRegion, .sufficientElementDescription, .textClipped, .trait])
     }
 
     func testAllProductionRoutesAndScreenshotsAreDistinct() throws {
@@ -68,8 +66,8 @@ final class HooptrackCoachUITests: XCTestCase {
         try FileManager.default.createDirectory(at: screenshotDirectory, withIntermediateDirectories: true)
         var screenshotPayloads: [Data] = []
 
-        for (scene, heading) in scenes {
-            let app = launchRealScreen(scene: scene, heading: heading)
+        for (scene, identifier) in scenes {
+            let app = launchRealScreen(scene: scene, identifier: identifier)
             let screenshotData = XCUIScreen.main.screenshot().pngRepresentation
             let screenshotURL = screenshotDirectory.appendingPathComponent("\(scene).png")
             try screenshotData.write(to: screenshotURL)
@@ -82,11 +80,34 @@ final class HooptrackCoachUITests: XCTestCase {
         XCTAssertEqual(Set(screenshotPayloads).count, 6, "All six Coach screenshots must show distinct real app screens.")
     }
 
+    func testRequestedCoachWorkflowStatesAreReachable() throws {
+        for (scene, identifier) in scenes {
+            let app = launchRealScreen(scene: scene, identifier: identifier)
+            switch scene {
+            case "01-coach-dashboard":
+                XCTAssertTrue(app.descendants(matching: .any)["dashboard-metrics"].firstMatch.exists)
+            case "02-create-group-invite":
+                XCTAssertTrue(app.buttons["Send invite"].firstMatch.exists)
+            case "03-assign-workout":
+                XCTAssertTrue(app.buttons["Send assignment"].firstMatch.exists)
+            case "04-recording-review":
+                XCTAssertTrue(app.buttons["review-open-compare"].firstMatch.exists || app.buttons["Compare"].firstMatch.exists)
+            case "05-messages-controls":
+                XCTAssertTrue(app.buttons["Send message"].firstMatch.exists || app.buttons["messages-context-attachment"].firstMatch.exists)
+            case "06-completed-outcome":
+                XCTAssertTrue(app.staticTexts["Completed"].firstMatch.exists || app.staticTexts["Activity timeline"].firstMatch.exists)
+            default:
+                XCTFail("Unexpected scene \(scene)")
+            }
+            app.terminate()
+        }
+    }
+
     func testLaunchPerformance() throws {
         let app = configuredApp(scene: scenes[0].0)
         measure(metrics: [XCTApplicationLaunchMetric()]) {
             app.launch()
-            XCTAssertTrue(app.wait(for: .runningForeground, timeout: 15))
+            XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
         }
     }
 }

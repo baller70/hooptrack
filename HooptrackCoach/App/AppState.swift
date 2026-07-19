@@ -375,7 +375,7 @@ final class CoachAppState: ObservableObject {
     }
 
     private func acceptAuthenticated(_ user: User) {
-        if user.role == .trainer {
+        if user.role == .trainer || user.role == .coach {
             phase = .signedIn(user)
         } else {
             phase = .blockedRole(user)
