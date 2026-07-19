@@ -38,6 +38,17 @@ final class HooptrackCoachTests: XCTestCase {
         #endif
     }
 
+    func testFactoryScreenshotAliasesCoverSixDistinctCoachScreens() {
+        #if DEBUG
+        XCTAssertEqual(FactoryScreenshotScene.resolve("primary"), .dashboard)
+        XCTAssertEqual(FactoryScreenshotScene.resolve("workflow"), .teams)
+        XCTAssertEqual(FactoryScreenshotScene.resolve("detail"), .assignWorkout)
+        XCTAssertEqual(FactoryScreenshotScene.resolve("progress"), .recordingReview)
+        XCTAssertEqual(FactoryScreenshotScene.resolve("control"), .messages)
+        XCTAssertEqual(FactoryScreenshotScene.resolve("outcome"), .completedOutcome)
+        #endif
+    }
+
     func testCoachParityFixtureCoversRequiredWorkflowTypes() {
         #if DEBUG
         let snapshot = DemoFixtures.snapshot

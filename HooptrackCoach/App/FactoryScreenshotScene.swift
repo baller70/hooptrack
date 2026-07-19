@@ -9,13 +9,25 @@ enum FactoryScreenshotScene: String {
     case messages = "05-messages-controls"
     case completedOutcome = "06-completed-outcome"
 
+    static func resolve(_ value: String) -> FactoryScreenshotScene? {
+        switch value {
+        case "primary": return .dashboard
+        case "workflow": return .teams
+        case "detail": return .assignWorkout
+        case "progress": return .recordingReview
+        case "control": return .messages
+        case "outcome": return .completedOutcome
+        default: return FactoryScreenshotScene(rawValue: value)
+        }
+    }
+
     static var current: FactoryScreenshotScene? {
         let arguments = ProcessInfo.processInfo.arguments
         guard let index = arguments.firstIndex(of: "--factory-screenshot"),
               arguments.indices.contains(index + 1) else {
             return nil
         }
-        return FactoryScreenshotScene(rawValue: arguments[index + 1])
+        return resolve(arguments[index + 1])
     }
 
     var routePath: String {
