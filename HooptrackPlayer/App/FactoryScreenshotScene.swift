@@ -15,7 +15,22 @@ enum FactoryScreenshotScene: String {
               args.indices.contains(index + 1) else {
             return nil
         }
-        return FactoryScreenshotScene(rawValue: args[index + 1])
+        return resolve(args[index + 1])
+    }
+
+    static func resolve(_ id: String) -> FactoryScreenshotScene? {
+        if let scene = FactoryScreenshotScene(rawValue: id) {
+            return scene
+        }
+        return switch id {
+        case "primary": .overview
+        case "workflow": .workoutFlow
+        case "detail": .moveStudy
+        case "progress": .progressHistory
+        case "control": .teamMessages
+        case "outcome": .completedOutcome
+        default: nil
+        }
     }
 
     static var nonce: String? {

@@ -35,6 +35,16 @@ final class HooptrackPlayerTests: XCTestCase {
         #endif
     }
 
+    func testFactoryGenericScreenshotAliasesCoverSixDistinctScenes() {
+        #if DEBUG
+        let aliases = ["primary", "workflow", "detail", "progress", "control", "outcome"]
+        XCTAssertEqual(
+            aliases.compactMap { FactoryScreenshotScene.resolve($0)?.rawValue },
+            ["overview", "workout-flow", "move-study", "progress-history", "team-messages", "completed-outcome"]
+        )
+        #endif
+    }
+
     @MainActor
     func testPlayerRoleLockRejectsCoachAccounts() {
         let state = AppState(client: HoopTrackAPI())
