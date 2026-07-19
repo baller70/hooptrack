@@ -18,6 +18,7 @@ final class AppState: ObservableObject {
     @Published var selectedCoachId: Int?
     @Published var banner: AppBanner?
     @Published var isScreenshotMode = false
+    @Published private(set) var screenshotNonce: String?
 
     let client: HoopTrackAPI
 
@@ -29,6 +30,7 @@ final class AppState: ObservableObject {
         #if DEBUG
         if let scene = FactoryScreenshotScene.current {
             isScreenshotMode = true
+            screenshotNonce = FactoryScreenshotScene.nonce
             applyDemo(scene: scene)
             return
         }
@@ -174,7 +176,7 @@ final class AppState: ObservableObject {
         }
     }
 
-    private func acceptAuthenticated(_ user: User) {
+    func acceptAuthenticated(_ user: User) {
         if user.role == .player {
             phase = .signedIn(user)
         } else {

@@ -10,6 +10,8 @@ final class HooptrackPlayerTests: XCTestCase {
         XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundleName") as? String, "HooptrackPlayer")
         XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundlePackageType") as? String, "APPL")
         XCTAssertEqual(appBundle.bundleIdentifier, expectedBundleIdentifier)
+        XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String, "1.0")
+        XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String, "3")
 
         guard let executableURL = appBundle.executableURL else {
             XCTFail("Expected the app bundle to resolve an executable URL")
@@ -31,6 +33,18 @@ final class HooptrackPlayerTests: XCTestCase {
         XCTAssertFalse(snapshot.memberships.isEmpty)
         XCTAssertNotNil(snapshot.progress)
         #endif
+    }
+
+    @MainActor
+    func testPlayerRoleLockRejectsCoachAccounts() {
+        let state = AppState(client: HoopTrackAPI())
+        let coach = User(id: 91, email: "coach@example.com", role: .trainer, name: "Coach Example")
+
+        state.acceptAuthenticated(coach)
+
+        if state.phase != .blockedRole(coach) {
+            XCTFail("Coach accounts must remain blocked from the Player app.")
+        }
     }
 
     func testServerErrorMessageIsUserVisible() {

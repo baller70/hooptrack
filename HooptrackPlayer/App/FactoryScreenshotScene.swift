@@ -18,6 +18,11 @@ enum FactoryScreenshotScene: String {
         return FactoryScreenshotScene(rawValue: args[index + 1])
     }
 
+    static var nonce: String? {
+        guard current != nil else { return nil }
+        return ProcessInfo.processInfo.environment["FACTORY_SCREENSHOT_NONCE"]
+    }
+
     var routePath: String {
         switch self {
         case .overview: return "/player"
@@ -36,7 +41,7 @@ enum FactoryScreenshotScene: String {
         case .moveStudy: .train
         case .progressHistory: .progress
         case .teamMessages: .team
-        case .completedOutcome: .capture
+        case .completedOutcome: .account
         }
     }
 }

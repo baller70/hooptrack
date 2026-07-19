@@ -48,6 +48,6 @@ struct AccountView: View {
                 Text(deleteError ?? "")
             }
         }
+        .accessibilityIdentifier("completed-outcome-screen")
     }
 }
-

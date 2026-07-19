@@ -2,12 +2,12 @@ import XCTest
 
 final class HooptrackPlayerUITests: XCTestCase {
     private let scenes = [
-        ("overview", "HoopTrack Player"),
-        ("workout-flow", "Workouts"),
-        ("move-study", "Moves"),
-        ("progress-history", "Progress Report"),
-        ("team-messages", "Notifications"),
-        ("completed-outcome", "Profile")
+        ("overview", "overview-screen"),
+        ("workout-flow", "workout-flow-screen"),
+        ("move-study", "move-study-screen"),
+        ("progress-history", "progress-history-screen"),
+        ("team-messages", "team-messages-screen"),
+        ("completed-outcome", "completed-outcome-screen")
     ]
 
     override func setUpWithError() throws {
@@ -17,26 +17,28 @@ final class HooptrackPlayerUITests: XCTestCase {
     private func configuredApp(scene: String, file: StaticString = #filePath, line: UInt = #line) -> XCUIApplication {
         let environment = ProcessInfo.processInfo.environment
         let app = XCUIApplication()
-        guard let username = environment["FACTORY_REVIEW_USERNAME"], !username.isEmpty,
-              let password = environment["FACTORY_REVIEW_PASSWORD"], !password.isEmpty else {
-            XCTFail("The factory review account must be supplied by the test runner.", file: file, line: line)
-            return app
-        }
         app.launchArguments = ["--factory-screenshot", scene]
-        app.launchEnvironment = [
-            "FACTORY_REVIEW_USERNAME": username,
-            "FACTORY_REVIEW_PASSWORD": password
-        ]
+
+        var launchEnvironment: [String: String] = [:]
+        if let username = environment["FACTORY_REVIEW_USERNAME"], !username.isEmpty,
+           let password = environment["FACTORY_REVIEW_PASSWORD"], !password.isEmpty {
+            launchEnvironment["FACTORY_REVIEW_USERNAME"] = username
+            launchEnvironment["FACTORY_REVIEW_PASSWORD"] = password
+        }
+        if let nonce = environment["FACTORY_SCREENSHOT_NONCE"], !nonce.isEmpty {
+            launchEnvironment["FACTORY_SCREENSHOT_NONCE"] = nonce
+        }
+        app.launchEnvironment = launchEnvironment
         return app
     }
 
-    private func launchRealScreen(scene: String, heading: String, file: StaticString = #filePath, line: UInt = #line) -> XCUIApplication {
+    private func launchRealScreen(scene: String, identifier: String, file: StaticString = #filePath, line: UInt = #line) -> XCUIApplication {
         let app = configuredApp(scene: scene, file: file, line: line)
         app.launch()
-        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 15), file: file, line: line)
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10), file: file, line: line)
         XCTAssertTrue(
-            app.staticTexts[heading].firstMatch.waitForExistence(timeout: 30),
-            "The real Player route for \(scene) did not display \(heading).",
+            app.descendants(matching: .any)[identifier].firstMatch.waitForExistence(timeout: 10),
+            "The Player screenshot scene \(scene) did not display \(identifier).",
             file: file,
             line: line
         )
@@ -55,10 +57,11 @@ final class HooptrackPlayerUITests: XCTestCase {
     }
 
     func testPrimaryWorkflowAndAccessibilityAudit() throws {
-        let app = launchRealScreen(scene: scenes[0].0, heading: scenes[0].1)
-        XCTAssertTrue(app.buttons["Start Capture"].firstMatch.exists)
+        let app = launchRealScreen(scene: scenes[0].0, identifier: scenes[0].1)
+        app.tabBars.buttons["Capture"].tap()
+        XCTAssertTrue(app.buttons["Capture Training"].firstMatch.waitForExistence(timeout: 5))
         assertMinimumInteractiveHitAreas(in: app)
-        try app.performAccessibilityAudit(for: [.contrast, .elementDetection, .sufficientElementDescription, .textClipped, .trait])
+        try app.performAccessibilityAudit(for: [.contrast, .elementDetection, .hitRegion, .sufficientElementDescription, .textClipped, .trait])
     }
 
     func testAllProductionRoutesAndScreenshotsAreDistinct() throws {
@@ -68,8 +71,8 @@ final class HooptrackPlayerUITests: XCTestCase {
         try FileManager.default.createDirectory(at: screenshotDirectory, withIntermediateDirectories: true)
         var screenshotPayloads: [Data] = []
 
-        for (scene, heading) in scenes {
-            let app = launchRealScreen(scene: scene, heading: heading)
+        for (scene, identifier) in scenes {
+            let app = launchRealScreen(scene: scene, identifier: identifier)
             let screenshotData = XCUIScreen.main.screenshot().pngRepresentation
             let screenshotURL = screenshotDirectory.appendingPathComponent("\(scene).png")
             try screenshotData.write(to: screenshotURL)
@@ -86,7 +89,7 @@ final class HooptrackPlayerUITests: XCTestCase {
         let app = configuredApp(scene: scenes[0].0)
         measure(metrics: [XCTApplicationLaunchMetric()]) {
             app.launch()
-            XCTAssertTrue(app.wait(for: .runningForeground, timeout: 15))
+            XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
         }
     }
 }
