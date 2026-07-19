@@ -43,6 +43,7 @@ struct CaptureView: View {
                                     .frame(maxWidth: .infinity, minHeight: 44)
                             }
                             .buttonStyle(.bordered)
+                            .tint(HT.ink)
                             .disabled(isUploading)
                             .allowsHitTesting(!appState.isScreenshotMode)
                             if isUploading {
