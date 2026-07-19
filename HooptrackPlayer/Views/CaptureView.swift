@@ -33,7 +33,8 @@ struct CaptureView: View {
                             }
                             .buttonStyle(.borderedProminent)
                             .tint(HT.orange)
-                            .disabled(isUploading || appState.isScreenshotMode)
+                            .disabled(isUploading)
+                            .allowsHitTesting(!appState.isScreenshotMode)
                             .accessibilityIdentifier("capture-start")
                             Button {
                                 pickerSource = .photoLibrary
@@ -42,7 +43,8 @@ struct CaptureView: View {
                                     .frame(maxWidth: .infinity, minHeight: 44)
                             }
                             .buttonStyle(.bordered)
-                            .disabled(isUploading || appState.isScreenshotMode)
+                            .disabled(isUploading)
+                            .allowsHitTesting(!appState.isScreenshotMode)
                             if isUploading {
                                 ProgressView("capture.uploading")
                                     .accessibilityIdentifier("capture-uploading")
