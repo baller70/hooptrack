@@ -29,7 +29,7 @@ struct CaptureView: View {
                                 pickerSource = .camera
                             } label: {
                                 Label("capture.start", systemImage: "record.circle")
-                                    .frame(maxWidth: .infinity)
+                                    .frame(maxWidth: .infinity, minHeight: 44)
                             }
                             .buttonStyle(.borderedProminent)
                             .tint(HT.orange)
@@ -39,7 +39,7 @@ struct CaptureView: View {
                                 pickerSource = .photoLibrary
                             } label: {
                                 Label("capture.chooseVideo", systemImage: "photo.on.rectangle")
-                                    .frame(maxWidth: .infinity)
+                                    .frame(maxWidth: .infinity, minHeight: 44)
                             }
                             .buttonStyle(.bordered)
                             .disabled(isUploading || appState.isScreenshotMode)
