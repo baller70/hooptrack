@@ -106,6 +106,23 @@ Every Codex Cloud environment for this repo must verify these setup options befo
 
 If any option fails, stop guessing and print the exact command, exact error, and the missing credential, connector, mount, or environment setting.
 
+## KCLOUD Pro Developer Add-ons
+
+These add-ons are required setup targets for smoother remote Codex/vibe-coding work. They do not authorize unsafe production changes by themselves; use them to plan and report the next setup gaps.
+
+1. **One-command verify**: identify or add a single repo command such as `npm run verify`, `pnpm verify`, or the closest existing equivalent that runs lint/typecheck/build/tests appropriate to this repo.
+2. **Env template**: maintain a safe `.env.example` or documented env inventory with variable names, categories, and placeholder values only. Never include real secrets.
+3. **Browser smoke tests**: for UI repos, add or identify a Playwright/Cypress-style smoke test that proves the primary page loads and the core workflow starts.
+4. **CI gate**: add or identify GitHub Actions or equivalent checks for install, lint, typecheck, build, and tests where feasible.
+5. **Accessibility/performance**: for sale-facing UI, add or identify lightweight Lighthouse/axe/pa11y-style checks or document why they are deferred.
+6. **Service profile**: document required local/Cloud services such as Postgres, Redis, S3-compatible storage, queues, or OAuth callbacks, including safe placeholder startup paths.
+7. **Observability plan**: document the intended error monitoring, logging, and analytics approach before production launch.
+8. **Preview/staging path**: document how changes should be previewed before production, including local/Cloud preview and any staging URL when available.
+9. **Security scanning**: add or identify dependency audit, secret scanning, and CodeQL/static-analysis coverage where practical.
+10. **Task templates**: add or identify issue/task templates with acceptance criteria so Codex tasks have clear definitions of done.
+
+Every Cloud setup/readiness task should report which of these are present, missing, blocked, or intentionally deferred.
+
 ## KCLOUD Access and Dependency Checklist
 
 Before starting substantial Codex Cloud work for this repo, verify and report these items in the task output:
