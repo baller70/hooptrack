@@ -33,11 +33,11 @@ enum FactoryScreenshotScene: String {
     var routePath: String {
         switch self {
         case .dashboard: return "/coach"
-        case .teams: return "/dashboard/teams"
-        case .assignWorkout: return "/dashboard/workouts"
-        case .recordingReview: return "/dashboard/activity"
-        case .messages: return "/dashboard/chat"
-        case .completedOutcome: return "/dashboard/progress"
+        case .teams: return "/coach/teams"
+        case .assignWorkout: return "/coach/workouts"
+        case .recordingReview: return "/coach/activity"
+        case .messages: return "/coach/players"
+        case .completedOutcome: return "/coach/progress"
         }
     }
 

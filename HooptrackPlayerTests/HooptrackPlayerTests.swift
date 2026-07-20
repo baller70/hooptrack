@@ -11,7 +11,7 @@ final class HooptrackPlayerTests: XCTestCase {
         XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundlePackageType") as? String, "APPL")
         XCTAssertEqual(appBundle.bundleIdentifier, expectedBundleIdentifier)
         XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String, "1.0")
-        XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String, "3")
+        XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String, "5")
 
         guard let executableURL = appBundle.executableURL else {
             XCTFail("Expected the app bundle to resolve an executable URL")

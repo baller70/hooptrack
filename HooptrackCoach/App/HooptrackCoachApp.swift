@@ -36,67 +36,10 @@ final class CoachAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
 @main
 struct HooptrackCoachApp: App {
     @UIApplicationDelegateAdaptor(CoachAppDelegate.self) private var appDelegate
-    @StateObject private var appState = CoachAppState()
 
     var body: some Scene {
         WindowGroup {
-            CoachNativeRootView()
-                .environmentObject(appState)
-                .task {
-                    await appState.bootstrap()
-                }
-                .onOpenURL { url in
-                    appState.handleDeepLink(url)
-                }
-                .onReceive(NotificationCenter.default.publisher(for: .coachPushToken)) { notification in
-                    guard let token = notification.object as? String else { return }
-                    Task { await appState.registerAPNSToken(token) }
-                }
-                .onReceive(NotificationCenter.default.publisher(for: .coachPushRegistrationFailed)) { _ in
-                    appState.nativePushStatus = String(localized: "push.registrationFailed")
-                }
+            CoachRootView()
         }
-    }
-}
-
-private struct CoachNativeRootView: View {
-    @EnvironmentObject private var appState: CoachAppState
-
-    var body: some View {
-        Group {
-            switch appState.phase {
-            case .loading:
-                ProgressView("loading")
-                    .tint(HT.orange)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(HT.paper)
-            case .signedOut:
-                AuthView()
-            case .signedIn:
-                CoachShellView()
-            case .blockedRole:
-                CoachRoleBlockedView()
-            }
-        }
-    }
-}
-
-private struct CoachRoleBlockedView: View {
-    @EnvironmentObject private var appState: CoachAppState
-
-    var body: some View {
-        ContentUnavailableView {
-            Label("role.blocked.title", systemImage: "lock.shield")
-        } description: {
-            Text("role.blocked.message")
-        } actions: {
-            Button("auth.signOut") {
-                Task { await appState.logout() }
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(HT.orange)
-        }
-        .background(HT.paper)
-        .accessibilityIdentifier("coach-role-blocked")
     }
 }
