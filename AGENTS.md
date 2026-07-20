@@ -88,3 +88,14 @@ Include:
 - visual verification result if UI changed
 - remaining risks
 - exact next step for Kevin
+
+## KCLOUD Access and Dependency Checklist
+
+Before starting substantial Codex Cloud work for this repo, verify and report these items in the task output:
+
+- **GitHub:** confirm the checkout is on `main`, `origin` is `https://github.com/baller70/hooptrack.git`, and read/write GitHub access is available through the connected Codex Cloud GitHub integration.
+- **Dependencies:** run the repo-specific setup/install/build commands listed above. Record the package manager, Node/runtime version, successful commands, and blockers.
+- **Contabo:** test read-only SSH reachability when credentials are available with `ssh -o BatchMode=yes -o ConnectTimeout=10 root@194.146.12.139 'hostname && whoami && test -d /opt/apps && echo apps-ok'`. Do not deploy, sync, restart services, or edit Caddy/PM2 without Kevin's explicit approval.
+- **Local resources:** Codex Cloud cannot directly mount Kevin's Mac paths like `/Users/kevinhouston` or `/Volumes/APPLICATIONS`. Treat `/Volumes/APPLICATIONS/CodexStorage/projects/codex-cloud-apps/hooptrack` as the local mirror/control path only. Use GitHub commits, approved SSH, or an approved tunnel/sync path when Cloud work needs local assets.
+- **Secrets:** never commit real production secrets. Inventory required env vars by name/category and use placeholders for setup checks.
+
