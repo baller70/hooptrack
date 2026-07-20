@@ -106,6 +106,36 @@ Every Codex Cloud environment for this repo must verify these setup options befo
 
 If any option fails, stop guessing and print the exact command, exact error, and the missing credential, connector, mount, or environment setting.
 
+## KCLOUD Environment-Level Requirements
+
+Every Codex Cloud environment for this repo should be configured with these environment-level options before serious build work:
+
+1. **Agent internet access**: enable agent-phase internet access when the task needs external docs, package registries, APIs, hosted assets, or live endpoint checks. Setup/install scripts may need internet even when agent internet is restricted.
+2. **Cloud secrets only**: store real secrets in Codex Cloud environment secrets/settings, never in Git. Required secret names should be documented, but values must stay out of the repo.
+3. **Contabo SSH secrets**: configure a Cloud-only SSH private key secret for `root@194.146.12.139`, plus known_hosts setup. The key must allow safe read/write checks and approved deploy commands, but tasks still must not deploy without Kevin approval.
+4. **GitHub integration**: confirm the GitHub connector has read/write access to this repo and can create commits/patches on `main` or the approved branch strategy.
+5. **Setup script**: define a repeatable setup path that installs package manager/runtime dependencies, prepares safe placeholders, and prints versions for Node/package manager/system tools.
+6. **Known hosts / SSH config**: pre-populate SSH trust for Contabo so tasks do not pause on host authenticity prompts. Use `ssh-keyscan 194.146.12.139` or an equivalent Cloud setup step.
+7. **Preview command**: document the safest Cloud preview command for UI/static apps and require a browser/visual verification URL in the final report.
+8. **Staging target**: document whether this repo has a staging/preview deployment target. If missing, report it as a setup gap before production work.
+9. **Seed/test data**: provide safe fake seed data or fixtures for auth, database, email, commerce, or AI flows. Never use production customer/account data for setup checks.
+10. **Branch/review policy**: default to Kevin's current `main` workflow unless he changes it; use short branches for risky or large changes only after approval.
+11. **Monitoring/launch checklist**: document logging, error tracking, analytics, uptime checks, backup, rollback, and production deploy path before launch.
+12. **Access-verification task**: each Cloud environment should run or rerun the KCLOUD access verification after pulling latest `main`, especially when environment settings or secrets change.
+
+Minimum Cloud secret/env names to configure when applicable:
+
+- `KCLOUD_GROUP=KCLOUD-BUILDOUT-20260720`
+- `CONTABO_HOST=194.146.12.139`
+- `CONTABO_USER=root`
+- `CONTABO_SSH_PRIVATE_KEY` as a Cloud secret, not committed
+- `CONTABO_KNOWN_HOSTS` as a Cloud secret or generated during setup
+- `LOCAL_BRIDGE_PATH=/Volumes/APPLICATIONS/CodexStorage/kcloud-local-bridge/rw-tests`
+- `GITHUB_REPOSITORY` matching this repo
+- repo-specific app/database/OAuth/API secrets as Cloud secrets only
+
+Do not paste private keys, OAuth secrets, production database URLs, Gmail tokens, S3 credentials, or API keys into source files, issues, task prompts, logs, or markdown reports.
+
 ## KCLOUD Pro Developer Add-ons
 
 These add-ons are required setup targets for smoother remote Codex/vibe-coding work. They do not authorize unsafe production changes by themselves; use them to plan and report the next setup gaps.
