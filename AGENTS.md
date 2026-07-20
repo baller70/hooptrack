@@ -89,6 +89,23 @@ Include:
 - remaining risks
 - exact next step for Kevin
 
+## KCLOUD Remote Work Options
+
+Every Codex Cloud environment for this repo must verify these setup options before doing substantial build or product work:
+
+1. **Environment identity**: confirm group `KCLOUD-BUILDOUT-20260720`, repo `baller70/hooptrack`, branch `main`, and the approved environment label from this file.
+2. **GitHub read/write**: confirm `origin` is `https://github.com/baller70/hooptrack.git`, fetch/pull `main`, and report whether the Cloud environment can create commits/patches through the connected GitHub integration.
+3. **Internet/network**: verify outbound DNS/HTTPS access with lightweight checks to GitHub, npm/package registry as applicable, and the app's required public endpoints. Record any blocked host.
+4. **Dependencies/runtime**: run the repo-specific install/build/check commands in this file. Report Node/runtime version, package manager, commands attempted, commands passed, and blockers.
+5. **Visual interface/preview**: when the repo has a web UI or static UI, start the safest local/Cloud preview command, open it through the available Codex/browser preview surface, and report the preview URL plus visual result. If no visual app exists, state why.
+6. **Contabo read/write**: verify safe SSH read/write access when credentials are available using only a temporary marker under `/tmp`; do not touch `/opt/apps` except for read-only existence checks. Never deploy, restart services, edit Caddy/PM2, or sync files without Kevin's explicit approval.
+7. **Local Mac bridge read/write**: verify the Cloud environment can create/read/delete a marker under `/Volumes/APPLICATIONS/CodexStorage/kcloud-local-bridge/rw-tests`. Treat `/Volumes/APPLICATIONS/CodexStorage/projects/codex-cloud-apps/hooptrack` as the local mirror/control path for this repo.
+8. **Secrets/env**: inventory required environment variables by name and category only. Use placeholders for checks. Never commit real production secrets, OAuth tokens, Gmail credentials, S3 keys, database passwords, or private SSH keys.
+9. **Agent instructions**: read root `AGENTS.md` plus any directory-level instruction file before touching files. For repos where `AGENTS.md` is a symlink or adapter, follow the linked instruction file too.
+10. **Remote-work report**: final Cloud output must include a checklist for GitHub, internet, dependencies, visual preview, Contabo read/write, local bridge read/write, secrets/env, blockers, and exact next step.
+
+If any option fails, stop guessing and print the exact command, exact error, and the missing credential, connector, mount, or environment setting.
+
 ## KCLOUD Access and Dependency Checklist
 
 Before starting substantial Codex Cloud work for this repo, verify and report these items in the task output:
