@@ -20,7 +20,9 @@ if [ ! -f "${global_chromium}/package.json" ] || \
 fi
 
 chromium_executable="$(NODE_PATH="$global_root" node -e '
-  require("@sparticuz/chromium").executablePath()
+  const loaded = require("@sparticuz/chromium");
+  const chromium = loaded.default || loaded;
+  chromium.executablePath()
     .then((value) => process.stdout.write(value));
 ')"
 
