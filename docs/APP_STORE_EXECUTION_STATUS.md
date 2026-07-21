@@ -9,15 +9,15 @@
 | Phase | Status | Completed in repository | Remaining gate |
 | --- | --- | --- | --- |
 | 0 — approval and controls | In progress | Checklist IDs, evidence vocabulary, commit/PR traceability | Human owners and legal/safety decision owners |
-| 1 — inventory and baseline | In progress | Repository/env inventory, clean web build, env template, diagrams, risk register | macOS/native evidence and final feature/API matrices |
+| 1 — inventory and baseline | In progress | Repository/env inventory, clean web build, env template, diagrams, risk register, macOS toolchain record, Coach/Player simulator builds and tests | Release builds/signing and final feature/API matrices |
 | 2 — product/legal | Blocked externally | Enforced a technical 13+ registration floor and legal acceptance; public privacy/terms now match that rule | Qualified legal/privacy approval for age, Coach verification, payments, retention, regions |
 | 3 — Apple configuration | In progress | Bundle IDs, versions, permissions, icons, manifests, API origin, and Coach + Player APNs entitlements/registration prepared | Apple account, signing, archive, APNs credentials, branded production domain |
 | 4 — privacy/account/safety | In progress | Player and Coach in-app deletion, report/block, privacy manifests/pages, storage and env names implemented/reviewed | Processor/backup retention verification and qualified privacy/legal review |
 | 5 — Coach↔Player authorization | In progress | Invite create/expiry/revoke, accept/decline, capacity race, Coach removal, Player leave, membership-scoped discovery/messaging/object access, and negative integration tests | Complete remaining route-negative tests and native/device proof |
 | 6 — functional workflows | In progress | Live Next.js integration covers roles, invitations, membership lifecycle, APNs bundle binding, deletion, access revocation, and backup/restore | Full media, AI, offline, push-delivery, upgrade, and localization matrix |
-| 7 — accessibility/performance | Not run | Existing UI tests include accessibility assertions | Physical/simulator devices, VoiceOver, Instruments, budgets, representative users |
+| 7 — accessibility/performance | In progress | Both UI suites passed focused XCTest accessibility audits, 44-point primary-screen assertions, six deterministic scenes, and launch measurements | Full-screen VoiceOver/Dynamic Type/contrast matrix, physical devices, Instruments, approved budgets, representative users |
 | 8 — security/operations | In progress | Threat boundaries, clean dependency/dead-code/circular/secret audits, CI SBOM, isolated backup/restore proof, and incident/rollback runbook | Independent pentest, production staging/load/restore/alert drills |
-| 9 — CI/RC | In progress | Non-deploying Ubuntu gate and macOS Coach/Player test job with `.xcresult` artifacts prepared; Node/npm pinned | Push/run workflow, protect it, signed immutable RC and distribution evidence |
+| 9 — CI/RC | In progress | Mandatory repository audit and independent macOS Coach/Player jobs passed on PR #7 with retained `.xcresult` and SBOM artifacts; Node/npm pinned | Protect required checks, signed immutable RC and distribution evidence |
 | 10 — TestFlight | Blocked externally | Cohort/device/safety matrix, review accounts secret path, test focus, and soak scope prepared | Apple/TestFlight access, approved testers, distributed builds and executed soak |
 | 11 — App Store Connect | Blocked externally | Separate Coach/Player record, descriptions, screenshot lists, privacy reconciliation, and exact reviewer journey drafted | Final assets/answers, legal/business approval, review accounts, signed upload, submit approval |
 | 12 — launch/aftercare | Blocked externally | Deployment topology, stop thresholds, incident roles, backup/restore and rollback/compatibility runbook documented | Explicit deploy/release authorization, production drills/monitoring, support/on-call, phased release |
@@ -49,8 +49,8 @@ The repeatable `npm run test:mobile-readiness` test starts the real Next.js rout
 ## Current failed or blocked checks
 
 - `npm run audit:all` now passes Knip, Depcheck, circular analysis, license summary, production dependency audit, and tracked-file secret scanning. License obligations still require release-owner review.
-- The generated evidence index accounts for all 320 checklist IDs: only complete item-specific evidence is marked `PASS`; 191 repository/manual items and 88 externally blocked items remain explicit rather than being inferred complete.
-- Native Xcode execution is not available locally; the new macOS GitHub job is the executable readiness path, but its first remote result is not yet available in this environment.
+- The generated evidence index accounts for all 320 checklist IDs: only complete item-specific evidence is marked `PASS`; 181 repository/manual items and 88 externally blocked items remain explicit rather than being inferred complete.
+- Native Xcode execution is available through connectors: Coach and Player unit/UI suites passed independently in GitHub run 29871603666, with retained `.xcresult` artifacts. Signed Release archives, physical devices, and App Store distribution remain unproven.
 - KCLOUD identity is not the requested group/branch, Node/npm differ from the required versions, and the Local Mac bridge is not mounted; exact results are in `docs/KCLOUD_ACCESS_REPORT.md`. GitHub read/write dry-runs, public HTTPS checks, and safe Contabo `/tmp` access passed.
 - Current native `Info.plist` files still use the reachable `sslip.io` origin value. Code now reads a single validated HTTPS configuration key, enabling a branded origin later without scattered source changes.
 - Coach and Player deletion are now supported in-app and integration-tested for Coach-owned cleanup with Player-account retention; production backups/processors still require retention verification.

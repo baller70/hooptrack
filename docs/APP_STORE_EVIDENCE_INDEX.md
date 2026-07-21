@@ -3,7 +3,7 @@
 **Generated from:** `docs/APP_STORE_EXECUTION_CHECKLIST.md`
 **Rule:** only complete, item-specific evidence is `PASS`. Partial work remains `NOT RUN`; credentials or decisions outside this repository are `BLOCKED`.
 
-**Totals:** 320 requirements — PASS 41, NOT RUN 191, BLOCKED 88, FAIL 0.
+**Totals:** 320 requirements — PASS 51, NOT RUN 181, BLOCKED 88, FAIL 0.
 
 ## Phase 0 — approval and controls
 
@@ -27,7 +27,7 @@
 | HT-0101 | **PASS** | Record repository, remote URL, branch, HEAD commit, working-tree status, and environment label. | `docs/KCLOUD_ACCESS_REPORT.md` records repo, origin, branch, environment mismatch, status, and candidate context. |
 | HT-0102 | **PASS** | Confirm GitHub read access by fetching the approved branch. | `git fetch origin main --dry-run` succeeded on 2026-07-21. |
 | HT-0103 | **PASS** | Confirm GitHub write/PR capability without pushing an unapproved product change. | A GitHub push dry-run to a new branch succeeded without creating it. |
-| HT-0104 | **NOT RUN** | Record macOS version, Xcode version, selected command-line tools, Swift version, and installed simulator runtimes on the native build host. | NOT RUN — no complete item-specific evidence exists yet; partial implementation or adjacent tests are not treated as a pass. |
+| HT-0104 | **PASS** | Record macOS version, Xcode version, selected command-line tools, Swift version, and installed simulator runtimes on the native build host. | `docs/NATIVE_CI_EVIDENCE.md` records macOS, Xcode, Swift, and installed simulator runtimes from the passing native workflow. |
 | HT-0105 | **PASS** | Record Node and npm versions and compare them with repository requirements. | Node v20.20.2/npm 11.4.2 were recorded and compared with required Node 22/npm 10; CI uses Node 22. |
 | HT-0106 | **PASS** | Verify DNS and HTTPS access to GitHub, npm, Apple Developer, the production API, support URL, and privacy URL. | GitHub, npm, Apple guidelines, support, and privacy HTTPS checks all returned 200. |
 | HT-0107 | **PASS** | Run the approved Contabo bootstrap and verify only a temporary `/tmp` marker; do not deploy or restart anything. | Approved Contabo bootstrap passed authenticated temporary `/tmp` create/read/delete only. |
@@ -55,15 +55,15 @@
 | HT-0129 | **PASS** | Run the production web/backend build with placeholder secrets and retain the report. | `npm run build` passes and emits 59 static pages plus dynamic routes. |
 | HT-0130 | **NOT RUN** | List Coach schemes and destinations with `xcodebuild`. | NOT RUN — no complete item-specific evidence exists yet; partial implementation or adjacent tests are not treated as a pass. |
 | HT-0131 | **NOT RUN** | List Player schemes and destinations with `xcodebuild`. | NOT RUN — no complete item-specific evidence exists yet; partial implementation or adjacent tests are not treated as a pass. |
-| HT-0132 | **NOT RUN** | Clean-build Coach Debug for a simulator. | NOT RUN — no complete item-specific evidence exists yet; partial implementation or adjacent tests are not treated as a pass. |
-| HT-0133 | **NOT RUN** | Clean-build Player Debug for a simulator. | NOT RUN — no complete item-specific evidence exists yet; partial implementation or adjacent tests are not treated as a pass. |
+| HT-0132 | **PASS** | Clean-build Coach Debug for a simulator. | Coach Debug simulator build and test passed in GitHub native run 29871603666. |
+| HT-0133 | **PASS** | Clean-build Player Debug for a simulator. | Player Debug simulator build and test passed in GitHub native run 29871603666. |
 | HT-0134 | **NOT RUN** | Clean-build Coach Release with signing disabled for compile verification. | NOT RUN — no complete item-specific evidence exists yet; partial implementation or adjacent tests are not treated as a pass. |
 | HT-0135 | **NOT RUN** | Clean-build Player Release with signing disabled for compile verification. | NOT RUN — no complete item-specific evidence exists yet; partial implementation or adjacent tests are not treated as a pass. |
-| HT-0136 | **NOT RUN** | Run all existing Coach unit tests and export `.xcresult`. | NOT RUN — no complete item-specific evidence exists yet; partial implementation or adjacent tests are not treated as a pass. |
-| HT-0137 | **NOT RUN** | Run all existing Player unit tests and export `.xcresult`. | NOT RUN — no complete item-specific evidence exists yet; partial implementation or adjacent tests are not treated as a pass. |
-| HT-0138 | **NOT RUN** | Run all existing Coach UI tests and export `.xcresult`. | NOT RUN — no complete item-specific evidence exists yet; partial implementation or adjacent tests are not treated as a pass. |
-| HT-0139 | **NOT RUN** | Run all existing Player UI tests and export `.xcresult`. | NOT RUN — no complete item-specific evidence exists yet; partial implementation or adjacent tests are not treated as a pass. |
-| HT-0140 | **NOT RUN** | Classify every warning, skipped test, flaky retry, crash, and failure from the baseline. | NOT RUN — no complete item-specific evidence exists yet; partial implementation or adjacent tests are not treated as a pass. |
+| HT-0136 | **PASS** | Run all existing Coach unit tests and export `.xcresult`. | `HooptrackCoachTests` passed; the retained Coach `.xcresult` is identified in `docs/NATIVE_CI_EVIDENCE.md`. |
+| HT-0137 | **PASS** | Run all existing Player unit tests and export `.xcresult`. | `HooptrackPlayerTests` passed; the retained Player `.xcresult` is identified in `docs/NATIVE_CI_EVIDENCE.md`. |
+| HT-0138 | **PASS** | Run all existing Coach UI tests and export `.xcresult`. | `HooptrackCoachUITests` passed; the retained Coach `.xcresult` is identified in `docs/NATIVE_CI_EVIDENCE.md`. |
+| HT-0139 | **PASS** | Run all existing Player UI tests and export `.xcresult`. | `HooptrackPlayerUITests` passed; the retained Player `.xcresult` is identified in `docs/NATIVE_CI_EVIDENCE.md`. |
+| HT-0140 | **PASS** | Classify every warning, skipped test, flaky retry, crash, and failure from the baseline. | `docs/NATIVE_CI_EVIDENCE.md` classifies App Intents metadata output and Player launch-time variability without hiding them. |
 
 ## Phase 2 — product, audience, and legal decisions
 
@@ -306,8 +306,8 @@
 | ID | Status | Requirement | Evidence / blocker |
 | --- | --- | --- | --- |
 | HT-0901 | **PASS** | Add or verify CI clean-install, lint, typecheck, build, integration, audit, and secret-scan gates. | Mandatory npm clean-install/audit/verify CI gates are defined without permissive failure handling. |
-| HT-0902 | **NOT RUN** | Add or verify macOS CI for Coach build/unit/UI tests. | NOT RUN — no complete item-specific evidence exists yet; partial implementation or adjacent tests are not treated as a pass. |
-| HT-0903 | **NOT RUN** | Add or verify macOS CI for Player build/unit/UI tests. | NOT RUN — no complete item-specific evidence exists yet; partial implementation or adjacent tests are not treated as a pass. |
+| HT-0902 | **PASS** | Add or verify macOS CI for Coach build/unit/UI tests. | Independent Coach macOS CI build/unit/UI job passed and retained `.xcresult` evidence. |
+| HT-0903 | **PASS** | Add or verify macOS CI for Player build/unit/UI tests. | Independent Player macOS CI build/unit/UI job passed and retained `.xcresult` evidence. |
 | HT-0904 | **NOT RUN** | Add API-contract tests for every native endpoint and response/error decoder. | NOT RUN — no complete item-specific evidence exists yet; partial implementation or adjacent tests are not treated as a pass. |
 | HT-0905 | **NOT RUN** | Add backend object-level authorization tests for every Coach/Player/team resource. | NOT RUN — no complete item-specific evidence exists yet; partial implementation or adjacent tests are not treated as a pass. |
 | HT-0906 | **PASS** | Add invitation state-machine tests for all HT-0507 through HT-0522 cases. | Live-route test covers create, expiry, revoke, accept, replay, wrong recipient, and capacity race states. |
