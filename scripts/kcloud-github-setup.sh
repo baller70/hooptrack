@@ -16,18 +16,21 @@ fi
 
 token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
 if [ -n "$token" ]; then
+  credential_file="${HOME}/.config/git/kcloud-credentials"
+  mkdir -p "$(dirname "$credential_file")"
+  printf 'https://x-access-token:%s@github.com\n' "$token" > "$credential_file"
+  chmod 600 "$credential_file"
+
   if command -v gh >/dev/null 2>&1; then
     printf '%s' "$token" | env -u GH_TOKEN -u GITHUB_TOKEN \
-      gh auth login --hostname github.com --git-protocol https --with-token
+      gh auth login --hostname github.com --git-protocol https \
+        --insecure-storage --with-token
     env -u GH_TOKEN -u GITHUB_TOKEN gh auth setup-git --hostname github.com
     chmod 600 "${HOME}/.config/gh/hosts.yml" 2>/dev/null || true
-  else
-    credential_file="${HOME}/.config/git/kcloud-credentials"
-    mkdir -p "$(dirname "$credential_file")"
-    printf 'https://x-access-token:%s@github.com\n' "$token" > "$credential_file"
-    chmod 600 "$credential_file"
-    git config --global credential.helper "store --file=${credential_file}"
   fi
+
+  git config --global --unset-all credential.helper >/dev/null 2>&1 || true
+  git config --global credential.helper "store --file=${credential_file}"
 fi
 
 if ! git ls-remote --exit-code --heads origin main >/dev/null; then
