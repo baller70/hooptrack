@@ -39,7 +39,27 @@ struct HooptrackPlayerApp: App {
 
     var body: some Scene {
         WindowGroup {
+            #if DEBUG
+            if FactoryScreenshotScene.current != nil {
+                PlayerFactoryRoot()
+            } else {
+                RootView()
+            }
+            #else
             RootView()
+            #endif
         }
     }
 }
+
+#if DEBUG
+private struct PlayerFactoryRoot: View {
+    @StateObject private var appState = AppState()
+
+    var body: some View {
+        PlayerShellView()
+            .environmentObject(appState)
+            .task { await appState.bootstrap() }
+    }
+}
+#endif
