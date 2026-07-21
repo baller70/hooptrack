@@ -7,6 +7,7 @@ ssh_dir="${HOME}/.ssh"
 key_path="${CONTABO_SSH_KEY_PATH:-${ssh_dir}/id_ed25519}"
 known_hosts_path="${ssh_dir}/known_hosts"
 proxy_url="${HTTPS_PROXY:-${https_proxy:-${HTTP_PROXY:-${http_proxy:-}}}}"
+missing_key=0
 
 printf 'KCLOUD Contabo SSH setup/check\n'
 printf 'Target: %s@%s:22\n' "$user" "$host"
@@ -16,32 +17,6 @@ printf 'NO_PROXY: %s\n' "${NO_PROXY:-${no_proxy:-none}}"
 
 mkdir -p "${ssh_dir}"
 chmod 700 "${ssh_dir}"
-
-if [ -n "${CONTABO_SSH_PRIVATE_KEY_B64:-}" ]; then
-  if base64 --help 2>&1 | grep -q -- "--decode"; then
-    printf '%s' "${CONTABO_SSH_PRIVATE_KEY_B64}" | tr -d '\r\n ' | base64 --decode > "${key_path}"
-  else
-    printf '%s' "${CONTABO_SSH_PRIVATE_KEY_B64}" | tr -d '\r\n ' | base64 -d > "${key_path}"
-  fi
-elif [ -n "${CONTABO_SSH_PRIVATE_KEY:-}" ]; then
-  printf '%s\n' "${CONTABO_SSH_PRIVATE_KEY}" > "${key_path}"
-elif [ ! -s "${key_path}" ]; then
-  echo "KCLOUD_CONTABO_MISSING_KEY: missing CONTABO_SSH_PRIVATE_KEY_B64 or CONTABO_SSH_PRIVATE_KEY, and ${key_path} does not exist." >&2
-  exit 20
-fi
-
-chmod 600 "${key_path}"
-
-if [ -n "${CONTABO_KNOWN_HOSTS:-}" ]; then
-  printf '%s\n' "${CONTABO_KNOWN_HOSTS}" > "${known_hosts_path}"
-else
-  ssh-keygen -R "${host}" >/dev/null 2>&1 || true
-  if ! ssh-keyscan -T 10 "${host}" >> "${known_hosts_path}" 2>/tmp/kcloud-ssh-keyscan-$$.log; then
-    echo 'KCLOUD_CONTABO_KEYSCAN_FAILED: ssh-keyscan could not reach Contabo. Continuing to TCP diagnostics.' >&2
-    cat /tmp/kcloud-ssh-keyscan-$$.log >&2 || true
-  fi
-fi
-chmod 600 "${known_hosts_path}" 2>/dev/null || true
 
 try_direct_tcp() {
   if command -v nc >/dev/null 2>&1; then
@@ -60,7 +35,6 @@ ssh_proxy_args=()
 if try_direct_tcp; then
   echo 'Direct TCP to Contabo port 22 succeeded.'
 else
-  direct_status=$?
   echo 'Direct TCP to Contabo port 22 failed:' >&2
   cat /tmp/kcloud-contabo-nc-$$.log >&2 || true
   if [ -n "$proxy_hostport" ] && command -v nc >/dev/null 2>&1; then
@@ -79,6 +53,36 @@ else
     exit 30
   fi
 fi
+
+if [ -n "${CONTABO_SSH_PRIVATE_KEY_B64:-}" ]; then
+  if base64 --help 2>&1 | grep -q -- "--decode"; then
+    printf '%s' "${CONTABO_SSH_PRIVATE_KEY_B64}" | tr -d '\r\n ' | base64 --decode > "${key_path}"
+  else
+    printf '%s' "${CONTABO_SSH_PRIVATE_KEY_B64}" | tr -d '\r\n ' | base64 -d > "${key_path}"
+  fi
+elif [ -n "${CONTABO_SSH_PRIVATE_KEY:-}" ]; then
+  printf '%s\n' "${CONTABO_SSH_PRIVATE_KEY}" > "${key_path}"
+elif [ ! -s "${key_path}" ]; then
+  missing_key=1
+fi
+
+if [ "$missing_key" -eq 1 ]; then
+  echo "KCLOUD_CONTABO_MISSING_KEY: network route was checked, but CONTABO_SSH_PRIVATE_KEY_B64 or CONTABO_SSH_PRIVATE_KEY is missing and ${key_path} does not exist." >&2
+  exit 20
+fi
+
+chmod 600 "${key_path}"
+
+if [ -n "${CONTABO_KNOWN_HOSTS:-}" ]; then
+  printf '%s\n' "${CONTABO_KNOWN_HOSTS}" > "${known_hosts_path}"
+else
+  ssh-keygen -R "${host}" >/dev/null 2>&1 || true
+  if ! ssh-keyscan -T 10 "${host}" >> "${known_hosts_path}" 2>/tmp/kcloud-ssh-keyscan-$$.log; then
+    echo 'KCLOUD_CONTABO_KEYSCAN_FAILED: ssh-keyscan could not reach Contabo.' >&2
+    cat /tmp/kcloud-ssh-keyscan-$$.log >&2 || true
+  fi
+fi
+chmod 600 "${known_hosts_path}" 2>/dev/null || true
 
 ssh_opts=(
   -i "${key_path}"

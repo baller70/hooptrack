@@ -58,14 +58,21 @@ with_deps_status=0
 plain_status=0
 
 echo 'Installing Playwright Chromium with Ubuntu dependencies...'
-if ! "${pw_cmd[@]}" install --with-deps chromium >"$install_log" 2>&1; then
-  with_deps_status=$?
-  echo 'Playwright --with-deps install failed. Last 80 log lines:'
+set +e
+"${pw_cmd[@]}" install --with-deps chromium >"$install_log" 2>&1
+with_deps_status=$?
+set -e
+
+if [ "$with_deps_status" -ne 0 ]; then
+  echo "Playwright --with-deps install failed with status $with_deps_status. Last 80 log lines:"
   tail -n 80 "$install_log" || true
   echo 'Retrying Playwright Chromium install without OS dependency install...'
-  if ! "${pw_cmd[@]}" install chromium >"$install_log" 2>&1; then
-    plain_status=$?
-    echo 'Playwright browser download failed. Last 80 log lines:'
+  set +e
+  "${pw_cmd[@]}" install chromium >"$install_log" 2>&1
+  plain_status=$?
+  set -e
+  if [ "$plain_status" -ne 0 ]; then
+    echo "Playwright browser download failed with status $plain_status. Last 80 log lines:"
     tail -n 80 "$install_log" || true
   fi
 fi
@@ -111,6 +118,10 @@ EOF
   fi
   echo 'KCLOUD_PLAYWRIGHT_INSTALL_FAILED: Playwright install failed for a non-classified reason.' >&2
   exit 32
+fi
+
+if [ "$with_deps_status" -ne 0 ] && [ "$plain_status" -eq 0 ]; then
+  echo 'KCLOUD_PLAYWRIGHT_OS_DEPS_BLOCKED: Chromium downloaded, but Ubuntu OS dependency install failed. Browser tests may still fail if required system libraries are missing.' >&2
 fi
 
 echo 'KCLOUD Playwright browser setup complete: chromium'
