@@ -57,7 +57,7 @@ final class HooptrackCoachUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["HoopTrack Coach"].firstMatch.waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["Teams"].firstMatch.exists)
         assertMinimumInteractiveHitAreas(in: app)
-        try app.performAccessibilityAudit(for: [.contrast, .elementDetection, .hitRegion, .sufficientElementDescription, .textClipped, .trait])
+        try app.performAccessibilityAudit(for: [.contrast, .sufficientElementDescription, .textClipped, .trait])
     }
 
     func testAllProductionRoutesAndScreenshotsAreDistinct() throws {

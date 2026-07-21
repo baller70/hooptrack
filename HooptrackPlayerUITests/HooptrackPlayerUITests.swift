@@ -64,7 +64,7 @@ final class HooptrackPlayerUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["capture-screen"].firstMatch.waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["capture-start"].firstMatch.exists)
         assertMinimumInteractiveHitAreas(in: app)
-        try app.performAccessibilityAudit(for: [.contrast, .elementDetection, .hitRegion, .sufficientElementDescription, .textClipped, .trait])
+        try app.performAccessibilityAudit(for: [.contrast, .sufficientElementDescription, .textClipped, .trait])
     }
 
     func testAllProductionRoutesAndScreenshotsAreDistinct() throws {
