@@ -183,3 +183,31 @@ What this does:
 
 After setup, run the repo's normal test command. If the repo has no Playwright test yet, use the browser install for visual preview/smoke verification and report that repeatable e2e coverage is still missing.
 <!-- KCLOUD-PLAYWRIGHT-SETUP:END -->
+
+<!-- KCLOUD-CONTABO-SSH-SETUP:START -->
+## KCLOUD Contabo SSH Setup
+
+Every Codex Cloud environment that needs Contabo access must run the SSH bootstrap before declaring Contabo unreachable.
+
+Preferred setup/check command:
+
+```bash
+bash scripts/kcloud-contabo-ssh-setup.sh
+```
+
+Required Cloud settings:
+
+- `CONTABO_HOST=194.146.12.139`
+- `CONTABO_USER=root`
+- `CONTABO_SSH_PRIVATE_KEY_B64` as a Cloud secret containing the base64-encoded private key
+- `CONTABO_SSH_PRIVATE_KEY_FORMAT=base64`
+- Optional: `CONTABO_KNOWN_HOSTS`; otherwise the script runs `ssh-keyscan`
+
+The script only performs a safe SSH read/write check under `/tmp`. It does not deploy, restart services, edit PM2/Caddy, touch `/opt/apps`, or write production data.
+
+If this script fails:
+
+- TCP/connect timeout means Cloud outbound network or host firewall is blocking port 22.
+- `Permission denied (publickey)` means the Cloud secret is missing, malformed, or does not match Contabo's authorized key.
+- Host key errors mean `CONTABO_KNOWN_HOSTS` is wrong/stale or `ssh-keyscan` could not run.
+<!-- KCLOUD-CONTABO-SSH-SETUP:END -->
