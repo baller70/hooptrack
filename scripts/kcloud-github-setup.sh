@@ -47,9 +47,13 @@ EOF
   git config --global credential.interactive always
   git config credential.helper "store --file=${credential_file}"
   git config core.askPass "$askpass_file"
+  basic_auth="$(printf 'x-access-token:%s' "$token" | base64 | tr -d '\r\n')"
+  git config http.https://github.com/.extraheader \
+    "AUTHORIZATION: basic ${basic_auth}"
+  chmod 600 "$(git rev-parse --git-path config)" 2>/dev/null || true
 fi
 
-if ! env -u GH_TOKEN -u GITHUB_TOKEN \
+if ! env -u GH_TOKEN -u GITHUB_TOKEN GIT_ASKPASS=/bin/false SSH_ASKPASS=/bin/false \
   git ls-remote --exit-code --heads origin main >/dev/null; then
   echo 'KCLOUD_GITHUB_AUTH_FAILED: origin/main is not reachable.' >&2
   exit 51
