@@ -5,18 +5,25 @@
   "description": "Basketball tracking application for managing players, sessions, drills, and progress — a Next.js App Router PWA with offline support and web push notifications.",
   "license": "UNLICENSED",
   "author": "HoopTrack",
+  "engines": {
+    "node": "22.x",
+    "npm": "10.x"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "verify": "npm run lint && npm run typecheck && npm run test:mobile-readiness && npm run build",
+    "test:mobile-readiness": "node scripts/test-mobile-readiness.mjs",
     "audit:knip": "knip",
-    "audit:depcheck": "depcheck",
+    "audit:depcheck": "depcheck --ignores=tw-animate-css,@tailwindcss/postcss,@types/react-dom,tailwindcss",
     "audit:madge": "madge --circular --extensions ts,tsx .",
     "audit:licenses": "license-checker --summary",
     "audit:deps": "npm audit --omit=dev",
-    "audit:all": "npm run lint && npm run typecheck && npm run audit:knip && npm run audit:depcheck && npm run audit:madge && npm run audit:licenses && npm run audit:deps",
+    "audit:secrets": "node scripts/check-secrets.mjs",
+    "audit:all": "npm run lint && npm run typecheck && npm run audit:knip && npm run audit:depcheck && npm run audit:madge && npm run audit:licenses && npm run audit:deps && npm run audit:secrets",
     "analyze": "ANALYZE=true next build"
   },
   "dependencies": {
@@ -42,11 +49,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.12.1",
-    "@next/bundle-analyzer": "^16.2.10",
     "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
-    "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -59,8 +63,6 @@
     "license-checker": "^25.0.1",
     "madge": "^8.0.0",
     "playwright": "^1.60.0",
-    "size-limit": "^12.1.0",
-    "snyk": "^1.1306.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   },

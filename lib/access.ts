@@ -1,15 +1,58 @@
 import { db } from './db'
 import type { UserPayload } from './auth'
 
-export function parsePositiveInt(value: string | number | null | undefined): number | null {
+function parsePositiveInt(value: string | number | null | undefined): number | null {
   if (value == null || value === '') return null
   const parsed = typeof value === 'number' ? value : Number.parseInt(value, 10)
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null
 }
 
+export function coachIdForSession(session: UserPayload): number | null {
+  if (session.actual_role === 'trainer' && session.actual_id) return session.actual_id
+  return session.role === 'trainer' ? session.id : null
+}
+
+function coachCanAccessPlayer(coachId: number, playerId: number): boolean {
+  return Boolean(db.prepare(`
+    SELECT 1
+    FROM coach_group_members member
+    JOIN coach_groups coach_group ON coach_group.id = member.group_id
+    WHERE coach_group.coach_id = ?
+      AND coach_group.archived_at IS NULL
+      AND member.player_id = ?
+    LIMIT 1
+  `).get(coachId, playerId))
+}
+
+export function coachCanAccessPlayerForSession(session: UserPayload, playerId: number): boolean {
+  const coachId = coachIdForSession(session)
+  return coachId != null && coachCanAccessPlayer(coachId, playerId)
+}
+
+export function usersShareActiveGroup(firstUserId: number, secondUserId: number): boolean {
+  return Boolean(db.prepare(`
+    SELECT 1
+    FROM coach_groups coach_group
+    JOIN coach_group_members member ON member.group_id = coach_group.id
+    WHERE coach_group.archived_at IS NULL
+      AND (
+        (coach_group.coach_id = ? AND member.player_id = ?)
+        OR (coach_group.coach_id = ? AND member.player_id = ?)
+      )
+    LIMIT 1
+  `).get(firstUserId, secondUserId, secondUserId, firstUserId))
+}
+
 export function resolvePlayerId(session: UserPayload, requested: string | number | null | undefined): number | Response {
   const requestedId = parsePositiveInt(requested)
-  if (session.role === 'trainer') return requestedId ?? session.id
+  const coachId = coachIdForSession(session)
+  if (coachId != null) {
+    if (requestedId == null) return Response.json({ error: 'Player is required' }, { status: 400 })
+    if (!coachCanAccessPlayer(coachId, requestedId)) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    return requestedId
+  }
   if (requestedId != null && requestedId !== session.id) {
     return Response.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -17,7 +60,8 @@ export function resolvePlayerId(session: UserPayload, requested: string | number
 }
 
 export function canAccessPlayer(session: UserPayload, playerId: number): boolean {
-  return session.role === 'trainer' || session.id === playerId
+  const coachId = coachIdForSession(session)
+  return coachId != null ? coachCanAccessPlayer(coachId, playerId) : session.id === playerId
 }
 
 export function getContextParticipants(contextType: string, contextId: number): Set<number> | null {
@@ -69,7 +113,10 @@ export function getContextParticipants(contextType: string, contextId: number): 
 }
 
 export function canAccessContext(session: UserPayload, contextType: string, contextId: number): boolean {
-  if (session.role === 'trainer') return true
   const participants = getContextParticipants(contextType, contextId)
-  return participants != null && participants.has(session.id)
+  if (participants == null) return false
+  const coachId = coachIdForSession(session)
+  if (coachId == null) return participants.has(session.id)
+  if (participants.has(coachId)) return true
+  return [...participants].some((participantId) => coachCanAccessPlayer(coachId, participantId))
 }

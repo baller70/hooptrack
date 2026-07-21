@@ -27,7 +27,7 @@ export default function PrivacyPage() {
       </section>
       <section>
         <h2>Children And Teams</h2>
-        <p className="mt-2">A parent, guardian, school, club, or other authorized organization must provide any consent required for a player under 13. Do not create or invite a child account unless you have authority to do so. Contact Support to review or remove a child&apos;s information.</p>
+        <p className="mt-2">HoopTrack does not currently permit account registration by children under 13. A player must confirm they are at least 13 when registering. Coaches must not create or invite an account for a child under 13. Contact Support to review or remove a child&apos;s information that may have been provided contrary to this rule.</p>
       </section>
       <section>
         <h2>Your Choices</h2>

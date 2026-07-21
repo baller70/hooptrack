@@ -5,6 +5,7 @@ import { getSession } from '@/lib/session'
 import { z } from 'zod'
 import { createNotification } from '@/lib/notifications'
 import { blockedUserIdsFor, objectionableContentReason, usersAreBlocked } from '@/lib/content-safety'
+import { usersShareActiveGroup } from '@/lib/access'
 
 const CONTEXT_TYPES = ['workout', 'drill', 'move', 'quiz', 'recording', 'general'] as const
 
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
       GROUP BY other_id
       ORDER BY last_at DESC
     `).all(session.id, session.id, session.id, session.id) as Array<{ other_id: number; last_at: string; unread: number }>).filter(
-      (row) => !blockedIds.has(row.other_id),
+      (row) => !blockedIds.has(row.other_id) && usersShareActiveGroup(session.id, row.other_id),
     )
 
     const userIds = rows.map((r) => r.other_id)
@@ -64,6 +65,7 @@ export async function GET(request: Request) {
 
   const otherId = parseInt(withParam)
   if (!Number.isInteger(otherId)) return Response.json({ error: 'Invalid user' }, { status: 400 })
+  if (!usersShareActiveGroup(session.id, otherId)) return Response.json({ error: 'Forbidden' }, { status: 403 })
   if (usersAreBlocked(session.id, otherId)) {
     return Response.json({ messages: [], other: null, blocked: true })
   }
@@ -101,6 +103,9 @@ export async function POST(request: Request) {
     }
     const recipient = db.prepare('SELECT id, name FROM users WHERE id = ?').get(data.recipient_id) as { id: number; name: string } | undefined
     if (!recipient) return Response.json({ error: 'Recipient not found' }, { status: 404 })
+    if (!usersShareActiveGroup(session.id, data.recipient_id)) {
+      return Response.json({ error: 'Messaging requires an active team connection' }, { status: 403 })
+    }
     if (usersAreBlocked(session.id, data.recipient_id)) {
       return Response.json({ error: 'Messaging is unavailable for this conversation' }, { status: 403 })
     }

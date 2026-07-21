@@ -12,9 +12,16 @@ export async function GET() {
   const realRole = session.actual_role || session.role
   if (realRole !== 'trainer') return Response.json({ error: 'Forbidden' }, { status: 403 })
 
-  const players = db.prepare(
-    "SELECT id, name, email, role FROM users WHERE role = 'player' ORDER BY name, email"
-  ).all()
+  const coachId = session.actual_id || session.id
+
+  const players = db.prepare(`
+    SELECT DISTINCT user.id, user.name, user.email, user.role
+    FROM users user
+    JOIN coach_group_members member ON member.player_id = user.id
+    JOIN coach_groups coach_group ON coach_group.id = member.group_id
+    WHERE coach_group.coach_id = ? AND coach_group.archived_at IS NULL
+    ORDER BY user.name, user.email
+  `).all(coachId)
 
   return Response.json({ players })
 }

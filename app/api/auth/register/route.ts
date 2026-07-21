@@ -9,6 +9,8 @@ const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   role: z.enum(['player']).default('player'),
+  age_confirmation: z.literal(true),
+  terms_accepted: z.literal(true),
 })
 
 export async function POST(request: Request) {

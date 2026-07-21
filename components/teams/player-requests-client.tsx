@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Check, Loader2, RefreshCw, Users, X } from 'lucide-react'
+import { Check, LogOut, Loader2, RefreshCw, Users, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 
@@ -36,6 +36,7 @@ export default function PlayerRequestsClient() {
   const [memberships, setMemberships] = useState<Membership[]>([])
   const [loading, setLoading] = useState(true)
   const [answeringId, setAnsweringId] = useState<number | null>(null)
+  const [leavingId, setLeavingId] = useState<number | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -73,6 +74,22 @@ export default function PlayerRequestsClient() {
       toast.error(err instanceof Error ? err.message : 'Could not answer request')
     } finally {
       setAnsweringId(null)
+    }
+  }
+
+  async function leaveMembership(membership: Membership) {
+    if (!window.confirm(`Leave ${membership.name}? Your Coach will immediately lose access through this group.`)) return
+    setLeavingId(membership.id)
+    try {
+      const response = await fetch(`/api/player/memberships/${membership.id}`, { method: 'DELETE' })
+      const body = await response.json()
+      if (!response.ok) throw new Error(body.error || 'Could not leave group')
+      toast.success(`You left ${membership.name}`)
+      await load()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not leave group')
+    } finally {
+      setLeavingId(null)
     }
   }
 
@@ -156,9 +173,15 @@ export default function PlayerRequestsClient() {
                   </p>
                   {membership.description && <p className="mt-1 text-sm text-muted-foreground">{membership.description}</p>}
                 </div>
-                <Badge variant="outline">
-                  {membership.member_count}{membership.player_limit ? `/${membership.player_limit}` : ''} players
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">
+                    {membership.member_count}{membership.player_limit ? `/${membership.player_limit}` : ''} players
+                  </Badge>
+                  <Button variant="outline" onClick={() => leaveMembership(membership)} disabled={leavingId === membership.id}>
+                    {leavingId === membership.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+                    Leave
+                  </Button>
+                </div>
               </div>
             ))}
           </div>

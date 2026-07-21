@@ -1,0 +1,89 @@
+name: Mobile readiness
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-readiness-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shared-service:
+    name: Shared service and mobile contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run verify
+      - run: npm audit
+      - run: npm run audit:secrets
+      - name: Generate CycloneDX SBOM
+        run: npm sbom --sbom-format cyclonedx > "$RUNNER_TEMP/hooptrack-sbom.cdx.json"
+      - name: Upload shared-service evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: shared-service-readiness
+          path: ${{ runner.temp }}/hooptrack-sbom.cdx.json
+          retention-days: 14
+
+  native-projects:
+    name: Native Coach and Player
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+          xcrun simctl list runtimes
+      - name: Select and boot an available iPhone simulator
+        run: |
+          set -euo pipefail
+          udid=$(xcrun simctl list devices available -j | ruby -rjson -e '
+            data = JSON.parse(STDIN.read).fetch("devices")
+            phone = data.values.flatten.find { |d| d["name"].start_with?("iPhone") && d["isAvailable"] }
+            abort "No available iPhone simulator" unless phone
+            puts phone.fetch("udid")
+          ')
+          echo "SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
+          xcrun simctl boot "$udid" || true
+          xcrun simctl bootstatus "$udid" -b
+      - name: Test HoopTrack Coach
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project HooptrackCoach.xcodeproj \
+            -scheme HooptrackCoach \
+            -destination "id=$SIMULATOR_UDID" \
+            -derivedDataPath "$RUNNER_TEMP/CoachDerivedData" \
+            -resultBundlePath "$RUNNER_TEMP/HooptrackCoach.xcresult" \
+            CODE_SIGNING_ALLOWED=NO
+      - name: Test HoopTrack Player
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project HooptrackPlayer.xcodeproj \
+            -scheme HooptrackPlayer \
+            -destination "id=$SIMULATOR_UDID" \
+            -derivedDataPath "$RUNNER_TEMP/PlayerDerivedData" \
+            -resultBundlePath "$RUNNER_TEMP/HooptrackPlayer.xcresult" \
+            CODE_SIGNING_ALLOWED=NO
+      - name: Upload native test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-xcresults
+          path: ${{ runner.temp }}/*.xcresult
+          if-no-files-found: warn
+          retention-days: 14

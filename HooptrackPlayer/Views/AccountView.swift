@@ -19,8 +19,8 @@ struct AccountView: View {
                     }
                 }
                 Section("account.legal") {
-                    Link("privacy.policy", destination: URL(string: "https://hooptrack.194-146-12-139.sslip.io/privacy")!)
-                    Link("support", destination: URL(string: "https://hooptrack.194-146-12-139.sslip.io/support")!)
+                    Link("privacy.policy", destination: HoopTrackEnvironment.publicURL("privacy"))
+                    Link("support", destination: HoopTrackEnvironment.publicURL("support"))
                 }
                 Section("account.delete") {
                     SecureField("auth.password", text: $password)

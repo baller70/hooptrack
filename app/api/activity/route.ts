@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { coachIdForSession } from '@/lib/access'
 
 type ActivityKind = 'recording' | 'video_uploaded' | 'quiz_attempt' | 'schedule_completed' | 'pr_set'
 
@@ -16,15 +17,25 @@ interface ActivityItem {
 export async function GET(request: Request) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (session.role !== 'trainer') return Response.json({ error: 'Forbidden' }, { status: 403 })
+  const coachId = coachIdForSession(session)
+  if (coachId == null) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   const { searchParams } = new URL(request.url)
   const playerIdRaw = searchParams.get('playerId')
   const limit = Math.min(200, parseInt(searchParams.get('limit') || '100'))
   const playerId = playerIdRaw ? parseInt(playerIdRaw) : null
-
-  const playerFilter = playerId ? 'AND player_id = ?' : ''
-  const params: (number | string)[] = playerId ? [playerId] : []
+  const connected = db.prepare(`
+    SELECT DISTINCT member.player_id
+    FROM coach_group_members member
+    JOIN coach_groups coach_group ON coach_group.id = member.group_id
+    WHERE coach_group.coach_id = ? AND coach_group.archived_at IS NULL
+  `).all(coachId) as Array<{ player_id: number }>
+  const connectedIds = connected.map((row) => row.player_id)
+  if (playerId != null && !connectedIds.includes(playerId)) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  const targetIds = playerId != null ? [playerId] : connectedIds
+  if (targetIds.length === 0) return Response.json({ items: [] })
+  const playerFilter = `AND player_id IN (${targetIds.map(() => '?').join(',')})`
+  const params: (number | string)[] = targetIds
 
   const recordings = db.prepare(`
     SELECT r.id, r.player_id, u.name as player_name, r.recorded_at as at,

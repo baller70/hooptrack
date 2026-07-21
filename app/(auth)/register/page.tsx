@@ -17,6 +17,8 @@ const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   role: z.literal('player'),
+  age_confirmation: z.boolean().refine(Boolean, 'You must confirm you are at least 13'),
+  terms_accepted: z.boolean().refine(Boolean, 'You must accept the Terms and Privacy Policy'),
 })
 
 type RegisterForm = z.infer<typeof registerSchema>
@@ -26,7 +28,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const { register, handleSubmit, formState: { errors } } = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { role: 'player' },
+    defaultValues: { role: 'player', age_confirmation: false, terms_accepted: false },
   })
 
   async function onSubmit(data: RegisterForm) {
@@ -66,6 +68,19 @@ export default function RegisterPage() {
             {errors.name && <p className="text-sm text-destructive mt-1">{errors.name.message}</p>}
           </div>
 
+          <div className="space-y-3 rounded-md border border-gray-200 p-3 text-sm">
+            <label className="flex min-h-11 items-center gap-3">
+              <input type="checkbox" className="mt-1 h-5 w-5" {...register('age_confirmation')} />
+              <span>I confirm that I am at least 13 years old.</span>
+            </label>
+            {errors.age_confirmation && <p className="text-sm text-destructive">{errors.age_confirmation.message}</p>}
+            <label className="flex min-h-11 items-center gap-3">
+              <input type="checkbox" className="mt-1 h-5 w-5" {...register('terms_accepted')} />
+              <span>I agree to the <Link href="/terms" className="font-semibold text-hoop-orange underline">Terms</Link> and acknowledge the <Link href="/privacy" className="font-semibold text-hoop-orange underline">Privacy Policy</Link>.</span>
+            </label>
+            {errors.terms_accepted && <p className="text-sm text-destructive">{errors.terms_accepted.message}</p>}
+          </div>
+
           <div>
             <Label htmlFor="email">Email</Label>
             <Input id="email" type="email" {...register('email')} />
@@ -83,7 +98,7 @@ export default function RegisterPage() {
             <p className="text-sm text-muted-foreground">Trainer accounts are created by an administrator.</p>
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" className="min-h-11 w-full" disabled={loading}>
             {loading ? 'Creating account...' : 'Create Account'}
           </Button>
         </form>

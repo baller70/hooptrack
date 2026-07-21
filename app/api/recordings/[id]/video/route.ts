@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { canAccessPlayer } from '@/lib/access'
 import { RECORDINGS_DIR } from '@/lib/constants'
 import { resolveInside } from '@/lib/files'
 import { stat, open } from 'fs/promises'
@@ -25,7 +26,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   ).get(id) as RecordingRow | undefined
 
   if (!row || !row.video_path) return new Response('Not found', { status: 404 })
-  if (row.player_id !== session.id && session.role !== 'trainer') {
+  if (!canAccessPlayer(session, row.player_id)) {
     return new Response('Forbidden', { status: 403 })
   }
 

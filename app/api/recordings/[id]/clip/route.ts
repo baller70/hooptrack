@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { canAccessPlayer } from '@/lib/access'
 import { z } from 'zod'
 
 const schema = z.object({
@@ -28,7 +29,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     'SELECT id, player_id, drill_id, blob_key, video_path, video_size_bytes, video_mime, duration_seconds FROM recordings WHERE id = ?'
   ).get(id) as ParentRow | undefined
   if (!parent) return Response.json({ error: 'Source recording not found' }, { status: 404 })
-  if (parent.player_id !== session.id && session.role !== 'trainer') {
+  if (!canAccessPlayer(session, parent.player_id)) {
     return Response.json({ error: 'Forbidden' }, { status: 403 })
   }
   if (!parent.video_path) {

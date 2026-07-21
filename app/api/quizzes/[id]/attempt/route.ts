@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { z } from 'zod'
-import { notifyAllTrainers } from '@/lib/notifications'
+import { notifyConnectedCoaches } from '@/lib/notifications'
 
 const attemptSchema = z.object({
   answers: z.array(z.string()),
@@ -38,7 +38,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const quizTitle = (db
       .prepare('SELECT title FROM quizzes WHERE id = ?')
       .get(id) as { title: string } | undefined)?.title || 'a quiz'
-    notifyAllTrainers({
+    notifyConnectedCoaches(session.id, {
       message: `${playerName} scored ${score}% on ${quizTitle} (${correct}/${questions.length})`,
       type: 'quiz_attempt',
       actor_id: session.id,

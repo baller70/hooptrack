@@ -67,14 +67,6 @@ jobs:
           done
           echo 'better_sqlite3.node present:'; find node_modules -name better_sqlite3.node 2>/dev/null | head -1
 
-      - name: Prisma generate (all schemas)
-        run: |
-          n=0
-          for s in $(find . -maxdepth 4 -name "*.prisma" -not -path "*/node_modules/*" 2>/dev/null); do
-            echo "prisma generate --schema=$s"; pnpm exec prisma generate --schema="$s" || true; n=1
-          done
-          [ "$n" = 1 ] || echo "no prisma schema — skipped"
-
       - name: Build .next on the runner
         env:
           CI: "true"
@@ -119,7 +111,6 @@ jobs:
 
             corepack pnpm install --frozen-lockfile --config.verify-deps-before-run=false || corepack pnpm install --no-frozen-lockfile --config.verify-deps-before-run=false || true
             corepack pnpm rebuild better-sqlite3 sharp 2>/dev/null || true
-            corepack pnpm exec prisma generate 2>/dev/null || true
 
             STAGE="$APP/.stage"; wait_port_free "$STAGE_PORT"; rm -rf "$STAGE"; mkdir -p "$STAGE"
             cp -a .next.incoming "$STAGE/.next"

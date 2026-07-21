@@ -2,6 +2,9 @@ import SwiftUI
 
 struct AccountView: View {
     @EnvironmentObject private var appState: CoachAppState
+    @State private var password = ""
+    @State private var showingDelete = false
+    @State private var deleteError: String?
 
     var body: some View {
         NavigationStack {
@@ -16,11 +19,37 @@ struct AccountView: View {
                     }
                 }
                 Section("account.legal") {
-                    Link("account.privacy", destination: URL(string: "https://hooptrack.194-146-12-139.sslip.io/privacy")!)
-                    Link("account.support", destination: URL(string: "https://hooptrack.194-146-12-139.sslip.io/support")!)
+                    Link("account.privacy", destination: HoopTrackEnvironment.publicURL("privacy"))
+                    Link("account.support", destination: HoopTrackEnvironment.publicURL("support"))
+                }
+                Section("account.delete") {
+                    Text("account.deleteExplanation")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    SecureField("auth.password", text: $password)
+                    Button("account.deleteButton", role: .destructive) {
+                        showingDelete = true
+                    }
+                    .disabled(password.isEmpty)
                 }
             }
             .navigationTitle("account.title")
+            .confirmationDialog("account.deleteConfirm", isPresented: $showingDelete, titleVisibility: .visible) {
+                Button("account.deleteButton", role: .destructive) {
+                    Task {
+                        do {
+                            try await appState.deleteAccount(password: password)
+                        } catch {
+                            deleteError = error.localizedDescription
+                        }
+                    }
+                }
+            }
+            .alert("retry.title", isPresented: Binding(get: { deleteError != nil }, set: { _ in deleteError = nil })) {
+                Button("ok", role: .cancel) {}
+            } message: {
+                Text(deleteError ?? "")
+            }
         }
     }
 }

@@ -10,7 +10,6 @@ export const DRILL_CATEGORIES = [
   'Strength & Conditioning',
 ] as const
 
-export type DrillCategory = (typeof DRILL_CATEGORIES)[number]
 
 // Where recording videos are persisted server-side.
 // Defaults to the Hetzner storage box mount in production; falls back to local

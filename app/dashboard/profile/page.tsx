@@ -246,7 +246,7 @@ export default function ProfilePage() {
           <div className="space-y-3 rounded-xl border-2 border-black bg-white p-6 shadow-[4px_4px_0px_0px_#0A0A0A]">
             <h3 className="text-xl font-semibold">Account And Data</h3>
             <p className="text-sm leading-6 text-muted-foreground">Manage permanent removal of your HoopTrack account and associated content.</p>
-            <AccountDeletion />
+            <AccountDeletion role={user.role} />
           </div>
         </>
       )}

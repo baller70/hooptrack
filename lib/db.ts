@@ -2,7 +2,10 @@ import Database from 'better-sqlite3'
 import path from 'path'
 import fs from 'fs'
 
-const DB_PATH = path.join(/* turbopackIgnore: true */ process.cwd(), 'data', 'hooptrack.db')
+const configuredDbPath = process.env.HOOPTRACK_DB || path.join('data', 'hooptrack.db')
+const DB_PATH = path.isAbsolute(configuredDbPath)
+  ? configuredDbPath
+  : path.join(/* turbopackIgnore: true */ process.cwd(), configuredDbPath)
 
 declare global {
    
@@ -111,6 +114,15 @@ function runMigrations(db: Database.Database) {
   if (current < 18) {
     db.exec(SCHEMA_V18)
     db.prepare('INSERT OR IGNORE INTO _migrations VALUES (?)').run(18)
+  }
+  if (current < 19) {
+    safeAddColumn(db, 'coach_group_invites', 'expires_at', 'TEXT')
+    db.exec(`
+      UPDATE coach_group_invites
+      SET expires_at = datetime(created_at, '+7 days')
+      WHERE expires_at IS NULL
+    `)
+    db.prepare('INSERT OR IGNORE INTO _migrations VALUES (?)').run(19)
   }
     db.exec('COMMIT')
   } catch (error) {

@@ -20,9 +20,13 @@ export async function getSession(): Promise<UserPayload | null> {
   if (!Number.isFinite(viewAsId)) return real
   if (viewAsId === real.id) return real // viewing as self = no-op
 
-  const target = db.prepare(
-    "SELECT id, name, email, role FROM users WHERE id = ? AND role = 'player'"
-  ).get(viewAsId) as { id: number; name: string; email: string; role: 'trainer' | 'player' } | undefined
+  const target = db.prepare(`
+    SELECT DISTINCT u.id, u.name, u.email, u.role
+    FROM users u
+    JOIN coach_group_members gm ON gm.player_id = u.id
+    JOIN coach_groups g ON g.id = gm.group_id
+    WHERE u.id = ? AND u.role = 'player' AND g.coach_id = ?
+  `).get(viewAsId, real.id) as { id: number; name: string; email: string; role: 'trainer' | 'player' } | undefined
   if (!target) return real
 
   return {

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
-export default function AccountDeletion() {
+export default function AccountDeletion({ role }: { role: string }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [password, setPassword] = useState('')
@@ -50,7 +50,9 @@ export default function AccountDeletion() {
       <div>
         <h4 className="font-semibold text-red-900">Permanently delete this account</h4>
         <p className="mt-1 text-sm leading-6 text-red-800">
-          This removes your profile, training history, videos, messages, team memberships, and stored files. This cannot be undone.
+          {role === 'trainer'
+            ? 'This removes your Coach profile, teams, invitations, messages, Coach-created training content, and recordings attached to that content. Connected Players keep their own accounts. This cannot be undone.'
+            : 'This removes your profile, training history, videos, messages, team memberships, and stored files. This cannot be undone.'}
         </p>
       </div>
       <div>

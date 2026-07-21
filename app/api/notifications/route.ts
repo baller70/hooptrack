@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { z } from 'zod'
 import { createNotification, type NotificationType } from '@/lib/notifications'
+import { canAccessPlayer } from '@/lib/access'
 
 const TYPES = [
   'reminder', 'inspirational',
@@ -26,9 +27,14 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const unreadOnly = searchParams.get('unread_only') === 'true'
   const limit = Math.min(100, parseInt(searchParams.get('limit') || '50'))
-  const targetPlayerId = session.role === 'player'
+  const requestedPlayerId = searchParams.get('playerId')
+  const targetPlayerId = session.role === 'player' || !requestedPlayerId
     ? session.id
-    : parseInt(searchParams.get('playerId') || String(session.id))
+    : parseInt(requestedPlayerId)
+  const isOwnInbox = targetPlayerId === session.id
+  if (!isOwnInbox && !canAccessPlayer(session, targetPlayerId)) {
+    return Response.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   let query = 'SELECT * FROM notifications WHERE player_id = ? AND scheduled_for <= ?'
   const params: (number | string)[] = [targetPlayerId, new Date().toISOString()]
@@ -47,6 +53,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const data = createSchema.parse(body)
+    if (!canAccessPlayer(session, data.player_id)) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
     const id = await createNotification({
       player_id: data.player_id,

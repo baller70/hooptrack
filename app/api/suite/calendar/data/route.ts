@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { coachIdForSession } from '@/lib/access'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,6 +47,15 @@ export async function GET(request: Request) {
   if (session?.role === 'player') {
     conditions.push('s.player_id = ?')
     params.push(session.id)
+  } else {
+    const coachId = coachIdForSession(session)
+    if (coachId == null) return Response.json({ error: 'Forbidden' }, { status: 403 })
+    conditions.push(`s.player_id IN (
+      SELECT member.player_id FROM coach_group_members member
+      JOIN coach_groups coach_group ON coach_group.id = member.group_id
+      WHERE coach_group.coach_id = ? AND coach_group.archived_at IS NULL
+    )`)
+    params.push(coachId)
   }
 
   if (from) {

@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { notifyScheduleAssignment } from '@/lib/schedule-notifications'
 import { z } from 'zod'
+import { canAccessPlayer } from '@/lib/access'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,6 +49,7 @@ export async function POST(request: Request) {
 
     const player = db.prepare("SELECT id FROM users WHERE id = ? AND role = 'player'").get(playerId)
     if (!player) return Response.json({ error: 'Player not found.' }, { status: 404 })
+    if (!canAccessPlayer(session, playerId)) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
     const scheduledDate = datePart(data.startsAt)
     const startTime = timePart(data.startsAt)

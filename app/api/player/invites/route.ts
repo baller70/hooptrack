@@ -12,6 +12,7 @@ export async function GET() {
       i.status,
       i.message,
       i.created_at,
+      i.expires_at,
       i.responded_at,
       g.id AS group_id,
       g.name AS group_name,
@@ -26,6 +27,7 @@ export async function GET() {
     JOIN users coach ON coach.id = i.coach_id
     LEFT JOIN coach_group_members m ON m.group_id = g.id
     WHERE i.player_id = ?
+      AND (i.status != 'pending' OR i.expires_at > datetime('now'))
     GROUP BY i.id
     ORDER BY CASE i.status WHEN 'pending' THEN 0 ELSE 1 END, i.created_at DESC
   `).all(session.id)

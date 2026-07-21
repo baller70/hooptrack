@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { coachCanAccessPlayerForSession } from '@/lib/access'
 
 const VIEW_AS_COOKIE = 'hooptrack_view_as'
 
@@ -19,6 +20,7 @@ export async function POST(request: Request) {
 
   const target = db.prepare("SELECT id, name, role FROM users WHERE id = ? AND role = 'player'").get(targetId) as { id: number; name: string; role: string } | undefined
   if (!target) return Response.json({ error: 'User not found' }, { status: 404 })
+  if (!coachCanAccessPlayerForSession(session, target.id)) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   // If they pick themselves (the real trainer), just clear the impersonation cookie.
   if (target.id === session.id) {

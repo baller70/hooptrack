@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { z } from 'zod'
 import { createNotification } from '@/lib/notifications'
+import { canAccessPlayer, coachIdForSession } from '@/lib/access'
 
 const RECURRENCE_RULES = ['weekly', 'weekdays', 'daily'] as const
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
@@ -61,13 +62,18 @@ function expandRecurrence(rule: string, startDate: string, count: number, weekda
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
-  if (!session || session.role !== 'trainer') return Response.json({ error: 'Forbidden' }, { status: 403 })
+  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const coachId = coachIdForSession(session)
+  if (coachId == null) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
 
   try {
     const body = await request.json()
     const data = schema.parse(body)
+    if (data.player_id != null && !canAccessPlayer(session, data.player_id)) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
     type WorkoutRow = { id: number; title: string; description: string | null; category: string; timer_mode: string | null; duration_seconds: number | null }
     const source = db.prepare('SELECT * FROM workouts WHERE id = ?').get(id) as WorkoutRow | undefined
@@ -84,6 +90,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (data.recurrence) {
       expandRecurrence(data.recurrence.rule, data.recurrence.start_date, data.recurrence.count, data.recurrence.weekdays).forEach((d) => dates.add(d))
     }
+    if (dates.size > 0 && data.player_id == null) {
+      return Response.json({ error: 'Choose a Player when scheduling the duplicated workout' }, { status: 400 })
+    }
 
     const tx = db.transaction(() => {
       const insertWorkout = db.prepare(
@@ -93,7 +102,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         newTitle,
         source.description,
         source.category,
-        session.id,
+        coachId,
         source.timer_mode,
         source.duration_seconds,
       )
@@ -117,7 +126,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       })
 
       if (dates.size > 0) {
-        const playerId = data.player_id ?? session.id
+        const playerId = data.player_id
+        if (playerId == null) throw new Error('Player validation failed')
         const insertSchedule = db.prepare(
           "INSERT INTO schedule (player_id, workout_id, scheduled_date, item_type, item_id, title) VALUES (?, ?, ?, 'workout', ?, ?)"
         )
@@ -133,12 +143,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     // Fire notifications for each scheduled date when assigning to another player
     if (dates.size > 0) {
-      const playerId = data.player_id ?? session.id
-      if (playerId !== session.id) {
+      const playerId = data.player_id
+      if (playerId != null) {
         for (const date of dates) {
           createNotification({
             player_id: playerId,
-            actor_id: session.id,
+            actor_id: coachId,
             type: 'workout_assigned',
             message: `New workout assigned: ${newTitle} (${date})`,
             link_url: '/dashboard/workouts',

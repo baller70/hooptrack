@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Loader2, MailPlus, Plus, RefreshCw, Users } from 'lucide-react'
+import { Loader2, MailPlus, Plus, RefreshCw, UserMinus, Users, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -49,6 +49,7 @@ export default function CoachGroupsClient() {
   const [inviteEmailByGroup, setInviteEmailByGroup] = useState<Record<number, string>>({})
   const [inviteMessageByGroup, setInviteMessageByGroup] = useState<Record<number, string>>({})
   const [sendingGroupId, setSendingGroupId] = useState<number | null>(null)
+  const [mutatingKey, setMutatingKey] = useState<string | null>(null)
   const [form, setForm] = useState({
     name: '',
     group_type: 'team' as GroupType,
@@ -123,7 +124,7 @@ export default function CoachGroupsClient() {
       })
       const d = await r.json()
       if (!r.ok) throw new Error(d.error || 'Could not send request')
-      toast.success(`Request sent to ${d.player.name}`)
+      toast.success(d.player?.name ? `Request sent to ${d.player.name}` : 'If that Player account is eligible, the request will appear in their app.')
       setInviteEmailByGroup((current) => ({ ...current, [groupId]: '' }))
       setInviteMessageByGroup((current) => ({ ...current, [groupId]: '' }))
       await load()
@@ -131,6 +132,40 @@ export default function CoachGroupsClient() {
       toast.error(err instanceof Error ? err.message : 'Could not send request')
     } finally {
       setSendingGroupId(null)
+    }
+  }
+
+  async function removeMember(groupId: number, playerId: number, playerName: string) {
+    if (!window.confirm(`Remove ${playerName} from this group? They will immediately lose Coach access for this group.`)) return
+    const key = `member:${groupId}:${playerId}`
+    setMutatingKey(key)
+    try {
+      const response = await fetch(`/api/coach/groups/${groupId}/members/${playerId}`, { method: 'DELETE' })
+      const body = await response.json()
+      if (!response.ok) throw new Error(body.error || 'Could not remove Player')
+      toast.success(`${playerName} removed`)
+      await load()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not remove Player')
+    } finally {
+      setMutatingKey(null)
+    }
+  }
+
+  async function revokeInvite(groupId: number, inviteId: number, playerName: string) {
+    if (!window.confirm(`Withdraw the pending request for ${playerName}?`)) return
+    const key = `invite:${groupId}:${inviteId}`
+    setMutatingKey(key)
+    try {
+      const response = await fetch(`/api/coach/groups/${groupId}/invites/${inviteId}`, { method: 'DELETE' })
+      const body = await response.json()
+      if (!response.ok) throw new Error(body.error || 'Could not withdraw request')
+      toast.success('Request withdrawn')
+      await load()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not withdraw request')
+    } finally {
+      setMutatingKey(null)
     }
   }
 
@@ -238,8 +273,21 @@ export default function CoachGroupsClient() {
 
               <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_340px]">
                 <div className="space-y-4">
-                  <RosterList title="Members" empty="No players have accepted yet." rows={groupMembers} />
-                  <RosterList title="Requests" empty="No requests sent yet." rows={groupInvites} includeStatus />
+                  <RosterList
+                    title="Members"
+                    empty="No players have accepted yet."
+                    rows={groupMembers}
+                    mutatingKey={mutatingKey}
+                    onRemoveMember={(member) => removeMember(group.id, member.id, member.name)}
+                  />
+                  <RosterList
+                    title="Requests"
+                    empty="No requests sent yet."
+                    rows={groupInvites}
+                    includeStatus
+                    mutatingKey={mutatingKey}
+                    onRevokeInvite={(invite) => revokeInvite(group.id, invite.id, invite.name)}
+                  />
                 </div>
 
                 <div className="rounded-lg border-2 border-gray-200 bg-gray-50 p-3">
@@ -288,11 +336,17 @@ function RosterList({
   empty,
   rows,
   includeStatus = false,
+  mutatingKey,
+  onRemoveMember,
+  onRevokeInvite,
 }: {
   title: string
   empty: string
   rows: Array<Member | Invite>
   includeStatus?: boolean
+  mutatingKey: string | null
+  onRemoveMember?: (member: Member) => void
+  onRevokeInvite?: (invite: Invite) => void
 }) {
   return (
     <div>
@@ -307,9 +361,35 @@ function RosterList({
                 <p className="truncate text-sm font-semibold">{row.name}</p>
                 <p className="truncate text-xs text-muted-foreground">{row.email}</p>
               </div>
-              {includeStatus && 'status' in row && (
-                <Badge variant={row.status === 'pending' ? 'default' : 'outline'}>{row.status}</Badge>
-              )}
+              <div className="flex items-center gap-2">
+                {includeStatus && 'status' in row && (
+                  <Badge variant={row.status === 'pending' ? 'default' : 'outline'}>{row.status}</Badge>
+                )}
+                {'status' in row && row.status === 'pending' && onRevokeInvite && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="min-h-11 min-w-11"
+                    aria-label={`Withdraw request for ${row.name}`}
+                    disabled={mutatingKey === `invite:${row.group_id}:${row.id}`}
+                    onClick={() => onRevokeInvite(row)}
+                  >
+                    {mutatingKey === `invite:${row.group_id}:${row.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                  </Button>
+                )}
+                {!('status' in row) && onRemoveMember && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="min-h-11 min-w-11"
+                    aria-label={`Remove ${row.name} from group`}
+                    disabled={mutatingKey === `member:${row.group_id}:${row.id}`}
+                    onClick={() => onRemoveMember(row)}
+                  >
+                    {mutatingKey === `member:${row.group_id}:${row.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserMinus className="h-4 w-4" />}
+                  </Button>
+                )}
+              </div>
             </div>
           ))}
         </div>

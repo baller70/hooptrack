@@ -5,7 +5,7 @@ export default function TermsPage() {
     <PublicDocumentPage title="Terms Of Use" updated="July 18, 2026">
       <section>
         <h2>Using HoopTrack</h2>
-        <p className="mt-2">You may use HoopTrack for lawful basketball coaching, training, recording, and communication. Keep your credentials secure and provide accurate account and team information.</p>
+        <p className="mt-2">You must be at least 13 to create a HoopTrack account. You may use HoopTrack for lawful basketball coaching, training, recording, and communication. Keep your credentials secure and provide accurate account and team information.</p>
       </section>
       <section>
         <h2>Player Safety</h2>

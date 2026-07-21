@@ -240,12 +240,16 @@ interface FanoutOpts {
   exclude_user_id?: number | null
 }
 
-// Fan out a notification to every trainer in the system. Used to surface
-// player activity (recordings, quiz attempts, PRs, etc.) on the trainer side.
-export async function notifyAllTrainers(opts: FanoutOpts): Promise<number[]> {
+// Surface Player activity only to Coaches with an accepted active membership.
+export async function notifyConnectedCoaches(playerId: number, opts: FanoutOpts): Promise<number[]> {
   const trainers = db
-    .prepare("SELECT id FROM users WHERE role = 'trainer'")
-    .all() as { id: number }[]
+    .prepare(`
+      SELECT DISTINCT coach_group.coach_id AS id
+      FROM coach_groups coach_group
+      JOIN coach_group_members member ON member.group_id = coach_group.id
+      WHERE member.player_id = ? AND coach_group.archived_at IS NULL
+    `)
+    .all(playerId) as { id: number }[]
   const ids: number[] = []
   for (const t of trainers) {
     if (opts.exclude_user_id != null && t.id === opts.exclude_user_id) continue
@@ -260,7 +264,7 @@ export async function notifyAllTrainers(opts: FanoutOpts): Promise<number[]> {
       })
       ids.push(id)
     } catch (e) {
-      console.error('notifyAllTrainers failed for trainer', t.id, e)
+      console.error('notifyConnectedCoaches failed for Coach', t.id, e)
     }
   }
   return ids
