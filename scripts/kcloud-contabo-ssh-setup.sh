@@ -9,6 +9,7 @@ known_hosts_path="${ssh_dir}/known_hosts"
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 bridge_client="${KCLOUD_SSH_BRIDGE_CLIENT:-${script_dir}/kcloud-websocket-proxy.mjs}"
 proxy_url="${HTTPS_PROXY:-${https_proxy:-${HTTP_PROXY:-${http_proxy:-}}}}"
+use_ssh_proxy="${KCLOUD_USE_SSH_PROXY:-0}"
 missing_key=0
 
 printf 'KCLOUD Contabo SSH setup/check\n'
@@ -35,7 +36,12 @@ fi
 
 ssh_proxy_args=()
 route_mode=direct
-if try_direct_tcp; then
+if [ "$use_ssh_proxy" = "1" ] && [ -f "$bridge_client" ] && command -v node >/dev/null 2>&1; then
+  export KCLOUD_SSH_BRIDGE_URL="${KCLOUD_SSH_BRIDGE_URL:-wss://kcloud-contabo-ssh-relay.khouston.workers.dev}"
+  echo 'Using configured authenticated KCLOUD SSH-over-WebSocket bridge on HTTPS port 443.'
+  ssh_proxy_args=(-o "ProxyCommand=node $bridge_client")
+  route_mode=websocket
+elif try_direct_tcp; then
   echo 'Direct TCP to Contabo port 22 succeeded.'
 else
   echo 'Direct TCP to Contabo port 22 failed:' >&2
