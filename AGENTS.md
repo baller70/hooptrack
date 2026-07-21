@@ -163,3 +163,23 @@ Before starting substantial Codex Cloud work for this repo, verify and report th
 - **Local Mac bridge read/write:** verify the Codex Cloud environment can reach Kevin's local bridge by creating, reading, and deleting a marker under `/Volumes/APPLICATIONS/CodexStorage/kcloud-local-bridge/rw-tests`. Treat `/Volumes/APPLICATIONS/CodexStorage/projects/codex-cloud-apps/hooptrack` as this repo's local mirror/control path. If the bridge path is not mounted, report the exact missing connector instead of silently falling back.
 - **Secrets:** never commit real production secrets. Inventory required env vars by name/category and use placeholders for setup checks.
 
+<!-- KCLOUD-PLAYWRIGHT-SETUP:START -->
+## KCLOUD Playwright Setup
+
+Every Codex Cloud environment for this repo must install Playwright browser binaries before running UI tests or visual checks.
+
+Preferred setup command:
+
+```bash
+bash scripts/kcloud-playwright-setup.sh
+```
+
+What this does:
+
+- Uses the repo lockfile/package manager when a Node package exists.
+- Installs Playwright Chromium plus required Ubuntu browser dependencies with `playwright install --with-deps chromium`.
+- Falls back to a Cloud-only Playwright install for static repos without `package.json`.
+- Keeps real secrets out of Git and does not deploy or touch production services.
+
+After setup, run the repo's normal test command. If the repo has no Playwright test yet, use the browser install for visual preview/smoke verification and report that repeatable e2e coverage is still missing.
+<!-- KCLOUD-PLAYWRIGHT-SETUP:END -->
