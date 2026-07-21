@@ -55,6 +55,6 @@ The repeatable `npm run test:mobile-readiness` test starts the real Next.js rout
 - Current native `Info.plist` files still use the reachable `sslip.io` origin value. Code now reads a single validated HTTPS configuration key, enabling a branded origin later without scattered source changes.
 - Coach and Player deletion are now supported in-app and integration-tested for Coach-owned cleanup with Player-account retention; production backups/processors still require retention verification.
 - Registration now technically requires a 13+ attestation plus Terms/Privacy acceptance, and public policy disallows under-13 registration. Qualified legal/privacy approval remains external; no under-13 guardian flow is claimed.
-- The GitHub API returns `Not Found` for the new workflow because this commit is not present on the remote default branch; native CI evidence cannot exist until the committed workflow is pushed through the approved review path.
+- PR #7 is open from `work` to `main`; its final mandatory audit and independent Coach/Player native matrix runs passed. Required-check branch protection and merge approval remain repository-owner controls.
 
 No deployment, PM2 action, production mutation, TestFlight upload, App Store Connect change, submission, or release was performed.
