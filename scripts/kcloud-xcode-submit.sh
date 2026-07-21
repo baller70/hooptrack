@@ -30,8 +30,14 @@ if [ "$mode" != "doctor" ]; then
   [ -n "${XCODE_SCHEME:-}" ] || die "set XCODE_SCHEME"
 fi
 
-token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
-[ -n "$token" ] || die "GH_TOKEN or GITHUB_TOKEN is required"
+token="${KCLOUD_XCODE_BROKER_TOKEN:-${GH_TOKEN:-${GITHUB_TOKEN:-}}}"
+if [ -z "$token" ] && [ -r "${HOME}/.config/git/kcloud-token" ]; then
+  token="$(<"${HOME}/.config/git/kcloud-token")"
+fi
+if [ -z "$token" ] && command -v gh >/dev/null 2>&1; then
+  token="$(env -u GH_TOKEN -u GITHUB_TOKEN gh auth token --hostname github.com 2>/dev/null || true)"
+fi
+[ -n "$token" ] || die "GitHub broker credentials are unavailable; rerun the KCLOUD GitHub setup"
 command -v node >/dev/null 2>&1 || die "Node.js is required to create the dispatch payload"
 
 payload="$(
@@ -85,4 +91,3 @@ fi
 
 printf 'KCLOUD_XCODE_JOB_SUBMITTED: repository=%s ref=%s mode=%s\n' "$target_repository" "$target_ref" "$mode"
 printf 'KCLOUD_XCODE_ACTIONS_URL: https://github.com/%s/actions\n' "$broker_repository"
-
