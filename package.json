@@ -15,7 +15,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "verify": "npm run lint && npm run typecheck && npm run test:mobile-readiness && npm run build",
+    "verify": "npm run lint && npm run typecheck && npm run test:mobile-readiness && npm run check:evidence && npm run check:workflows && npm run build",
     "test:mobile-readiness": "node scripts/test-mobile-readiness.mjs",
     "audit:knip": "knip",
     "audit:depcheck": "depcheck --ignores=tw-animate-css,@tailwindcss/postcss,@types/react-dom,tailwindcss",
@@ -23,6 +23,8 @@
     "audit:licenses": "license-checker --summary",
     "audit:deps": "npm audit --omit=dev",
     "audit:secrets": "node scripts/check-secrets.mjs",
+    "check:evidence": "node scripts/check-app-store-evidence.mjs --check",
+    "check:workflows": "node scripts/check-release-workflows.mjs",
     "audit:all": "npm run lint && npm run typecheck && npm run audit:knip && npm run audit:depcheck && npm run audit:madge && npm run audit:licenses && npm run audit:deps && npm run audit:secrets",
     "analyze": "ANALYZE=true next build"
   },

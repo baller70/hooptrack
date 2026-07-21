@@ -7,6 +7,7 @@ import { ATTACHMENTS_DIR, RECORDINGS_DIR } from '@/lib/constants'
 import { db } from '@/lib/db'
 import { resolveInside } from '@/lib/files'
 import { getSession } from '@/lib/session'
+import { rateLimit, requestIp } from '@/lib/rate-limit'
 
 const schema = z.object({
   password: z.string().min(1),
@@ -37,6 +38,8 @@ export async function DELETE(request: Request) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   if (session.actual_id) return Response.json({ error: 'Exit player preview before deleting an account' }, { status: 403 })
+  const limited = rateLimit(`account-delete:${session.id}:${requestIp(request)}`, 5, 15 * 60 * 1000)
+  if (limited) return limited
 
   try {
     const data = schema.parse(await request.json())

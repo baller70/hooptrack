@@ -1,8 +1,6 @@
 name: Audit
 
-# Code-quality audit: lint, typecheck, dead-code, dep vulns, license scan.
-# Runs on every push and PR. Does NOT block the deploy workflow — it runs
-# in parallel and posts results to the Actions tab.
+# Mandatory repository quality and security gate.
 
 on:
   push:
@@ -17,57 +15,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 11
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
       - name: Install dependencies
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
-        run: pnpm install --no-frozen-lockfile --ignore-scripts
+        run: npm ci
 
-      - name: Rebuild native bindings (better-sqlite3)
-        run: |
-          pnpm rebuild better-sqlite3 || true
-          PBI=$(ls node_modules/.pnpm/prebuild-install@*/node_modules/prebuild-install/bin.js 2>/dev/null | head -1)
-          for BS in $(find node_modules -type d -path '*/better-sqlite3' 2>/dev/null); do
-            [ -f "$BS/package.json" ] || continue
-            [ -f "$BS/build/Release/better_sqlite3.node" ] && continue
-            ( cd "$BS" && { [ -n "$PBI" ] && node "$PBI"; } || npx --yes node-gyp rebuild ) || true
-          done
-          echo 'better_sqlite3.node present:'; find node_modules -name better_sqlite3.node 2>/dev/null | head -1
+      - name: Full mandatory audit
+        run: npm run audit:all
 
-      - name: Lint
-        run: pnpm run lint
-
-      - name: Type-check
-        run: pnpm exec tsc --noEmit
-
-      - name: Build (catch build-time errors)
+      - name: Mobile contract and production build
         env:
           CI: "true"
           NODE_OPTIONS: "--max-old-space-size=4096"
-        run: pnpm run build
-
-      - name: Dead code (knip)
-        run: pnpm run audit:knip || true
-        continue-on-error: true
-
-      - name: Unused dependencies (depcheck)
-        run: pnpm run audit:depcheck || true
-        continue-on-error: true
-
-      - name: Circular dependencies (madge)
-        run: pnpm run audit:madge
-
-      - name: License summary
-        run: pnpm run audit:licenses || true
-        continue-on-error: true
-
-      - name: Dep vulnerability scan (npm audit)
-        run: pnpm run audit:deps
-        continue-on-error: true
+        run: npm run verify

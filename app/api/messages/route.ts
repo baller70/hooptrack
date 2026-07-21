@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { createNotification } from '@/lib/notifications'
 import { blockedUserIdsFor, objectionableContentReason, usersAreBlocked } from '@/lib/content-safety'
 import { usersShareActiveGroup } from '@/lib/access'
+import { rateLimit, requestIp } from '@/lib/rate-limit'
 
 const CONTEXT_TYPES = ['workout', 'drill', 'move', 'quiz', 'recording', 'general'] as const
 
@@ -93,6 +94,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const limited = rateLimit(`message-send:${session.id}:${requestIp(request)}`, 60, 60 * 1000)
+  if (limited) return limited
 
   try {
     const body = await request.json()

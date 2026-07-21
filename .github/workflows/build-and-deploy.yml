@@ -8,9 +8,12 @@ name: Build & Deploy hooptrack (off-box)
 # Repo secrets required: CONTABO_HOST, CONTABO_SSH_KEY (fleet CI deploy key).
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      confirm_release:
+        description: 'Type RELEASE_APPROVED after Kevin approves this exact commit for production deployment'
+        required: true
+        type: string
 
 concurrency:
   group: hooptrack-offbox-deploy
@@ -18,18 +21,18 @@ concurrency:
 
 jobs:
   build-and-deploy:
+    if: github.event.inputs.confirm_release == 'RELEASE_APPROVED'
+    environment: production
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 11
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
-      - name: Fetch memory-core local dep from Contabo
+      - name: Configure deployment SSH
         env:
           SSH_KEY: ${{ secrets.CONTABO_SSH_KEY }}
           HOST: ${{ secrets.CONTABO_HOST }}
@@ -38,40 +41,17 @@ jobs:
           echo "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          sudo mkdir -p /opt/_packages/memory-core
-          sudo chown -R "$USER" /opt/_packages
-          rsync -az --exclude node_modules --exclude venv-embed --exclude .git -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new" root@"$HOST":/opt/_packages/memory-core/ /opt/_packages/memory-core/
-          # pnpm-lock references memory-core via a path RELATIVE to the repo
-          # (../../_packages/memory-core). On the runner that resolves outside
-          # /opt, so mirror it there too (covers both absolute & relative forms).
-          RELPKGS="$(dirname "$(dirname "$GITHUB_WORKSPACE")")/_packages"
-          mkdir -p "$RELPKGS"
-          ln -sfn /opt/_packages/memory-core "$RELPKGS/memory-core"
-          for ef in .env .env.local .env.production.local; do
-            scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new root@"$HOST":/opt/apps/hooptrack/$ef ./$ef 2>/dev/null || true
-          done
 
       - name: Install dependencies
         env:
           NODE_OPTIONS: "--max-old-space-size=8192"
-        run: pnpm install --no-frozen-lockfile --ignore-scripts
-
-      - name: Rebuild native bindings (better-sqlite3)
-        run: |
-          pnpm rebuild better-sqlite3 || true
-          PBI=$(ls node_modules/.pnpm/prebuild-install@*/node_modules/prebuild-install/bin.js 2>/dev/null | head -1)
-          for BS in $(find node_modules -type d -path '*/better-sqlite3' 2>/dev/null); do
-            [ -f "$BS/package.json" ] || continue
-            [ -f "$BS/build/Release/better_sqlite3.node" ] && continue
-            ( cd "$BS" && { [ -n "$PBI" ] && node "$PBI"; } || npx --yes node-gyp rebuild ) || true
-          done
-          echo 'better_sqlite3.node present:'; find node_modules -name better_sqlite3.node 2>/dev/null | head -1
+        run: npm ci
 
       - name: Build .next on the runner
         env:
           CI: "true"
           NODE_OPTIONS: "--max-old-space-size=6144"
-        run: pnpm run build
+        run: npm run verify
 
       - name: Verify build produced a BUILD_ID
         run: test -f .next/BUILD_ID || { echo "no .next/BUILD_ID — build failed"; exit 1; }
@@ -93,7 +73,7 @@ jobs:
           rsync -az --delete -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new" \
             ./.next/ root@"$HOST":$APP/.next.incoming/
           rsync -az -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new" \
-            ./pnpm-lock.yaml ./package.json root@"$HOST":$APP/
+            ./package-lock.json ./package.json root@"$HOST":$APP/
 
           $SSH root@"$HOST" "bash -s" <<'REMOTE'
             set -uo pipefail
@@ -109,8 +89,8 @@ jobs:
             for f in BUILD_ID required-server-files.json; do [ -e ".next.incoming/$f" ] || miss="$miss $f"; done
             if [ -n "$miss" ]; then echo "[ABORT] incoming build incomplete:$miss — live untouched"; rm -rf .next.incoming; exit 1; fi
 
-            corepack pnpm install --frozen-lockfile --config.verify-deps-before-run=false || corepack pnpm install --no-frozen-lockfile --config.verify-deps-before-run=false || true
-            corepack pnpm rebuild better-sqlite3 sharp 2>/dev/null || true
+            npm ci --omit=dev
+            npm rebuild better-sqlite3 2>/dev/null || true
 
             STAGE="$APP/.stage"; wait_port_free "$STAGE_PORT"; rm -rf "$STAGE"; mkdir -p "$STAGE"
             cp -a .next.incoming "$STAGE/.next"

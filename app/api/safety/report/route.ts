@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { rateLimit, requestIp } from '@/lib/rate-limit'
 
 const schema = z.object({
   message_id: z.number().int().positive(),
@@ -11,6 +12,8 @@ const schema = z.object({
 export async function POST(request: Request) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const limited = rateLimit(`safety-report:${session.id}:${requestIp(request)}`, 10, 60 * 60 * 1000)
+  if (limited) return limited
 
   try {
     const data = schema.parse(await request.json())

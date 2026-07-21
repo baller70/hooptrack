@@ -72,6 +72,12 @@ async function api(route, userToken, options = {}) {
 
 try {
   await waitForServer()
+  const securityResponse = await fetch(origin)
+  assert.equal(securityResponse.headers.get('x-content-type-options'), 'nosniff')
+  assert.equal(securityResponse.headers.get('x-frame-options'), 'DENY')
+  assert.equal(securityResponse.headers.get('referrer-policy'), 'strict-origin-when-cross-origin')
+  assert.match(securityResponse.headers.get('permissions-policy') ?? '', /geolocation=\(\)/)
+  assert.match(securityResponse.headers.get('strict-transport-security') ?? '', /max-age=63072000/)
   const db = new Database(dbPath)
   const users = [
     { id: 1001, name: 'Release Coach', email: 'coach@release.test', role: 'trainer' },
@@ -193,6 +199,27 @@ try {
   })
   assert.equal(authorizedMessage.response.status, 201)
 
+  const reportedMessage = await api('/api/safety/report', outsidePlayerToken, {
+    method: 'POST', body: JSON.stringify({ message_id: Number(authorizedMessage.body.id), reason: 'harassment', details: 'Safe release-test report' }),
+  })
+  assert.equal(reportedMessage.response.status, 200, 'A recipient must be able to report a received message')
+  const blockedCoach = await api('/api/safety/block', outsidePlayerToken, {
+    method: 'POST', body: JSON.stringify({ user_id: 1001 }),
+  })
+  assert.equal(blockedCoach.response.status, 200)
+  const blockedMessage = await api('/api/messages', coachToken, {
+    method: 'POST', body: JSON.stringify({ recipient_id: 1005, body: 'Blocked delivery must fail' }),
+  })
+  assert.equal(blockedMessage.response.status, 403, 'Blocking must stop messaging in both directions')
+  const unblockedCoach = await api('/api/safety/block', outsidePlayerToken, {
+    method: 'DELETE', body: JSON.stringify({ user_id: 1001 }),
+  })
+  assert.equal(unblockedCoach.response.status, 200)
+  const messageAfterUnblock = await api('/api/messages', coachToken, {
+    method: 'POST', body: JSON.stringify({ recipient_id: 1005, body: 'Delivery restored after unblock' }),
+  })
+  assert.equal(messageAfterUnblock.response.status, 201)
+
   const forgedViewAs = await api('/api/auth/me', otherCoachToken, {
     headers: { Cookie: `hooptrack_token=${otherCoachToken}; hooptrack_view_as=1005` },
   })
@@ -249,6 +276,7 @@ try {
   assert.equal(db.prepare('SELECT COUNT(*) AS count FROM coach_groups WHERE id = ?').get(deletionGroupId).count, 0)
   assert.equal(db.prepare('SELECT COUNT(*) AS count FROM workouts WHERE id = ?').get(deletionWorkoutId).count, 0)
   assert.equal(db.prepare('SELECT COUNT(*) AS count FROM recordings WHERE drill_id = ?').get(deletionDrillId).count, 0)
+  await assert.rejects(readFile(path.join(recordingsPath, 'deletion-video.mp4')), { code: 'ENOENT' }, 'Coach-owned recording file must be removed')
 
   const backupPath = path.join(work, 'restored-backup.db')
   await db.backup(backupPath)
