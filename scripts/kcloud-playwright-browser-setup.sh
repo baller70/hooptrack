@@ -40,6 +40,7 @@ test -x "$chromium_executable"
 mkdir -p "$(dirname "$expected_executable")"
 ln -sfn "$chromium_executable" "$expected_executable"
 ln -sfn "$chromium_executable" /usr/local/bin/chromium
+ln -sfn "$chromium_executable" /usr/bin/chromium
 
 NODE_PATH="$global_root" KCLOUD_CHROMIUM_EXECUTABLE="$expected_executable" node -e '
   const { chromium } = require("playwright");
