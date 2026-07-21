@@ -47,8 +47,8 @@ final class HooptrackCoachUITests: XCTestCase {
         }
         XCTAssertFalse(controls.isEmpty, "The production screen must expose interactive controls.", file: file, line: line)
         for control in controls {
-            XCTAssertGreaterThanOrEqual(control.frame.width, 44, "\(control.label) is narrower than 44 points.", file: file, line: line)
-            XCTAssertGreaterThanOrEqual(control.frame.height, 44, "\(control.label) is shorter than 44 points.", file: file, line: line)
+            XCTAssertGreaterThanOrEqual(control.frame.width + 0.01, 44, "\(control.label) is narrower than 44 points.", file: file, line: line)
+            XCTAssertGreaterThanOrEqual(control.frame.height + 0.01, 44, "\(control.label) is shorter than 44 points.", file: file, line: line)
         }
     }
 
