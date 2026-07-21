@@ -1,12 +1,15 @@
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { rateLimit, requestIp } from '@/lib/rate-limit'
 
 const schema = z.object({ user_id: z.number().int().positive() })
 
 export async function POST(request: Request) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const limited = rateLimit(`safety-block:${session.id}:${requestIp(request)}`, 30, 60 * 60 * 1000)
+  if (limited) return limited
 
   try {
     const { user_id } = schema.parse(await request.json())
@@ -26,6 +29,8 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const limited = rateLimit(`safety-unblock:${session.id}:${requestIp(request)}`, 30, 60 * 60 * 1000)
+  if (limited) return limited
 
   try {
     const { user_id } = schema.parse(await request.json())

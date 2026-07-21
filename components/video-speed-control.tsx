@@ -30,5 +30,3 @@ export default function VideoSpeedControl({ rate, onChange, compact = false }: P
     </div>
   )
 }
-
-export const SPEED_OPTIONS = SPEEDS

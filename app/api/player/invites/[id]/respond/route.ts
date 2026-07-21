@@ -16,6 +16,7 @@ type InviteRow = {
   group_name: string
   player_limit: number | null
   member_count: number
+  expires_at: string | null
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -29,19 +30,47 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   try {
     const data = responseSchema.parse(await request.json())
-    const invite = db.prepare(`
-      SELECT i.*, g.name AS group_name, g.player_limit, COUNT(m.id) AS member_count
-      FROM coach_group_invites i
-      JOIN coach_groups g ON g.id = i.group_id
-      LEFT JOIN coach_group_members m ON m.group_id = g.id
-      WHERE i.id = ? AND i.player_id = ?
-      GROUP BY i.id
-    `).get(inviteId, session.id) as InviteRow | undefined
-    if (!invite) return Response.json({ error: 'Invite not found' }, { status: 404 })
-    if (invite.status !== 'pending') return Response.json({ error: 'Invite already answered' }, { status: 409 })
+    const respond = db.transaction(() => {
+      const invite = db.prepare(`
+        SELECT i.*, g.name AS group_name, g.player_limit, COUNT(m.id) AS member_count
+        FROM coach_group_invites i
+        JOIN coach_groups g ON g.id = i.group_id AND g.archived_at IS NULL
+        LEFT JOIN coach_group_members m ON m.group_id = g.id
+        WHERE i.id = ? AND i.player_id = ?
+        GROUP BY i.id
+      `).get(inviteId, session.id) as InviteRow | undefined
+      if (!invite) return { error: 'Invite not found', status: 404 } as const
+      if (invite.status !== 'pending') return { error: 'Invite already answered', status: 409 } as const
+      if (!invite.expires_at || Date.parse(`${invite.expires_at}Z`) <= Date.now()) {
+        db.prepare("UPDATE coach_group_invites SET status = 'cancelled', responded_at = datetime('now') WHERE id = ? AND status = 'pending'").run(invite.id)
+        return { error: 'Invite expired', status: 410 } as const
+      }
 
-    if (data.action === 'decline') {
-      db.prepare("UPDATE coach_group_invites SET status = 'declined', responded_at = datetime('now') WHERE id = ?").run(invite.id)
+      if (data.action === 'decline') {
+        const updated = db.prepare("UPDATE coach_group_invites SET status = 'declined', responded_at = datetime('now') WHERE id = ? AND status = 'pending'").run(invite.id)
+        if (updated.changes !== 1) return { error: 'Invite already answered', status: 409 } as const
+        return { invite, outcome: 'declined' } as const
+      }
+
+      if (invite.player_limit != null && invite.member_count >= invite.player_limit) {
+        return { error: 'This group is already full', status: 409 } as const
+      }
+
+      db.prepare(`
+        INSERT INTO coach_group_members (group_id, player_id, added_by)
+        VALUES (?, ?, ?)
+        ON CONFLICT(group_id, player_id) DO NOTHING
+      `).run(invite.group_id, session.id, invite.coach_id)
+      const updated = db.prepare("UPDATE coach_group_invites SET status = 'accepted', responded_at = datetime('now') WHERE id = ? AND status = 'pending'").run(invite.id)
+      if (updated.changes !== 1) return { error: 'Invite already answered', status: 409 } as const
+      return { invite, outcome: 'accepted' } as const
+    })
+
+    const result = respond.immediate()
+    if ('error' in result) return Response.json({ error: result.error }, { status: result.status })
+    const invite = result.invite
+
+    if (result.outcome === 'declined') {
       await createNotification({
         player_id: invite.coach_id,
         actor_id: session.id,
@@ -53,19 +82,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       })
       return Response.json({ status: 'declined' })
     }
-
-    if (invite.player_limit != null && invite.member_count >= invite.player_limit) {
-      return Response.json({ error: 'This group is already full' }, { status: 409 })
-    }
-
-    const acceptInvite = db.transaction(() => {
-      db.prepare(`
-        INSERT OR IGNORE INTO coach_group_members (group_id, player_id, added_by)
-        VALUES (?, ?, ?)
-      `).run(invite.group_id, session.id, invite.coach_id)
-      db.prepare("UPDATE coach_group_invites SET status = 'accepted', responded_at = datetime('now') WHERE id = ?").run(invite.id)
-    })
-    acceptInvite()
 
     await createNotification({
       player_id: invite.coach_id,

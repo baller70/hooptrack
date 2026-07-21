@@ -3,11 +3,11 @@ import type { UserPayload } from '@/lib/auth'
 export type HoopApp = 'player' | 'coach'
 export type HoopRole = UserPayload['role']
 
-export function appForRole(role: HoopRole): HoopApp {
+function appForRole(role: HoopRole): HoopApp {
   return role === 'trainer' ? 'coach' : 'player'
 }
 
-export function appBaseForRole(role: HoopRole): '/player' | '/coach' {
+function appBaseForRole(role: HoopRole): '/player' | '/coach' {
   return appForRole(role) === 'coach' ? '/coach' : '/player'
 }
 

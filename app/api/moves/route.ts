@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { z } from 'zod'
-import { resolvePlayerId } from '@/lib/access'
+import { canAccessPlayer, coachIdForSession, resolvePlayerId } from '@/lib/access'
 
 const TIMER_MODES = ['timed', 'stopwatch', 'reps'] as const
 
@@ -28,7 +28,8 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const category = searchParams.get('category')
   const playerId = searchParams.get('playerId')
-  const effectivePlayerId = resolvePlayerId(session, playerId)
+  const coachId = coachIdForSession(session)
+  const effectivePlayerId = coachId != null && !playerId ? null : resolvePlayerId(session, playerId)
   if (effectivePlayerId instanceof Response) return effectivePlayerId
 
   let query = `
@@ -44,12 +45,15 @@ export async function GET(request: Request) {
     conditions.push('pm.category = ?')
     params.push(category)
   }
-  if (session.role === 'trainer' && playerId) {
+  if (coachId != null && playerId && effectivePlayerId != null) {
     conditions.push('(pm.assigned_to_player_id = ? OR pm.assigned_to_player_id IS NULL)')
     params.push(effectivePlayerId)
+  } else if (coachId != null) {
+    conditions.push('pm.created_by = ?')
+    params.push(coachId)
   } else if (session.role === 'player') {
     conditions.push('(pm.assigned_to_player_id = ? OR pm.assigned_to_player_id IS NULL)')
-    params.push(effectivePlayerId)
+    params.push(effectivePlayerId ?? session.id)
   }
 
   if (conditions.length > 0) query += ' WHERE ' + conditions.join(' AND ')
@@ -66,6 +70,11 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const data = createMoveSchema.parse(body)
+    const actorCoachId = coachIdForSession(session)
+    if (actorCoachId == null) return Response.json({ error: 'Forbidden' }, { status: 403 })
+    if (data.assigned_to_player_id && !canAccessPlayer(session, data.assigned_to_player_id)) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
     const result = db.prepare(
       'INSERT INTO player_moves (title, youtube_url, category, description, assigned_to_player_id, created_by, clip_start, clip_end, video_type, video_path, timer_mode, duration_seconds, target_reps, default_playback_rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
@@ -75,7 +84,7 @@ export async function POST(request: Request) {
       data.category,
       data.description || null,
       data.assigned_to_player_id || null,
-      session.id,
+      actorCoachId,
       data.clip_start || null,
       data.clip_end || null,
       data.video_type,

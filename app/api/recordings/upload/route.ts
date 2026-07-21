@@ -2,8 +2,9 @@ export const dynamic = 'force-dynamic'
 
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { canAccessPlayer } from '@/lib/access'
 import { RECORDINGS_DIR } from '@/lib/constants'
-import { notifyAllTrainers } from '@/lib/notifications'
+import { notifyConnectedCoaches } from '@/lib/notifications'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
     const row = db.prepare('SELECT id, player_id, blob_key, video_path FROM recordings WHERE id = ?')
       .get(recordingId) as RecordingRow | undefined
     if (!row) return Response.json({ error: 'Recording not found' }, { status: 404 })
-    if (row.player_id !== session.id && session.role !== 'trainer') {
+    if (!canAccessPlayer(session, row.player_id)) {
       return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
     if (row.video_path) {
@@ -77,7 +78,7 @@ export async function POST(request: Request) {
       const drillName = (db
         .prepare('SELECT d.name FROM drills d JOIN recordings r ON r.drill_id = d.id WHERE r.id = ?')
         .get(recordingId) as { name: string } | undefined)?.name || 'a drill'
-      notifyAllTrainers({
+      notifyConnectedCoaches(row.player_id, {
         message: `${playerName} uploaded video for ${drillName}`,
         type: 'video_uploaded',
         actor_id: session.id,

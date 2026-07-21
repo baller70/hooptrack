@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { canAccessPlayer } from '@/lib/access'
 
 type ActivityKind = 'recording' | 'quiz_attempt' | 'schedule_completed' | 'schedule_overdue'
 
@@ -15,13 +16,10 @@ interface ActivityItem {
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (session.role !== 'trainer' && session.id.toString() !== (await params).id) {
-    return Response.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
   const { id } = await params
   const playerId = parseInt(id)
   if (Number.isNaN(playerId)) return Response.json({ error: 'Bad id' }, { status: 400 })
+  if (!canAccessPlayer(session, playerId)) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   const player = db.prepare("SELECT id, name, email FROM users WHERE id = ? AND role = 'player'").get(playerId) as
     | { id: number; name: string; email: string }

@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { coachIdForSession } from '@/lib/access'
 
 interface PlayerActivity {
   id: number
@@ -23,20 +24,31 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const wantActivity = searchParams.get('activity') === 'true'
 
-  if (session.role !== 'trainer') {
+  const coachId = coachIdForSession(session)
+  if (coachId == null) {
     return Response.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   if (!wantActivity) {
-    const players = db.prepare(
-      "SELECT id, name, email FROM users WHERE role = 'player' ORDER BY name"
-    ).all()
+    const players = db.prepare(`
+      SELECT DISTINCT user.id, user.name, user.email
+      FROM users user
+      JOIN coach_group_members member ON member.player_id = user.id
+      JOIN coach_groups coach_group ON coach_group.id = member.group_id
+      WHERE user.role = 'player' AND coach_group.coach_id = ? AND coach_group.archived_at IS NULL
+      ORDER BY user.name
+    `).all(coachId)
     return Response.json({ players })
   }
 
-  const players = db.prepare(
-    "SELECT id, name, email FROM users WHERE role = 'player' ORDER BY name"
-  ).all() as Array<{ id: number; name: string; email: string }>
+  const players = db.prepare(`
+    SELECT DISTINCT user.id, user.name, user.email
+    FROM users user
+    JOIN coach_group_members member ON member.player_id = user.id
+    JOIN coach_groups coach_group ON coach_group.id = member.group_id
+    WHERE user.role = 'player' AND coach_group.coach_id = ? AND coach_group.archived_at IS NULL
+    ORDER BY user.name
+  `).all(coachId) as Array<{ id: number; name: string; email: string }>
 
   const today = new Date().toISOString().slice(0, 10)
   const sevenAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)

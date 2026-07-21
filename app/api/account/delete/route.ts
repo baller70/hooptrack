@@ -7,6 +7,7 @@ import { ATTACHMENTS_DIR, RECORDINGS_DIR } from '@/lib/constants'
 import { db } from '@/lib/db'
 import { resolveInside } from '@/lib/files'
 import { getSession } from '@/lib/session'
+import { rateLimit, requestIp } from '@/lib/rate-limit'
 
 const schema = z.object({
   password: z.string().min(1),
@@ -37,9 +38,8 @@ export async function DELETE(request: Request) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   if (session.actual_id) return Response.json({ error: 'Exit player preview before deleting an account' }, { status: 403 })
-  if (session.role !== 'player') {
-    return Response.json({ error: 'Coach organization accounts must be closed through Support' }, { status: 403 })
-  }
+  const limited = rateLimit(`account-delete:${session.id}:${requestIp(request)}`, 5, 15 * 60 * 1000)
+  if (limited) return limited
 
   try {
     const data = schema.parse(await request.json())
@@ -50,7 +50,7 @@ export async function DELETE(request: Request) {
       return Response.json({ error: 'Password is incorrect' }, { status: 401 })
     }
 
-    const recordingFiles = db.prepare(`
+    const recordingFiles = session.role === 'player' ? db.prepare(`
       SELECT DISTINCT r.video_path
       FROM recordings r
       WHERE r.player_id = ? AND r.video_path IS NOT NULL
@@ -58,7 +58,13 @@ export async function DELETE(request: Request) {
           SELECT 1 FROM recordings other
           WHERE other.video_path = r.video_path AND other.player_id != ?
         )
-    `).all(session.id, session.id) as Array<{ video_path: string }>
+    `).all(session.id, session.id) as Array<{ video_path: string }> : db.prepare(`
+      SELECT DISTINCT recording.video_path
+      FROM recordings recording
+      JOIN drills drill ON drill.id = recording.drill_id
+      JOIN workouts workout ON workout.id = drill.workout_id
+      WHERE workout.created_by = ? AND recording.video_path IS NOT NULL
+    `).all(session.id) as Array<{ video_path: string }>
     const attachmentFiles = db.prepare(`
       SELECT DISTINCT attachment_path
       FROM messages
@@ -66,6 +72,40 @@ export async function DELETE(request: Request) {
     `).all(session.id, session.id) as Array<{ attachment_path: string }>
 
     const deleteAccount = db.transaction(() => {
+      if (session.role === 'trainer') {
+        const ownedRecordings = db.prepare(`
+          SELECT recording.id
+          FROM recordings recording
+          JOIN drills drill ON drill.id = recording.drill_id
+          JOIN workouts workout ON workout.id = drill.workout_id
+          WHERE workout.created_by = ?
+        `).all(session.id) as Array<{ id: number }>
+        if (ownedRecordings.length > 0) {
+          const placeholders = ownedRecordings.map(() => '?').join(',')
+          const ids = ownedRecordings.map((row) => row.id)
+          db.prepare(`DELETE FROM messages WHERE context_type = 'recording' AND context_id IN (${placeholders})`).run(...ids)
+          db.prepare(`UPDATE recordings SET parent_recording_id = NULL WHERE parent_recording_id IN (${placeholders})`).run(...ids)
+          db.prepare(`DELETE FROM recordings WHERE id IN (${placeholders})`).run(...ids)
+        }
+        db.prepare("DELETE FROM messages WHERE context_type = 'drill' AND context_id IN (SELECT drill.id FROM drills drill JOIN workouts workout ON workout.id = drill.workout_id WHERE workout.created_by = ?)").run(session.id)
+        db.prepare("DELETE FROM messages WHERE context_type = 'workout' AND context_id IN (SELECT id FROM workouts WHERE created_by = ?)").run(session.id)
+        db.prepare("DELETE FROM messages WHERE context_type = 'move' AND context_id IN (SELECT id FROM player_moves WHERE created_by = ?)").run(session.id)
+        db.prepare("DELETE FROM messages WHERE context_type = 'quiz' AND context_id IN (SELECT id FROM quizzes WHERE created_by = ?)").run(session.id)
+        db.prepare("DELETE FROM schedule WHERE workout_id IN (SELECT id FROM workouts WHERE created_by = ?)").run(session.id)
+        db.prepare("DELETE FROM schedule WHERE item_type = 'move' AND item_id IN (SELECT id FROM player_moves WHERE created_by = ?)").run(session.id)
+        db.prepare("DELETE FROM schedule WHERE item_type = 'quiz' AND item_id IN (SELECT id FROM quizzes WHERE created_by = ?)").run(session.id)
+        db.prepare('DELETE FROM quiz_attempts WHERE quiz_id IN (SELECT id FROM quizzes WHERE created_by = ?)').run(session.id)
+        db.prepare('DELETE FROM player_moves WHERE created_by = ?').run(session.id)
+        db.prepare('DELETE FROM quizzes WHERE created_by = ?').run(session.id)
+        db.prepare('DELETE FROM workouts WHERE created_by = ?').run(session.id)
+        db.prepare('DELETE FROM coach_group_members WHERE added_by = ?').run(session.id)
+        db.prepare('DELETE FROM coach_groups WHERE coach_id = ?').run(session.id)
+        db.prepare('DELETE FROM notifications WHERE player_id = ?').run(session.id)
+        db.prepare('UPDATE notifications SET actor_id = NULL WHERE actor_id = ?').run(session.id)
+        db.prepare('DELETE FROM users WHERE id = ?').run(session.id)
+        return
+      }
+
       const recordingIds = db.prepare('SELECT id FROM recordings WHERE player_id = ?').all(session.id) as Array<{ id: number }>
       if (recordingIds.length > 0) {
         const placeholders = recordingIds.map(() => '?').join(',')

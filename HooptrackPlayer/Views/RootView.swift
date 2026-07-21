@@ -1,8 +1,9 @@
 import SwiftUI
 import UIKit
+import UserNotifications
 import WebKit
 
-private let hoopTrackOrigin = URL(string: "https://hooptrack.194-146-12-139.sslip.io")!
+private let hoopTrackOrigin = HoopTrackEnvironment.origin
 
 struct RootView: View {
     @StateObject private var session = PlayerWebSession()
@@ -39,8 +40,35 @@ struct RootView: View {
             }
         }
         .onOpenURL { session.open($0) }
+        .onReceive(NotificationCenter.default.publisher(for: .playerPushToken)) { notification in
+            guard let token = notification.object as? String else { return }
+            session.registerPushToken(token)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .hoopTrackPlayerAuthenticated)) { _ in
+            requestPushAuthorization()
+        }
         .accessibilityIdentifier(session.screenshotIdentifier)
     }
+
+    private func requestPushAuthorization() {
+        guard !session.isFactoryScreenshot else { return }
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            guard settings.authorizationStatus == .notDetermined else {
+                if settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional {
+                    DispatchQueue.main.async { UIApplication.shared.registerForRemoteNotifications() }
+                }
+                return
+            }
+            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
+                guard granted else { return }
+                DispatchQueue.main.async { UIApplication.shared.registerForRemoteNotifications() }
+            }
+        }
+    }
+}
+
+extension Notification.Name {
+    static let hoopTrackPlayerAuthenticated = Notification.Name("hoopTrackPlayerAuthenticated")
 }
 
 @MainActor
@@ -51,10 +79,20 @@ final class PlayerWebSession: ObservableObject {
     private weak var webView: WKWebView?
     private var loadedInitialRequest = false
     private var attemptedFactoryLogin = false
+    private var announcedAuthentication = false
+    private var pendingPushToken: String?
 
     #if DEBUG
     private let screenshotScene = FactoryScreenshotScene.current
     #endif
+
+    var isFactoryScreenshot: Bool {
+        #if DEBUG
+        screenshotScene != nil
+        #else
+        false
+        #endif
+    }
 
     var screenshotIdentifier: String {
         #if DEBUG
@@ -104,11 +142,46 @@ final class PlayerWebSession: ObservableObject {
         }
         isLoading = false
         errorMessage = nil
+        if webView.url?.host == hoopTrackOrigin.host, webView.url?.path != "/login" {
+            if !announcedAuthentication {
+                announcedAuthentication = true
+                NotificationCenter.default.post(name: .hoopTrackPlayerAuthenticated, object: nil)
+            }
+            flushPushToken(in: webView)
+        }
     }
 
     func navigationFailed(_ error: Error) {
         isLoading = false
         errorMessage = "Check your connection and try again."
+    }
+
+    func registerPushToken(_ token: String) {
+        pendingPushToken = token
+        if let webView { flushPushToken(in: webView) }
+    }
+
+    private func flushPushToken(in webView: WKWebView) {
+        guard let token = pendingPushToken, webView.url?.path != "/login" else { return }
+        #if DEBUG
+        let environment = "sandbox"
+        #else
+        let environment = "production"
+        #endif
+        let payload: [String: String] = [
+            "device_token": token,
+            "environment": environment,
+            "bundle_id": Bundle.main.bundleIdentifier ?? "com.kevinhouston.hooptrackplayer"
+        ]
+        let script = """
+        fetch('/api/push/apns', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(\(javascriptJSON(payload)))
+        });
+        """
+        pendingPushToken = nil
+        webView.evaluateJavaScript(script)
     }
 
     private func load(path: String) {

@@ -1,20 +1,27 @@
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { coachIdForSession } from '@/lib/access'
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
-  if (!session || session.role !== 'trainer') return Response.json({ error: 'Forbidden' }, { status: 403 })
+  const coachId = session ? coachIdForSession(session) : null
+  if (coachId == null) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
-  db.prepare('DELETE FROM player_moves WHERE id = ?').run(id)
+  const deleted = db.prepare('DELETE FROM player_moves WHERE id = ? AND created_by = ?').run(id, coachId)
+  if (deleted.changes !== 1) return Response.json({ error: 'Move not found' }, { status: 404 })
   return Response.json({ success: true })
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
-  if (!session || session.role !== 'trainer') return Response.json({ error: 'Forbidden' }, { status: 403 })
+  const coachId = session ? coachIdForSession(session) : null
+  if (coachId == null) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
+  if (!db.prepare('SELECT id FROM player_moves WHERE id = ? AND created_by = ?').get(id, coachId)) {
+    return Response.json({ error: 'Move not found' }, { status: 404 })
+  }
   const body = await request.json()
 
   // Partial: title-only rename

@@ -63,6 +63,12 @@ All variables are documented in [`.env.example`](./.env.example). Summary:
 | `npm run build` | Production build (`.next/`)              |
 | `npm run start` | Start the production server              |
 | `npm run lint`  | Run ESLint                               |
+| `npm run typecheck` | Run TypeScript without emitting files |
+| `npm run test:mobile-readiness` | Exercise role, invitation, membership, APNs, deletion, and backup invariants against isolated live routes |
+| `npm run check:evidence` | Prove the evidence index accounts for every App Store checklist ID without stale or duplicate entries |
+| `npm run check:workflows` | Enforce mandatory CI checks and explicit production deployment approval controls |
+| `npm run verify` | Run lint, typecheck, mobile-readiness integration, and production build |
+| `npm run audit:all` | Run dead-code, dependency, cycle, license, vulnerability, and tracked-secret checks |
 
 ## Production Deployment (PM2)
 

@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { z } from 'zod'
+import { coachIdForSession } from '@/lib/access'
 
 const TIMER_MODES = ['timed', 'stopwatch', 'reps'] as const
 
@@ -17,11 +18,15 @@ const createDrillSchema = z.object({
 
 export async function POST(request: Request) {
   const session = await getSession()
-  if (!session || session.role !== 'trainer') return Response.json({ error: 'Forbidden' }, { status: 403 })
+  const coachId = session ? coachIdForSession(session) : null
+  if (coachId == null) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   try {
     const body = await request.json()
     const data = createDrillSchema.parse(body)
+    if (!db.prepare('SELECT id FROM workouts WHERE id = ? AND created_by = ?').get(data.workout_id, coachId)) {
+      return Response.json({ error: 'Workout not found' }, { status: 404 })
+    }
 
     const maxOrder = db.prepare('SELECT MAX(drill_order) as m FROM drills WHERE workout_id = ?')
       .get(data.workout_id) as { m: number | null }
@@ -52,11 +57,15 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   const session = await getSession()
-  if (!session || session.role !== 'trainer') return Response.json({ error: 'Forbidden' }, { status: 403 })
+  const coachId = session ? coachIdForSession(session) : null
+  if (coachId == null) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await request.json()
   const { drillId, ...updates } = body
   if (!drillId) return Response.json({ error: 'Missing drillId' }, { status: 400 })
+  if (!db.prepare('SELECT d.id FROM drills d JOIN workouts w ON w.id = d.workout_id WHERE d.id = ? AND w.created_by = ?').get(drillId, coachId)) {
+    return Response.json({ error: 'Drill not found' }, { status: 404 })
+  }
 
   // Name-only partial update (rename)
   const updateKeys = Object.keys(updates)
@@ -87,11 +96,15 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   const session = await getSession()
-  if (!session || session.role !== 'trainer') return Response.json({ error: 'Forbidden' }, { status: 403 })
+  const coachId = session ? coachIdForSession(session) : null
+  if (coachId == null) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
   if (!id) return Response.json({ error: 'Missing drill id' }, { status: 400 })
+  if (!db.prepare('SELECT d.id FROM drills d JOIN workouts w ON w.id = d.workout_id WHERE d.id = ? AND w.created_by = ?').get(id, coachId)) {
+    return Response.json({ error: 'Drill not found' }, { status: 404 })
+  }
 
   db.prepare('DELETE FROM drills WHERE id = ?').run(id)
   return Response.json({ success: true })

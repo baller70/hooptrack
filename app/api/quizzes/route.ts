@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { z } from 'zod'
+import { coachIdForSession } from '@/lib/access'
 
 const TIMER_MODES = ['timed', 'stopwatch'] as const
 const POSITIONS = ['point_guard', 'shooting_guard', 'small_forward', 'power_forward', 'center', 'any'] as const
@@ -40,7 +41,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const session = await getSession()
-  if (!session || session.role !== 'trainer') return Response.json({ error: 'Forbidden' }, { status: 403 })
+  const coachId = session ? coachIdForSession(session) : null
+  if (coachId == null) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   try {
     const body = await request.json()
@@ -52,7 +54,7 @@ export async function POST(request: Request) {
       ).run(
         data.title,
         data.type,
-        session.id,
+        coachId,
         data.timer_mode,
         data.duration_seconds ?? null,
         data.position ?? null,

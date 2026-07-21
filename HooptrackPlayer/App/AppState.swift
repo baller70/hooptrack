@@ -51,9 +51,9 @@ final class AppState: ObservableObject {
         }
     }
 
-    func register(name: String, email: String, password: String) async {
+    func register(name: String, email: String, password: String, ageConfirmed: Bool, termsAccepted: Bool) async {
         await authenticate {
-            try await client.register(name: name, email: email, password: password)
+            try await client.register(name: name, email: email, password: password, ageConfirmed: ageConfirmed, termsAccepted: termsAccepted)
         }
     }
 

@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { z } from 'zod'
+import { coachIdForSession } from '@/lib/access'
 
 const TIMER_MODES = ['timed', 'stopwatch', 'reps'] as const
 
@@ -41,7 +42,8 @@ export async function GET() {
 export async function POST(request: Request) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (session.role !== 'trainer') return Response.json({ error: 'Forbidden' }, { status: 403 })
+  const coachId = coachIdForSession(session)
+  if (coachId == null) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   try {
     const body = await request.json()
@@ -54,7 +56,7 @@ export async function POST(request: Request) {
           data.title,
           data.description || null,
           data.category,
-          session.id,
+          coachId,
           data.timer_mode ?? null,
           data.duration_seconds ?? null,
         )

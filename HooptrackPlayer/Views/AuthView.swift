@@ -6,6 +6,8 @@ struct AuthView: View {
     @State private var name = ""
     @State private var email = ""
     @State private var password = ""
+    @State private var ageConfirmed = false
+    @State private var termsAccepted = false
     @State private var isSubmitting = false
 
     var body: some View {
@@ -43,6 +45,15 @@ struct AuthView: View {
                             SecureField(String(localized: "auth.password"), text: $password)
                                 .textContentType(mode == .register ? .newPassword : .password)
                                 .submitLabel(.done)
+                            if mode == .register {
+                                Toggle("auth.ageConfirmation", isOn: $ageConfirmed)
+                                Toggle("auth.termsConfirmation", isOn: $termsAccepted)
+                                HStack {
+                                    Link("privacy.policy", destination: HoopTrackEnvironment.publicURL("privacy"))
+                                    Link("terms", destination: HoopTrackEnvironment.publicURL("terms"))
+                                }
+                                .font(.footnote)
+                            }
                             Button {
                                 Task { await submit() }
                             } label: {
@@ -51,16 +62,16 @@ struct AuthView: View {
                             }
                             .buttonStyle(.borderedProminent)
                             .tint(HT.orange)
-                            .disabled(isSubmitting || email.isEmpty || password.count < 6 || (mode == .register && name.isEmpty))
+                            .disabled(isSubmitting || email.isEmpty || password.count < 6 || (mode == .register && (name.isEmpty || !ageConfirmed || !termsAccepted)))
                             .accessibilityIdentifier("auth-submit")
                         }
                         .textFieldStyle(.roundedBorder)
                     }
 
-                    Link(destination: URL(string: "https://hooptrack.194-146-12-139.sslip.io/privacy")!) {
+                    Link(destination: HoopTrackEnvironment.publicURL("privacy")) {
                         Label("privacy.policy", systemImage: "hand.raised")
                     }
-                    Link(destination: URL(string: "https://hooptrack.194-146-12-139.sslip.io/support")!) {
+                    Link(destination: HoopTrackEnvironment.publicURL("support")) {
                         Label("support", systemImage: "questionmark.circle")
                     }
                 }
@@ -79,7 +90,7 @@ struct AuthView: View {
         if mode == .signIn {
             await appState.signIn(email: email, password: password)
         } else {
-            await appState.register(name: name, email: email, password: password)
+            await appState.register(name: name, email: email, password: password, ageConfirmed: ageConfirmed, termsAccepted: termsAccepted)
         }
     }
 }
@@ -112,4 +123,3 @@ struct RoleBlockedView: View {
         .padding()
     }
 }
-

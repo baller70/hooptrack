@@ -4,6 +4,7 @@ import { RECORDINGS_DIR } from '@/lib/constants'
 import { resolveInside } from '@/lib/files'
 import { unlink } from 'fs/promises'
 import path from 'path'
+import { coachIdForSession } from '@/lib/access'
 
 interface RecordingFileRow {
   id: number
@@ -25,9 +26,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
-  if (!session || session.role !== 'trainer') return Response.json({ error: 'Forbidden' }, { status: 403 })
+  const coachId = session ? coachIdForSession(session) : null
+  if (coachId == null) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
+  const owned = db.prepare('SELECT id FROM workouts WHERE id = ? AND created_by = ?').get(id, coachId)
+  if (!owned) return Response.json({ error: 'Not found' }, { status: 404 })
   const body = await request.json()
 
   // Title-only partial update (rename)
@@ -56,10 +60,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
-  if (!session || session.role !== 'trainer') return Response.json({ error: 'Forbidden' }, { status: 403 })
+  const coachId = session ? coachIdForSession(session) : null
+  if (coachId == null) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
-  const workout = db.prepare('SELECT id FROM workouts WHERE id = ?').get(id)
+  const workout = db.prepare('SELECT id FROM workouts WHERE id = ? AND created_by = ?').get(id, coachId)
   if (!workout) return Response.json({ error: 'Not found' }, { status: 404 })
 
   const recordings = db.prepare(`

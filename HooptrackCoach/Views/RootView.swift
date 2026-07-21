@@ -3,7 +3,7 @@ import UIKit
 import UserNotifications
 import WebKit
 
-private let hoopTrackOrigin = URL(string: "https://hooptrack.194-146-12-139.sslip.io")!
+private let hoopTrackOrigin = HoopTrackEnvironment.origin
 
 struct CoachRootView: View {
     @StateObject private var session = CoachWebSession()

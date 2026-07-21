@@ -66,6 +66,13 @@ final class CoachAppState: ObservableObject {
         snapshot = .empty
     }
 
+    func deleteAccount(password: String) async throws {
+        try await client.deleteAccount(password: password)
+        client.clearSession()
+        phase = .signedOut
+        snapshot = .empty
+    }
+
     func refresh() async {
         guard case .signedIn = phase, !isScreenshotMode else { return }
         do {

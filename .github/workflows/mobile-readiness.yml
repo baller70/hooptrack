@@ -1,0 +1,91 @@
+name: Mobile readiness
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-readiness-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shared-service:
+    name: Shared service and mobile contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run verify
+      - run: npm audit
+      - run: npm run audit:secrets
+      - name: Generate CycloneDX SBOM
+        run: npm sbom --sbom-format cyclonedx > "$RUNNER_TEMP/hooptrack-sbom.cdx.json"
+      - name: Upload shared-service evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: shared-service-readiness
+          path: ${{ runner.temp }}/hooptrack-sbom.cdx.json
+          retention-days: 14
+
+  native-projects:
+    name: Native ${{ matrix.app }}
+    runs-on: macos-15
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: Coach
+            project: HooptrackCoach.xcodeproj
+            scheme: HooptrackCoach
+            result: HooptrackCoach.xcresult
+          - app: Player
+            project: HooptrackPlayer.xcodeproj
+            scheme: HooptrackPlayer
+            result: HooptrackPlayer.xcresult
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+          xcrun simctl list runtimes
+      - name: Select and boot an available iPhone simulator
+        run: |
+          set -euo pipefail
+          udid=$(xcrun simctl list devices available -j | ruby -rjson -e '''
+            data = JSON.parse(STDIN.read).fetch("devices")
+            phone = data.values.flatten.find { |d| d["name"].start_with?("iPhone") && d["isAvailable"] }
+            abort "No available iPhone simulator" unless phone
+            puts phone.fetch("udid")
+          ''')
+          echo "SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
+          xcrun simctl boot "$udid" || true
+          xcrun simctl bootstatus "$udid" -b
+      - name: Test HoopTrack ${{ matrix.app }}
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project "${{ matrix.project }}" \
+            -scheme "${{ matrix.scheme }}" \
+            -destination "id=$SIMULATOR_UDID" \
+            -derivedDataPath "$RUNNER_TEMP/${{ matrix.app }}DerivedData" \
+            -resultBundlePath "$RUNNER_TEMP/${{ matrix.result }}" \
+            CODE_SIGNING_ALLOWED=NO
+      - name: Upload native test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.app }}-xcresult
+          path: ${{ runner.temp }}/${{ matrix.result }}
+          if-no-files-found: warn
+          retention-days: 14

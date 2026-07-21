@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { canAccessPlayer } from '@/lib/access'
 
 type Period = 'week' | 'month' | 'year'
 
@@ -181,8 +182,7 @@ export async function GET(request: Request) {
   const playerId = playerIdParam ? parseInt(playerIdParam) : session.id
   const period = (searchParams.get('period') as Period) || 'month'
 
-  // Trainers can view any player; players only themselves
-  if (session.role !== 'trainer' && playerId !== session.id) {
+  if (!canAccessPlayer(session, playerId)) {
     return Response.json({ error: 'Forbidden' }, { status: 403 })
   }
 

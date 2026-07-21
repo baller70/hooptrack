@@ -2,7 +2,7 @@ import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { z } from 'zod'
 import { notifyScheduleAssignment } from '@/lib/schedule-notifications'
-import { resolvePlayerId } from '@/lib/access'
+import { canAccessPlayer, coachIdForSession, resolvePlayerId } from '@/lib/access'
 
 const createScheduleSchema = z.object({
   player_id: z.number().int(),
@@ -52,7 +52,8 @@ export async function GET(request: Request) {
   const week = searchParams.get('week') // e.g. 2026-05-05
   const day = searchParams.get('day') // e.g. 2026-05-06
   const playerId = searchParams.get('playerId')
-  const effectivePlayerId = resolvePlayerId(session, playerId)
+  const coachId = coachIdForSession(session)
+  const effectivePlayerId = coachId != null && !playerId ? null : resolvePlayerId(session, playerId)
   if (effectivePlayerId instanceof Response) return effectivePlayerId
 
   let query = `
@@ -64,12 +65,19 @@ export async function GET(request: Request) {
   const conditions: string[] = []
   const params: (string | number)[] = []
 
-  if (session.role === 'trainer' && playerId) {
+  if (coachId != null && playerId && effectivePlayerId != null) {
     conditions.push('s.player_id = ?')
     params.push(effectivePlayerId)
+  } else if (coachId != null) {
+    conditions.push(`s.player_id IN (
+      SELECT member.player_id FROM coach_group_members member
+      JOIN coach_groups coach_group ON coach_group.id = member.group_id
+      WHERE coach_group.coach_id = ? AND coach_group.archived_at IS NULL
+    )`)
+    params.push(coachId)
   } else if (session.role === 'player') {
     conditions.push('s.player_id = ?')
-    params.push(effectivePlayerId)
+    params.push(effectivePlayerId ?? session.id)
   }
 
   if (day) {
@@ -94,7 +102,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const session = await getSession()
-  if (!session || session.role !== 'trainer') return Response.json({ error: 'Forbidden' }, { status: 403 })
+  if (!session || coachIdForSession(session) == null) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   try {
     const body = await request.json()
@@ -102,6 +110,7 @@ export async function POST(request: Request) {
     // Bulk assign
     if (body.bulk) {
       const data = bulkSchema.parse(body)
+      if (!canAccessPlayer(session, data.player_id)) return Response.json({ error: 'Forbidden' }, { status: 403 })
       const insert = db.prepare(
         'INSERT INTO schedule (player_id, workout_id, scheduled_date, item_type, item_id, title, notes, start_time, end_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
       )
@@ -131,6 +140,7 @@ export async function POST(request: Request) {
 
     // Single assign
     const data = createScheduleSchema.parse(body)
+    if (!canAccessPlayer(session, data.player_id)) return Response.json({ error: 'Forbidden' }, { status: 403 })
     if (!itemExists(data.item_type, data.item_id)) {
       return Response.json({ error: `${data.item_type} not found` }, { status: 404 })
     }

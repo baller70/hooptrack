@@ -1,12 +1,32 @@
 import Foundation
 
+enum HoopTrackEnvironment {
+    static let origin: URL = {
+        guard
+            let value = Bundle.main.object(forInfoDictionaryKey: "HoopTrackAPIBaseURL") as? String,
+            let url = URL(string: value),
+            url.scheme == "https",
+            url.user == nil,
+            url.password == nil,
+            url.host != nil
+        else {
+            preconditionFailure("HoopTrackAPIBaseURL must be an absolute HTTPS URL without embedded credentials")
+        }
+        return url
+    }()
+
+    static func publicURL(_ path: String) -> URL {
+        origin.appending(path: path.trimmingCharacters(in: CharacterSet(charactersIn: "/")))
+    }
+}
+
 final class HoopTrackAPI {
     private let baseURL: URL
     private let session: URLSession
     private let decoder: JSONDecoder
 
     init(
-        baseURL: URL = URL(string: "https://hooptrack.194-146-12-139.sslip.io")!,
+        baseURL: URL = HoopTrackEnvironment.origin,
         session: URLSession = .shared
     ) {
         self.baseURL = baseURL
@@ -443,10 +463,18 @@ final class HoopTrackAPI {
         let _: SuccessEnvelope = try await request("api/schedule/\(id)", method: "PUT", body: ["completed": completed])
     }
 
+    func deleteAccount(password: String) async throws {
+        let _: SuccessEnvelope = try await request(
+            "api/account/delete",
+            method: "DELETE",
+            body: ["password": password, "confirmation": "DELETE"]
+        )
+    }
+
     func clearSession() {
         let storage = HTTPCookieStorage.shared
         storage.cookies?.forEach { cookie in
-            if cookie.domain.contains("hooptrack.194-146-12-139.sslip.io") {
+            if cookie.domain.contains(baseURL.host ?? "") {
                 storage.deleteCookie(cookie)
             }
         }

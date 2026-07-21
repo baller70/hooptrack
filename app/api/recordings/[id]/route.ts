@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { canAccessPlayer } from '@/lib/access'
 import { RECORDINGS_DIR } from '@/lib/constants'
 import { resolveInside } from '@/lib/files'
 import { unlink } from 'fs/promises'
@@ -28,7 +29,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const row = db.prepare('SELECT id, player_id, duration_seconds FROM recordings WHERE id = ?')
     .get(id) as RecordingRow | undefined
   if (!row) return Response.json({ error: 'Not found' }, { status: 404 })
-  if (row.player_id !== session.id && session.role !== 'trainer') {
+  if (!canAccessPlayer(session, row.player_id)) {
     return Response.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -68,7 +69,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const row = db.prepare('SELECT id, player_id, video_path FROM recordings WHERE id = ?')
     .get(id) as RecordingRow | undefined
   if (!row) return Response.json({ error: 'Not found' }, { status: 404 })
-  if (row.player_id !== session.id && session.role !== 'trainer') {
+  if (!canAccessPlayer(session, row.player_id)) {
     return Response.json({ error: 'Forbidden' }, { status: 403 })
   }
 

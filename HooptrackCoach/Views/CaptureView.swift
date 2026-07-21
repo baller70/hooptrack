@@ -92,7 +92,7 @@ struct ReviewView: View {
                                     RowBadge(text: "\(recording.duration ?? 0)s", color: HT.orange)
                                     RowBadge(text: String(localized: "review.ready"), color: HT.green)
                                     Spacer()
-                                    Link(destination: URL(string: "https://hooptrack.194-146-12-139.sslip.io/support")!) {
+                                    Link(destination: HoopTrackEnvironment.publicURL("support")) {
                                         Image(systemName: "questionmark.circle")
                                     }
                                     .accessibilityLabel(Text("account.support"))

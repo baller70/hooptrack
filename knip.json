@@ -1,0 +1,25 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "app/**/*.{ts,tsx}",
+    "scripts/*.{js,mjs}",
+    "test-*.mjs",
+    "ecosystem.config.js"
+  ],
+  "project": [
+    "app/**/*.{ts,tsx}",
+    "components/**/*.{ts,tsx}",
+    "lib/**/*.{ts,tsx}",
+    "scripts/*.{js,mjs}",
+    "*.{ts,tsx,js,mjs}"
+  ],
+  "ignore": [
+    "components/ui/**",
+    "lib/video-storage.ts",
+    "public/calendar/**"
+  ],
+  "ignoreDependencies": [
+    "tailwindcss",
+    "tw-animate-css"
+  ]
+}

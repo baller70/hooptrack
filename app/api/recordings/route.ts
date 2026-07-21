@@ -1,8 +1,8 @@
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { z } from 'zod'
-import { createNotification, notifyAllTrainers } from '@/lib/notifications'
-import { resolvePlayerId } from '@/lib/access'
+import { createNotification, notifyConnectedCoaches } from '@/lib/notifications'
+import { coachIdForSession, resolvePlayerId } from '@/lib/access'
 
 const createRecordingSchema = z.object({
   playerId: z.number().int().positive().optional(),
@@ -20,7 +20,8 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const playerId = searchParams.get('playerId')
   const drillId = searchParams.get('drillId')
-  const effectivePlayerId = resolvePlayerId(session, playerId)
+  const coachId = coachIdForSession(session)
+  const effectivePlayerId = coachId != null && !playerId ? null : resolvePlayerId(session, playerId)
   if (effectivePlayerId instanceof Response) return effectivePlayerId
 
   let query = `
@@ -34,12 +35,19 @@ export async function GET(request: Request) {
   const conditions: string[] = []
   const params: (string | number)[] = []
 
-  if (session.role === 'trainer' && playerId) {
+  if (coachId != null && playerId && effectivePlayerId != null) {
     conditions.push('r.player_id = ?')
     params.push(effectivePlayerId)
+  } else if (coachId != null) {
+    conditions.push(`r.player_id IN (
+      SELECT member.player_id FROM coach_group_members member
+      JOIN coach_groups coach_group ON coach_group.id = member.group_id
+      WHERE coach_group.coach_id = ? AND coach_group.archived_at IS NULL
+    )`)
+    params.push(coachId)
   } else if (session.role === 'player') {
     conditions.push('r.player_id = ?')
-    params.push(effectivePlayerId)
+    params.push(effectivePlayerId ?? session.id)
   }
 
   if (drillId) {
@@ -126,7 +134,7 @@ export async function POST(request: Request) {
       const drillName = drill?.name || 'a drill'
       const repsStr = data.rep_count != null ? ` · ${data.rep_count} reps` : ''
       const durStr = data.duration > 0 ? ` · ${Math.floor(data.duration / 60)}:${String(data.duration % 60).padStart(2, '0')}` : ''
-      notifyAllTrainers({
+      notifyConnectedCoaches(ownerId, {
         message: `${playerName} recorded ${drillName}${durStr}${repsStr}`,
         type: 'recording_created',
         actor_id: session.id,
@@ -135,7 +143,7 @@ export async function POST(request: Request) {
       }).catch(() => {})
 
       if (isPr) {
-        notifyAllTrainers({
+        notifyConnectedCoaches(ownerId, {
           message: `${playerName} — ${prMessage}`,
           type: 'pr_set',
           actor_id: session.id,

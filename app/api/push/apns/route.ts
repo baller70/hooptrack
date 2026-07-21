@@ -14,6 +14,10 @@ export async function POST(request: Request) {
 
   try {
     const data = schema.parse(await request.json())
+    const expectedBundleId = session.role === 'trainer'
+      ? 'com.kevinhouston.hooptrackcoach'
+      : 'com.kevinhouston.hooptrackplayer'
+    if (data.bundle_id !== expectedBundleId) return Response.json({ error: 'Bundle does not match account role' }, { status: 403 })
     db.prepare(
       `INSERT INTO apns_device_tokens (user_id, device_token, environment, bundle_id, updated_at)
        VALUES (?, ?, ?, ?, datetime('now'))
@@ -35,6 +39,10 @@ export async function DELETE(request: Request) {
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   const parsed = schema.pick({ device_token: true, environment: true, bundle_id: true }).safeParse(await request.json())
   if (!parsed.success) return Response.json({ error: 'Invalid device token' }, { status: 400 })
+  const expectedBundleId = session.role === 'trainer'
+    ? 'com.kevinhouston.hooptrackcoach'
+    : 'com.kevinhouston.hooptrackplayer'
+  if (parsed.data.bundle_id !== expectedBundleId) return Response.json({ error: 'Bundle does not match account role' }, { status: 403 })
   db.prepare(
     'DELETE FROM apns_device_tokens WHERE user_id = ? AND device_token = ? AND environment = ? AND bundle_id = ?'
   ).run(session.id, parsed.data.device_token.toLowerCase(), parsed.data.environment, parsed.data.bundle_id)

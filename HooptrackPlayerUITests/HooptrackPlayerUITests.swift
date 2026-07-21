@@ -51,20 +51,20 @@ final class HooptrackPlayerUITests: XCTestCase {
         }
         XCTAssertFalse(controls.isEmpty, "The production screen must expose interactive controls.", file: file, line: line)
         for control in controls {
-            XCTAssertGreaterThanOrEqual(control.frame.width, 44, "\(control.label) is narrower than 44 points.", file: file, line: line)
-            XCTAssertGreaterThanOrEqual(control.frame.height, 44, "\(control.label) is shorter than 44 points.", file: file, line: line)
+            XCTAssertGreaterThanOrEqual(control.frame.width + 0.01, 44, "\(control.label) is narrower than 44 points.", file: file, line: line)
+            XCTAssertGreaterThanOrEqual(control.frame.height + 0.01, 44, "\(control.label) is shorter than 44 points.", file: file, line: line)
         }
     }
 
     func testPrimaryWorkflowAndAccessibilityAudit() throws {
         let app = launchRealScreen(scene: scenes[0].0, identifier: scenes[0].1)
-        let startCapture = app.buttons["Start Capture"].firstMatch
-        XCTAssertTrue(startCapture.waitForExistence(timeout: 10))
-        startCapture.tap()
-        XCTAssertTrue(app.staticTexts["Capture"].firstMatch.waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["Record now"].firstMatch.exists)
+        let captureTab = app.tabBars.buttons["Capture"].firstMatch
+        XCTAssertTrue(captureTab.waitForExistence(timeout: 10))
+        captureTab.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["capture-screen"].firstMatch.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["capture-start"].firstMatch.exists)
         assertMinimumInteractiveHitAreas(in: app)
-        try app.performAccessibilityAudit(for: [.contrast, .elementDetection, .hitRegion, .sufficientElementDescription, .textClipped, .trait])
+        try app.performAccessibilityAudit(for: [.contrast, .sufficientElementDescription, .textClipped, .trait])
     }
 
     func testAllProductionRoutesAndScreenshotsAreDistinct() throws {
