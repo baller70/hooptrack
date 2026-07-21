@@ -63,9 +63,9 @@ struct DashboardView: View {
                     Task { await appState.refresh() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
-                        .frame(minWidth: 44, minHeight: 44)
-                        .contentShape(Rectangle())
                 }
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
                 .accessibilityLabel(Text("retry.title"))
             }
         }

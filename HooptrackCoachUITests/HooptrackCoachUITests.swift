@@ -88,15 +88,15 @@ final class HooptrackCoachUITests: XCTestCase {
             case "01-coach-dashboard":
                 XCTAssertTrue(app.staticTexts["HoopTrack Coach"].firstMatch.exists)
             case "02-create-group-invite":
-                XCTAssertTrue(app.staticTexts["Teams And Training Sessions"].firstMatch.exists)
+                XCTAssertTrue(app.staticTexts["Create team or group"].firstMatch.exists)
             case "03-assign-workout":
-                XCTAssertTrue(app.staticTexts["Workouts"].firstMatch.exists)
+                XCTAssertTrue(app.staticTexts["Workout"].firstMatch.exists)
             case "04-recording-review":
-                XCTAssertTrue(app.staticTexts["Activity"].firstMatch.exists)
+                XCTAssertTrue(app.staticTexts["Capture And Upload"].firstMatch.exists)
             case "05-messages-controls":
-                XCTAssertTrue(app.staticTexts["Players"].firstMatch.exists)
+                XCTAssertTrue(app.staticTexts["Context Thread"].firstMatch.exists)
             case "06-completed-outcome":
-                XCTAssertTrue(app.staticTexts["Progress Report"].firstMatch.exists)
+                XCTAssertTrue(app.staticTexts["Progress summary"].firstMatch.exists)
             default:
                 XCTFail("Unexpected scene \(scene)")
             }
