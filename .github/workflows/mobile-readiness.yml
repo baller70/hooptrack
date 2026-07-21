@@ -36,9 +36,21 @@ jobs:
           retention-days: 14
 
   native-projects:
-    name: Native Coach and Player
+    name: Native ${{ matrix.app }}
     runs-on: macos-15
-    timeout-minutes: 45
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: Coach
+            project: HooptrackCoach.xcodeproj
+            scheme: HooptrackCoach
+            result: HooptrackCoach.xcresult
+          - app: Player
+            project: HooptrackPlayer.xcodeproj
+            scheme: HooptrackPlayer
+            result: HooptrackPlayer.xcresult
     steps:
       - uses: actions/checkout@v4
       - name: Record toolchain
@@ -50,40 +62,30 @@ jobs:
       - name: Select and boot an available iPhone simulator
         run: |
           set -euo pipefail
-          udid=$(xcrun simctl list devices available -j | ruby -rjson -e '
+          udid=$(xcrun simctl list devices available -j | ruby -rjson -e '''
             data = JSON.parse(STDIN.read).fetch("devices")
             phone = data.values.flatten.find { |d| d["name"].start_with?("iPhone") && d["isAvailable"] }
             abort "No available iPhone simulator" unless phone
             puts phone.fetch("udid")
-          ')
+          ''')
           echo "SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
           xcrun simctl boot "$udid" || true
           xcrun simctl bootstatus "$udid" -b
-      - name: Test HoopTrack Coach
+      - name: Test HoopTrack ${{ matrix.app }}
         run: |
           set -o pipefail
           xcodebuild test \
-            -project HooptrackCoach.xcodeproj \
-            -scheme HooptrackCoach \
+            -project "${{ matrix.project }}" \
+            -scheme "${{ matrix.scheme }}" \
             -destination "id=$SIMULATOR_UDID" \
-            -derivedDataPath "$RUNNER_TEMP/CoachDerivedData" \
-            -resultBundlePath "$RUNNER_TEMP/HooptrackCoach.xcresult" \
-            CODE_SIGNING_ALLOWED=NO
-      - name: Test HoopTrack Player
-        run: |
-          set -o pipefail
-          xcodebuild test \
-            -project HooptrackPlayer.xcodeproj \
-            -scheme HooptrackPlayer \
-            -destination "id=$SIMULATOR_UDID" \
-            -derivedDataPath "$RUNNER_TEMP/PlayerDerivedData" \
-            -resultBundlePath "$RUNNER_TEMP/HooptrackPlayer.xcresult" \
+            -derivedDataPath "$RUNNER_TEMP/${{ matrix.app }}DerivedData" \
+            -resultBundlePath "$RUNNER_TEMP/${{ matrix.result }}" \
             CODE_SIGNING_ALLOWED=NO
       - name: Upload native test evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: native-xcresults
-          path: ${{ runner.temp }}/*.xcresult
+          name: native-${{ matrix.app }}-xcresult
+          path: ${{ runner.temp }}/${{ matrix.result }}
           if-no-files-found: warn
           retention-days: 14
