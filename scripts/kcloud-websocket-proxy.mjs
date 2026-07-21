@@ -1,4 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import net from "node:net";
 import tls from "node:tls";
 
@@ -6,7 +9,16 @@ const bridgeUrl = new URL(
   process.env.KCLOUD_SSH_BRIDGE_URL ||
     "wss://kcloud-contabo-ssh-relay.khouston.workers.dev",
 );
-const encodedSshKey = process.env.CONTABO_SSH_PRIVATE_KEY_B64?.replace(/\s+/g, "");
+const keyPath =
+  process.env.CONTABO_SSH_KEY_PATH || join(homedir(), ".ssh", "id_ed25519");
+let encodedSshKey = process.env.CONTABO_SSH_PRIVATE_KEY_B64?.replace(/\s+/g, "");
+if (!encodedSshKey) {
+  try {
+    encodedSshKey = readFileSync(keyPath).toString("base64");
+  } catch {
+    encodedSshKey = "";
+  }
+}
 const bridgeProtocol =
   process.env.KCLOUD_SSH_BRIDGE_PROTOCOL ||
   (encodedSshKey
