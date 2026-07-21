@@ -102,11 +102,23 @@ case "$package_manager" in
     npm ci
     ;;
   pnpm)
-    corepack enable
+    pnpm_version="$(node -p '
+      (require("./package.json").packageManager || "pnpm@10")
+        .replace(/^pnpm@/, "").split("+")[0]
+    ')"
+    if ! command -v pnpm >/dev/null 2>&1 || [ "$(pnpm --version)" != "$pnpm_version" ]; then
+      npm install --global "pnpm@${pnpm_version}"
+    fi
     pnpm install --frozen-lockfile
     ;;
   yarn)
-    corepack enable
+    yarn_version="$(node -p '
+      (require("./package.json").packageManager || "yarn@1")
+        .replace(/^yarn@/, "").split("+")[0]
+    ')"
+    if ! command -v yarn >/dev/null 2>&1 || [ "$(yarn --version)" != "$yarn_version" ]; then
+      npm install --global "yarn@${yarn_version}"
+    fi
     yarn install --immutable
     ;;
   npm-nested)
