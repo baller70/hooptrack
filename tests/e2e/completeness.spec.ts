@@ -14,7 +14,7 @@ function captureRuntimeFailures(page: Page) {
 
 test('public surfaces load without runtime failures or dead legal links', async ({ page }) => {
   const failures = captureRuntimeFailures(page)
-  for (const path of ['/', '/login', '/register', '/privacy', '/terms', '/support']) {
+  for (const path of ['/', '/login', '/register', '/privacy', '/terms', '/support', '/film/index.html']) {
     const response = await page.goto(path)
     expect(response?.status(), path).toBeLessThan(400)
     await expect(page.locator('body'), path).not.toBeEmpty()
