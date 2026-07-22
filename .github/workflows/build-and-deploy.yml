@@ -107,8 +107,12 @@ jobs:
             set -uo pipefail
             APP=/opt/apps/hooptrack
             PM2_NAME=hooptrack
-            LIVE_PORT=3053
+            LIVE_PORT=3200
             STAGE_PORT=13053
+            # PM2 runs HoopTrack with the distro Node 22 binary. Keep native
+            # dependency rebuilds and staging on that same ABI even when a
+            # newer /usr/local Node installation is present on the host.
+            export PATH=/usr/bin:/bin
             cd "$APP"
 
             wait_port_free() { for _ in $(seq 1 20); do ss -ltn 2>/dev/null | grep -q ":$1 " || return 0; fuser -k "$1"/tcp 2>/dev/null || true; sleep 1; done; }
