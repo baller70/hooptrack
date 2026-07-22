@@ -58,7 +58,9 @@ final class HooptrackPlayerUITests: XCTestCase {
 
     func testPrimaryWorkflowAndAccessibilityAudit() throws {
         let app = launchRealScreen(scene: scenes[0].0, identifier: scenes[0].1)
-        let startCapture = app.buttons["Start Capture"].firstMatch
+        let startCapture = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label == %@", "Start Capture"))
+            .firstMatch
         XCTAssertTrue(startCapture.waitForExistence(timeout: 10))
         startCapture.tap()
         XCTAssertTrue(app.staticTexts["Capture"].firstMatch.waitForExistence(timeout: 10))
