@@ -61,4 +61,14 @@ final class HooptrackPlayerTests: XCTestCase {
         let error = APIError.server(status: 403, message: "Player access only")
         XCTAssertEqual(error.errorDescription, "Player access only")
     }
+
+    func testPlayerProductionTargetAndBundleIdentifierStayFixed() {
+        let expectedOrigin = "https://hooptrack.194-146-12-139.sslip.io"
+        let expectedBundleIdentifier = "com.kevinhouston.hooptrackplayer"
+        let appBundle = Bundle(identifier: expectedBundleIdentifier) ?? Bundle.main
+        let api = HoopTrackAPI()
+
+        XCTAssertEqual(appBundle.bundleIdentifier, expectedBundleIdentifier)
+        XCTAssertEqual(api.recordingVideoURL(id: 42).absoluteString, "\(expectedOrigin)/api/recordings/42/video")
+    }
 }

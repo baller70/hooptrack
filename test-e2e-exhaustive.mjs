@@ -3,6 +3,8 @@ import { chromium } from 'playwright'
 const BASE_URL = 'https://hooptrack.194-146-12-139.sslip.io'
 
 async function run() {
+  await assertLiveRootHealth()
+
   console.log('Launching browser for exhaustive E2E test...')
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext()
@@ -19,6 +21,8 @@ async function run() {
   })
 
   try {
+    await assertPublicAppShell(page)
+
     // 1. Register Trainer
     const trainerEmail = `trainer-e2e-${Date.now()}@example.com`
     console.log(`\n--- TRAINER E2E TEST ---`)
@@ -35,11 +39,12 @@ async function run() {
 
     await page.click('button[type="submit"]')
 
-    await page.waitForURL('**/dashboard/workouts', { timeout: 15000 })
+    await page.waitForURL('**/coach', { timeout: 15000 })
     console.log('✅ Trainer Registration Successful')
 
     // List of Trainer tabs
     const trainerTabs = [
+      '/coach',
       '/dashboard/workouts',
       '/dashboard/calendar',
       '/dashboard/progress',
@@ -85,10 +90,11 @@ async function run() {
     await page.selectOption('select[name="role"]', 'player')
     await page.click('button[type="submit"]')
 
-    await page.waitForURL('**/dashboard/workouts', { timeout: 15000 })
+    await page.waitForURL('**/player', { timeout: 15000 })
     console.log('✅ Player Registration Successful')
 
     const playerTabs = [
+      '/player',
       '/dashboard/workouts',
       '/dashboard/calendar',
       '/dashboard/progress',
@@ -134,3 +140,32 @@ run().catch(err => {
   console.error(err)
   process.exit(1)
 })
+
+async function assertLiveRootHealth() {
+  console.log('\n--- LIVE ROOT HEALTH CHECK ---')
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const response = await fetch(`${BASE_URL}/`)
+    const body = await response.text()
+    if (response.status !== 200) {
+      throw new Error(`Root health check ${attempt} returned HTTP ${response.status}`)
+    }
+    if (!body.includes('HoopTrack')) {
+      throw new Error(`Root health check ${attempt} did not include HoopTrack`)
+    }
+    if (body.includes('Application error')) {
+      throw new Error(`Root health check ${attempt} included Application error`)
+    }
+    console.log(`✅ Root health check ${attempt}: HTTP 200`)
+  }
+}
+
+async function assertPublicAppShell(page) {
+  console.log('\n--- PUBLIC APP SPLIT CHECK ---')
+  await page.goto(`${BASE_URL}/`)
+  await page.waitForLoadState('networkidle')
+  const playerHref = await page.getAttribute('a:has-text("Player App")', 'href')
+  const coachHref = await page.getAttribute('a:has-text("Coach App")', 'href')
+  if (playerHref !== '/player') throw new Error(`Expected Player App link to target /player, got ${playerHref}`)
+  if (coachHref !== '/coach') throw new Error(`Expected Coach App link to target /coach, got ${coachHref}`)
+  console.log('✅ Root app links target /player and /coach')
+}

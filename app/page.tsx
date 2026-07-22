@@ -1,13 +1,9 @@
 import Link from 'next/link'
 import { Dumbbell, Video, CalendarDays, GraduationCap } from 'lucide-react'
-import { redirect } from 'next/navigation'
-import { appHomeForRole } from '@/lib/app-routes'
-import { getSession } from '@/lib/session'
 
-export default async function HomePage() {
-  const session = await getSession()
-  if (session) redirect(appHomeForRole(session.role))
+export const dynamic = 'force-static'
 
+export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-50">
       <div className="text-center mb-8">

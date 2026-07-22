@@ -2,9 +2,7 @@ import Database from 'better-sqlite3'
 import path from 'path'
 import fs from 'fs'
 
-const DB_PATH = process.env.HOOPTRACK_DB
-  ? path.resolve(/* turbopackIgnore: true */ process.cwd(), process.env.HOOPTRACK_DB)
-  : path.join(/* turbopackIgnore: true */ process.cwd(), 'data', 'hooptrack.db')
+export const DB_PATH = resolveDbPath(process.env.HOOPTRACK_DB)
 
 declare global {
    
@@ -27,93 +25,94 @@ function getDb(): Database.Database {
   return global.__db
 }
 
+function resolveDbPath(configuredPath: string | undefined) {
+  if (configuredPath && configuredPath.trim()) {
+    return path.isAbsolute(configuredPath)
+      ? configuredPath
+      : path.resolve(/* turbopackIgnore: true */ process.cwd(), configuredPath)
+  }
+  return path.join(/* turbopackIgnore: true */ process.cwd(), 'data', 'hooptrack.db')
+}
+
 function runMigrations(db: Database.Database) {
   db.exec('BEGIN IMMEDIATE')
   try {
     db.exec(`CREATE TABLE IF NOT EXISTS _migrations (version INTEGER PRIMARY KEY)`)
     const current = (db.prepare('SELECT MAX(version) as v FROM _migrations').get() as { v: number | null })?.v ?? 0
 
-  if (current < 1) {
-    db.exec(SCHEMA_V1)
-    db.prepare('INSERT INTO _migrations VALUES (?)').run(1)
-  }
-  if (current < 2) {
-    db.exec(SCHEMA_V2)
-    db.prepare('INSERT INTO _migrations VALUES (?)').run(2)
-  }
-  if (current < 3) {
-    db.exec(SCHEMA_V3)
-    db.prepare('INSERT INTO _migrations VALUES (?)').run(3)
-  }
-  if (current < 4) {
-    db.exec(SCHEMA_V4)
-    db.prepare('INSERT INTO _migrations VALUES (?)').run(4)
-  }
-  if (current < 5) {
-    db.exec(SCHEMA_V5)
-    db.prepare('INSERT INTO _migrations VALUES (?)').run(5)
-  }
-  if (current < 6) {
-    db.exec(SCHEMA_V6)
-    db.prepare('INSERT INTO _migrations VALUES (?)').run(6)
-  }
-  if (current < 7) {
-    db.exec(SCHEMA_V7)
-    db.prepare('INSERT INTO _migrations VALUES (?)').run(7)
-  }
-  if (current < 8) {
-    db.exec(SCHEMA_V8)
-    db.prepare('INSERT INTO _migrations VALUES (?)').run(8)
-  }
-  if (current < 9) {
-    db.exec(SCHEMA_V9)
-    db.prepare('INSERT INTO _migrations VALUES (?)').run(9)
-  }
-  if (current < 10) {
-    db.exec(SCHEMA_V10)
-    db.prepare('INSERT INTO _migrations VALUES (?)').run(10)
-  }
-  if (current < 11) {
-    db.exec(SCHEMA_V11)
-    db.prepare('INSERT INTO _migrations VALUES (?)').run(11)
-  }
-  if (current < 12) {
-    db.exec(SCHEMA_V12)
-    db.prepare('INSERT INTO _migrations VALUES (?)').run(12)
-  }
-  if (current < 13) {
-    // Safely add ai_model column if it doesn't exist (may already be in V1 schema)
-    const cols13 = db.prepare("PRAGMA table_info(users)").all() as { name: string }[]
-    if (!cols13.some(c => c.name === 'ai_model')) {
-      db.exec(`ALTER TABLE users ADD COLUMN ai_model TEXT DEFAULT 'Codex CLI'`)
+    if (current < 1) {
+      db.exec(SCHEMA_V1)
+      db.prepare('INSERT INTO _migrations VALUES (?)').run(1)
     }
-    db.prepare('INSERT INTO _migrations VALUES (?)').run(13)
-  }
-  if (current < 14) {
-    // Safely add ai_credentials column if it doesn't exist
-    const cols14 = db.prepare("PRAGMA table_info(users)").all() as { name: string }[]
-    if (!cols14.some(c => c.name === 'ai_credentials')) {
-      db.exec(`ALTER TABLE users ADD COLUMN ai_credentials TEXT`)
+    if (current < 2) {
+      migrateV2(db)
+      recordMigration(db, 2)
     }
-    db.prepare('INSERT INTO _migrations VALUES (?)').run(14)
-  }
-  if (current < 15) {
-    safeAddColumn(db, 'schedule', 'start_time', 'TEXT')
-    safeAddColumn(db, 'schedule', 'end_time', 'TEXT')
-    db.prepare('INSERT OR IGNORE INTO _migrations VALUES (?)').run(15)
-  }
-  if (current < 16) {
-    db.exec(SCHEMA_V16)
-    db.prepare('INSERT OR IGNORE INTO _migrations VALUES (?)').run(16)
-  }
-  if (current < 17) {
-    db.exec(SCHEMA_V17)
-    db.prepare('INSERT OR IGNORE INTO _migrations VALUES (?)').run(17)
-  }
-  if (current < 18) {
-    db.exec(SCHEMA_V18)
-    db.prepare('INSERT OR IGNORE INTO _migrations VALUES (?)').run(18)
-  }
+    if (current < 3) {
+      migrateV3(db)
+      recordMigration(db, 3)
+    }
+    if (current < 4) {
+      migrateV4(db)
+      recordMigration(db, 4)
+    }
+    if (current < 5) {
+      migrateV5(db)
+      recordMigration(db, 5)
+    }
+    if (current < 6) {
+      db.exec(SCHEMA_V6)
+      db.prepare('INSERT INTO _migrations VALUES (?)').run(6)
+    }
+    if (current < 7) {
+      db.exec(SCHEMA_V7)
+      db.prepare('INSERT INTO _migrations VALUES (?)').run(7)
+    }
+    if (current < 8) {
+      db.exec(SCHEMA_V8)
+      db.prepare('INSERT INTO _migrations VALUES (?)').run(8)
+    }
+    if (current < 9) {
+      migrateV9(db)
+      recordMigration(db, 9)
+    }
+    if (current < 10) {
+      migrateV10(db)
+      recordMigration(db, 10)
+    }
+    if (current < 11) {
+      migrateV11(db)
+      recordMigration(db, 11)
+    }
+    if (current < 12) {
+      migrateV12(db)
+      recordMigration(db, 12)
+    }
+    if (current < 13) {
+      safeAddColumn(db, 'users', 'ai_model', "TEXT DEFAULT 'Codex CLI'")
+      recordMigration(db, 13)
+    }
+    if (current < 14) {
+      safeAddColumn(db, 'users', 'ai_credentials', 'TEXT')
+      recordMigration(db, 14)
+    }
+    if (current < 15) {
+      safeAddColumn(db, 'schedule', 'start_time', 'TEXT')
+      safeAddColumn(db, 'schedule', 'end_time', 'TEXT')
+      recordMigration(db, 15)
+    }
+    if (current < 16) {
+      db.exec(SCHEMA_V16)
+      recordMigration(db, 16)
+    }
+    if (current < 17) {
+      db.exec(SCHEMA_V17)
+      recordMigration(db, 17)
+    }
+    if (current < 18) {
+      db.exec(SCHEMA_V18)
+      recordMigration(db, 18)
+    }
     db.exec('COMMIT')
   } catch (error) {
     if (db.inTransaction) db.exec('ROLLBACK')
@@ -122,24 +121,91 @@ function runMigrations(db: Database.Database) {
 }
 
 function safeAddColumn(db: Database.Database, table: string, column: string, definition: string) {
-  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]
+  const tableName = quoteIdentifier(table)
+  const columnName = quoteIdentifier(column)
+  const cols = db.prepare(`PRAGMA table_info(${tableName})`).all() as { name: string }[]
   if (cols.some(c => c.name === column)) return
   try {
-    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`)
+    db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`)
   } catch (err) {
     const message = err instanceof Error ? err.message : ''
     if (!message.includes('duplicate column name')) throw err
   }
 }
 
-const SCHEMA_V12 = `
-ALTER TABLE messages ADD COLUMN attachment_type TEXT;
-ALTER TABLE messages ADD COLUMN attachment_path TEXT;
-ALTER TABLE messages ADD COLUMN attachment_mime TEXT;
-ALTER TABLE messages ADD COLUMN attachment_size_bytes INTEGER;
-ALTER TABLE messages ADD COLUMN attachment_duration_seconds INTEGER;
-ALTER TABLE messages ADD COLUMN attachment_filename TEXT;
-`
+function quoteIdentifier(identifier: string) {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(identifier)) {
+    throw new Error(`Invalid SQLite identifier: ${identifier}`)
+  }
+  return `"${identifier}"`
+}
+
+function recordMigration(db: Database.Database, version: number) {
+  db.prepare('INSERT OR IGNORE INTO _migrations VALUES (?)').run(version)
+}
+
+function migrateV2(db: Database.Database) {
+  safeAddColumn(db, 'player_moves', 'clip_start', 'INTEGER')
+  safeAddColumn(db, 'player_moves', 'clip_end', 'INTEGER')
+  safeAddColumn(db, 'player_moves', 'video_type', "TEXT NOT NULL DEFAULT 'youtube'")
+  safeAddColumn(db, 'player_moves', 'video_path', 'TEXT')
+}
+
+function migrateV3(db: Database.Database) {
+  safeAddColumn(db, 'schedule', 'item_type', "TEXT NOT NULL DEFAULT 'workout'")
+  safeAddColumn(db, 'schedule', 'item_id', 'INTEGER')
+  safeAddColumn(db, 'schedule', 'title', 'TEXT')
+  safeAddColumn(db, 'schedule', 'notes', 'TEXT')
+}
+
+function migrateV4(db: Database.Database) {
+  safeAddColumn(db, 'drills', 'timer_mode', "TEXT NOT NULL DEFAULT 'timed'")
+  safeAddColumn(db, 'drills', 'target_reps', 'INTEGER')
+  safeAddColumn(db, 'drills', 'rest_seconds', 'INTEGER NOT NULL DEFAULT 0')
+  safeAddColumn(db, 'workouts', 'timer_mode', 'TEXT')
+  safeAddColumn(db, 'workouts', 'duration_seconds', 'INTEGER')
+  safeAddColumn(db, 'player_moves', 'timer_mode', "TEXT NOT NULL DEFAULT 'stopwatch'")
+  safeAddColumn(db, 'player_moves', 'duration_seconds', 'INTEGER')
+  safeAddColumn(db, 'player_moves', 'target_reps', 'INTEGER')
+  safeAddColumn(db, 'quizzes', 'timer_mode', "TEXT NOT NULL DEFAULT 'stopwatch'")
+  safeAddColumn(db, 'quizzes', 'duration_seconds', 'INTEGER')
+  safeAddColumn(db, 'quizzes', 'position', 'TEXT')
+  safeAddColumn(db, 'quizzes', 'game_situation', 'TEXT')
+  safeAddColumn(db, 'recordings', 'rep_count', 'INTEGER')
+}
+
+function migrateV5(db: Database.Database) {
+  safeAddColumn(db, 'player_moves', 'default_playback_rate', 'REAL NOT NULL DEFAULT 1.0')
+}
+
+function migrateV9(db: Database.Database) {
+  safeAddColumn(db, 'recordings', 'video_path', 'TEXT')
+  safeAddColumn(db, 'recordings', 'video_size_bytes', 'INTEGER')
+  safeAddColumn(db, 'recordings', 'video_mime', 'TEXT')
+}
+
+function migrateV10(db: Database.Database) {
+  safeAddColumn(db, 'recordings', 'clip_start', 'INTEGER')
+  safeAddColumn(db, 'recordings', 'clip_end', 'INTEGER')
+}
+
+function migrateV11(db: Database.Database) {
+  safeAddColumn(db, 'recordings', 'title', 'TEXT')
+  safeAddColumn(db, 'recordings', 'parent_recording_id', 'INTEGER REFERENCES recordings(id)')
+  db.exec(`
+CREATE INDEX IF NOT EXISTS idx_recordings_parent ON recordings(parent_recording_id);
+CREATE INDEX IF NOT EXISTS idx_recordings_video_path ON recordings(video_path);
+`)
+}
+
+function migrateV12(db: Database.Database) {
+  safeAddColumn(db, 'messages', 'attachment_type', 'TEXT')
+  safeAddColumn(db, 'messages', 'attachment_path', 'TEXT')
+  safeAddColumn(db, 'messages', 'attachment_mime', 'TEXT')
+  safeAddColumn(db, 'messages', 'attachment_size_bytes', 'INTEGER')
+  safeAddColumn(db, 'messages', 'attachment_duration_seconds', 'INTEGER')
+  safeAddColumn(db, 'messages', 'attachment_filename', 'TEXT')
+}
 
 const SCHEMA_V18 = `
 CREATE TABLE IF NOT EXISTS apns_device_tokens (
@@ -223,24 +289,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_content_reports_once
   WHERE message_id IS NOT NULL;
 `
 
-const SCHEMA_V11 = `
-ALTER TABLE recordings ADD COLUMN title TEXT;
-ALTER TABLE recordings ADD COLUMN parent_recording_id INTEGER REFERENCES recordings(id);
-CREATE INDEX IF NOT EXISTS idx_recordings_parent ON recordings(parent_recording_id);
-CREATE INDEX IF NOT EXISTS idx_recordings_video_path ON recordings(video_path);
-`
-
-const SCHEMA_V10 = `
-ALTER TABLE recordings ADD COLUMN clip_start INTEGER;
-ALTER TABLE recordings ADD COLUMN clip_end INTEGER;
-`
-
-const SCHEMA_V9 = `
-ALTER TABLE recordings ADD COLUMN video_path TEXT;
-ALTER TABLE recordings ADD COLUMN video_size_bytes INTEGER;
-ALTER TABLE recordings ADD COLUMN video_mime TEXT;
-`
-
 const SCHEMA_V8 = `
 DROP TABLE IF EXISTS messages_new;
 CREATE TABLE messages_new (
@@ -310,40 +358,6 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id);
-`
-
-const SCHEMA_V5 = `
-ALTER TABLE player_moves ADD COLUMN default_playback_rate REAL NOT NULL DEFAULT 1.0;
-`
-
-const SCHEMA_V4 = `
-ALTER TABLE drills ADD COLUMN timer_mode TEXT NOT NULL DEFAULT 'timed';
-ALTER TABLE drills ADD COLUMN target_reps INTEGER;
-ALTER TABLE drills ADD COLUMN rest_seconds INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE workouts ADD COLUMN timer_mode TEXT;
-ALTER TABLE workouts ADD COLUMN duration_seconds INTEGER;
-ALTER TABLE player_moves ADD COLUMN timer_mode TEXT NOT NULL DEFAULT 'stopwatch';
-ALTER TABLE player_moves ADD COLUMN duration_seconds INTEGER;
-ALTER TABLE player_moves ADD COLUMN target_reps INTEGER;
-ALTER TABLE quizzes ADD COLUMN timer_mode TEXT NOT NULL DEFAULT 'stopwatch';
-ALTER TABLE quizzes ADD COLUMN duration_seconds INTEGER;
-ALTER TABLE quizzes ADD COLUMN position TEXT;
-ALTER TABLE quizzes ADD COLUMN game_situation TEXT;
-ALTER TABLE recordings ADD COLUMN rep_count INTEGER;
-`
-
-const SCHEMA_V3 = `
-ALTER TABLE schedule ADD COLUMN item_type TEXT NOT NULL DEFAULT 'workout';
-ALTER TABLE schedule ADD COLUMN item_id INTEGER;
-ALTER TABLE schedule ADD COLUMN title TEXT;
-ALTER TABLE schedule ADD COLUMN notes TEXT;
-`
-
-const SCHEMA_V2 = `
-ALTER TABLE player_moves ADD COLUMN clip_start INTEGER;
-ALTER TABLE player_moves ADD COLUMN clip_end INTEGER;
-ALTER TABLE player_moves ADD COLUMN video_type TEXT NOT NULL DEFAULT 'youtube';
-ALTER TABLE player_moves ADD COLUMN video_path TEXT;
 `
 
 const SCHEMA_V1 = `
