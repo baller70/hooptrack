@@ -24,7 +24,7 @@ struct TrainingView: View {
                     .pickerStyle(.segmented)
 
                     if segment == 0 {
-                        WorkoutList()
+                        WorkoutList(segment: $segment)
                     } else if segment == 1 {
                         MoveList()
                     } else {
@@ -42,6 +42,7 @@ struct TrainingView: View {
 
 private struct WorkoutList: View {
     @EnvironmentObject private var appState: AppState
+    @Binding var segment: Int
 
     var body: some View {
         ForEach(appState.dashboard.workouts) { workout in
@@ -54,7 +55,9 @@ private struct WorkoutList: View {
                     HStack {
                         Label("\(workout.drillCount ?? 0)", systemImage: "list.bullet")
                         Spacer()
-                        Button("training.complete") {}
+                        Button("training.viewPlan") {
+                            segment = 2
+                        }
                             .buttonStyle(.borderedProminent)
                             .tint(HT.teal)
                     }

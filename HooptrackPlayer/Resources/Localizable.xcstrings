@@ -73,6 +73,7 @@
     "training.moves" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Moves" } }, "fr-CA" : { "stringUnit" : { "state" : "translated", "value" : "Mouvements" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "动作" } } } },
     "training.noWorkoutNotes" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Open the workout to review drills and targets." } }, "fr-CA" : { "stringUnit" : { "state" : "translated", "value" : "Ouvre l'entrainement pour voir les exercices et objectifs." } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "打开训练以查看练习和目标。" } } } },
     "training.plan" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Plan" } }, "fr-CA" : { "stringUnit" : { "state" : "translated", "value" : "Plan" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "计划" } } } },
+    "training.viewPlan" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "View plan" } }, "fr-CA" : { "stringUnit" : { "state" : "translated", "value" : "Voir le plan" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "查看计划" } } } },
     "training.workouts" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Workouts" } }, "fr-CA" : { "stringUnit" : { "state" : "translated", "value" : "Entrainements" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "训练课" } } } }
   },
   "version" : "1.0"
