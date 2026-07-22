@@ -5,8 +5,6 @@ import { join } from 'path'
 import { db } from './db'
 
 const DEFAULT_AI_MODEL = 'Codex CLI'
-const DEFAULT_LOCAL_MODEL_URL = 'http://localhost:11434/v1/chat/completions'
-const LOCAL_MODEL_DEV_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]'])
 
 function normalizeAiModel(model: string | null | undefined): string {
   if (!model || model === 'Claude Code CLI') return DEFAULT_AI_MODEL
@@ -155,29 +153,6 @@ async function openaiCompatibleChat(url: string, key: string, modelName: string,
   return data.choices[0].message.content
 }
 
-export function resolveLocalModelBaseUrl(configuredUrl: string | undefined): string {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('Local Model is disabled in production')
-  }
-
-  const rawUrl = configuredUrl?.trim() || DEFAULT_LOCAL_MODEL_URL
-  let parsed: URL
-  try {
-    parsed = new URL(rawUrl)
-  } catch {
-    throw new Error('Local Model base URL must be a valid URL')
-  }
-
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    throw new Error('Local Model base URL must use http or https')
-  }
-  if (!LOCAL_MODEL_DEV_HOSTS.has(parsed.hostname)) {
-    throw new Error('Local Model base URL must target an approved local development host')
-  }
-
-  return parsed.toString()
-}
-
 async function executeAiChat(prompt: string): Promise<string> {
   const { model, creds } = getAiConfig()
 
@@ -201,7 +176,7 @@ async function executeAiChat(prompt: string): Promise<string> {
       return await openaiCompatibleChat('https://api.minimax.chat/v1/text/chatcompletion_v2', creds.minimax_api_key || '', 'abab6.5-chat', prompt)
     }
     if (model === 'Local Model') {
-      return await openaiCompatibleChat(resolveLocalModelBaseUrl(creds.local_base_url), 'dummy', creds.local_model || 'llama3', prompt)
+      return await openaiCompatibleChat(creds.local_base_url || 'http://localhost:11434/v1/chat/completions', 'dummy', creds.local_model || 'llama3', prompt)
     }
     if (model === 'Claude Code (API)') { // Anthropic REST API
       const res = await fetch('https://api.anthropic.com/v1/messages', {

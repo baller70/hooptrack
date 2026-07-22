@@ -61,16 +61,16 @@ function runMigrations(db: Database.Database) {
       recordMigration(db, 5)
     }
     if (current < 6) {
-      db.exec(SCHEMA_V6)
-      db.prepare('INSERT INTO _migrations VALUES (?)').run(6)
+      migrateV6(db)
+      recordMigration(db, 6)
     }
     if (current < 7) {
       db.exec(SCHEMA_V7)
-      db.prepare('INSERT INTO _migrations VALUES (?)').run(7)
+      recordMigration(db, 7)
     }
     if (current < 8) {
-      db.exec(SCHEMA_V8)
-      db.prepare('INSERT INTO _migrations VALUES (?)').run(8)
+      migrateV8(db)
+      recordMigration(db, 8)
     }
     if (current < 9) {
       migrateV9(db)
@@ -123,7 +123,7 @@ function runMigrations(db: Database.Database) {
 function safeAddColumn(db: Database.Database, table: string, column: string, definition: string) {
   const tableName = quoteIdentifier(table)
   const columnName = quoteIdentifier(column)
-  const cols = db.prepare(`PRAGMA table_info(${tableName})`).all() as { name: string }[]
+  const cols = tableColumns(db, table)
   if (cols.some(c => c.name === column)) return
   try {
     db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`)
@@ -138,6 +138,23 @@ function quoteIdentifier(identifier: string) {
     throw new Error(`Invalid SQLite identifier: ${identifier}`)
   }
   return `"${identifier}"`
+}
+
+type TableColumn = { name: string; notnull: number }
+
+function tableExists(db: Database.Database, table: string) {
+  const row = db.prepare(
+    "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?"
+  ).get(table)
+  return !!row
+}
+
+function tableColumns(db: Database.Database, table: string): TableColumn[] {
+  return db.prepare(`PRAGMA table_info(${quoteIdentifier(table)})`).all() as TableColumn[]
+}
+
+function columnExpression(columns: TableColumn[], column: string, fallbackSql: string) {
+  return columns.some(c => c.name === column) ? quoteIdentifier(column) : fallbackSql
 }
 
 function recordMigration(db: Database.Database, version: number) {
@@ -176,6 +193,130 @@ function migrateV4(db: Database.Database) {
 
 function migrateV5(db: Database.Database) {
   safeAddColumn(db, 'player_moves', 'default_playback_rate', 'REAL NOT NULL DEFAULT 1.0')
+}
+
+function migrateV6(db: Database.Database) {
+  if (tableExists(db, 'notifications')) {
+    const columns = tableColumns(db, 'notifications')
+    db.exec(`
+DROP TABLE IF EXISTS notifications_new;
+CREATE TABLE notifications_new (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id INTEGER NOT NULL REFERENCES users(id),
+  message TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'system',
+  scheduled_for TEXT NOT NULL,
+  sent INTEGER NOT NULL DEFAULT 0,
+  read_at TEXT,
+  link_url TEXT,
+  actor_id INTEGER REFERENCES users(id),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+INSERT INTO notifications_new (id, player_id, message, type, scheduled_for, sent, read_at, link_url, actor_id, created_at)
+  SELECT
+    ${columnExpression(columns, 'id', 'NULL')},
+    ${columnExpression(columns, 'player_id', '0')},
+    ${columnExpression(columns, 'message', "''")},
+    ${columnExpression(columns, 'type', "'system'")},
+    ${columnExpression(columns, 'scheduled_for', "datetime('now')")},
+    ${columnExpression(columns, 'sent', '0')},
+    ${columnExpression(columns, 'read_at', 'NULL')},
+    ${columnExpression(columns, 'link_url', 'NULL')},
+    ${columnExpression(columns, 'actor_id', 'NULL')},
+    ${columnExpression(columns, 'created_at', columnExpression(columns, 'scheduled_for', "datetime('now')"))}
+  FROM notifications;
+DROP TABLE notifications;
+ALTER TABLE notifications_new RENAME TO notifications;
+`)
+  } else {
+    db.exec(`
+CREATE TABLE notifications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id INTEGER NOT NULL REFERENCES users(id),
+  message TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'system',
+  scheduled_for TEXT NOT NULL,
+  sent INTEGER NOT NULL DEFAULT 0,
+  read_at TEXT,
+  link_url TEXT,
+  actor_id INTEGER REFERENCES users(id),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+`)
+  }
+
+  db.exec(`
+CREATE INDEX IF NOT EXISTS idx_notifications_player_unread ON notifications(player_id, read_at);
+CREATE INDEX IF NOT EXISTS idx_notifications_player_created ON notifications(player_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  user_agent TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id);
+`)
+}
+
+function migrateV8(db: Database.Database) {
+  if (!tableExists(db, 'messages')) {
+    db.exec(`
+CREATE TABLE messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  recipient_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  body TEXT NOT NULL,
+  context_type TEXT,
+  context_id INTEGER,
+  context_title TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  read_at TEXT
+);
+`)
+  } else {
+    const columns = tableColumns(db, 'messages')
+    const recipientColumn = columns.find(c => c.name === 'recipient_id')
+    if (recipientColumn?.notnull) {
+      db.exec(`
+DROP TABLE IF EXISTS messages_new;
+CREATE TABLE messages_new (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  recipient_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  body TEXT NOT NULL,
+  context_type TEXT,
+  context_id INTEGER,
+  context_title TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  read_at TEXT
+);
+INSERT INTO messages_new (id, sender_id, recipient_id, body, context_type, context_id, context_title, created_at, read_at)
+  SELECT
+    ${columnExpression(columns, 'id', 'NULL')},
+    ${columnExpression(columns, 'sender_id', '0')},
+    ${columnExpression(columns, 'recipient_id', 'NULL')},
+    ${columnExpression(columns, 'body', "''")},
+    ${columnExpression(columns, 'context_type', 'NULL')},
+    ${columnExpression(columns, 'context_id', 'NULL')},
+    ${columnExpression(columns, 'context_title', 'NULL')},
+    ${columnExpression(columns, 'created_at', "datetime('now')")},
+    ${columnExpression(columns, 'read_at', 'NULL')}
+  FROM messages;
+DROP TABLE messages;
+ALTER TABLE messages_new RENAME TO messages;
+`)
+    }
+  }
+
+  db.exec(`
+CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(context_type, context_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_messages_dm ON messages(sender_id, recipient_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_messages_recipient_unread ON messages(recipient_id, read_at);
+`)
 }
 
 function migrateV9(db: Database.Database) {
@@ -289,28 +430,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_content_reports_once
   WHERE message_id IS NOT NULL;
 `
 
-const SCHEMA_V8 = `
-DROP TABLE IF EXISTS messages_new;
-CREATE TABLE messages_new (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  recipient_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-  body TEXT NOT NULL,
-  context_type TEXT,
-  context_id INTEGER,
-  context_title TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  read_at TEXT
-);
-INSERT INTO messages_new (id, sender_id, recipient_id, body, context_type, context_id, context_title, created_at, read_at)
-  SELECT id, sender_id, recipient_id, body, context_type, context_id, context_title, created_at, read_at FROM messages;
-DROP TABLE messages;
-ALTER TABLE messages_new RENAME TO messages;
-CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(context_type, context_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_messages_dm ON messages(sender_id, recipient_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_messages_recipient_unread ON messages(recipient_id, read_at);
-`
-
 const SCHEMA_V7 = `
 CREATE TABLE IF NOT EXISTS messages (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -325,39 +444,6 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(sender_id, recipient_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_messages_recipient_unread ON messages(recipient_id, read_at);
-`
-
-const SCHEMA_V6 = `
-DROP TABLE IF EXISTS notifications_new;
-CREATE TABLE notifications_new (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  player_id INTEGER NOT NULL REFERENCES users(id),
-  message TEXT NOT NULL,
-  type TEXT NOT NULL DEFAULT 'system',
-  scheduled_for TEXT NOT NULL,
-  sent INTEGER NOT NULL DEFAULT 0,
-  read_at TEXT,
-  link_url TEXT,
-  actor_id INTEGER REFERENCES users(id),
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-INSERT INTO notifications_new (id, player_id, message, type, scheduled_for, sent, created_at)
-  SELECT id, player_id, message, type, scheduled_for, sent, scheduled_for FROM notifications;
-DROP TABLE notifications;
-ALTER TABLE notifications_new RENAME TO notifications;
-CREATE INDEX IF NOT EXISTS idx_notifications_player_unread ON notifications(player_id, read_at);
-CREATE INDEX IF NOT EXISTS idx_notifications_player_created ON notifications(player_id, created_at DESC);
-
-CREATE TABLE IF NOT EXISTS push_subscriptions (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  endpoint TEXT NOT NULL UNIQUE,
-  p256dh TEXT NOT NULL,
-  auth TEXT NOT NULL,
-  user_agent TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id);
 `
 
 const SCHEMA_V1 = `
