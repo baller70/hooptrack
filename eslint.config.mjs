@@ -12,6 +12,7 @@ const eslintConfig = defineConfig([
     ".next.prev/**",
     ".next.staging/**",
     ".next.tmp/**",
+    ".next.*/**",
     "out/**",
     "build/**",
     "coverage/**",
