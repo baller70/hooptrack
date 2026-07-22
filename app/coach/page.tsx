@@ -4,11 +4,11 @@ import { Activity, CalendarDays, ClipboardList, Clock, Dumbbell, Trophy, Upload,
 import type { LucideIcon } from 'lucide-react'
 import { AppActionButton } from '@/components/app-action-button'
 import { getSession } from '@/lib/session'
-import { db } from '@/lib/db'
+import type { db as DatabaseConnection } from '@/lib/db'
 
 type CountRow = { count: number }
 
-function count(sql: string, ...params: Array<string | number>) {
+function count(db: typeof DatabaseConnection, sql: string, ...params: Array<string | number>) {
   return (db.prepare(sql).get(...params) as CountRow | undefined)?.count ?? 0
 }
 
@@ -17,11 +17,13 @@ export default async function CoachHomePage() {
   if (!session) redirect('/login')
   if ((session.actual_role || session.role) !== 'trainer') redirect('/player')
 
-  const players = count("SELECT COUNT(*) as count FROM users WHERE role = 'player'")
-  const groups = count('SELECT COUNT(*) as count FROM coach_groups WHERE coach_id = ? AND archived_at IS NULL', session.actual_id || session.id)
-  const overdue = count("SELECT COUNT(*) as count FROM schedule WHERE completed = 0 AND scheduled_date < date('now')")
-  const upcoming = count("SELECT COUNT(*) as count FROM schedule WHERE completed = 0 AND scheduled_date >= date('now')")
+  const { db } = await import('@/lib/db')
+  const players = count(db, "SELECT COUNT(*) as count FROM users WHERE role = 'player'")
+  const groups = count(db, 'SELECT COUNT(*) as count FROM coach_groups WHERE coach_id = ? AND archived_at IS NULL', session.actual_id || session.id)
+  const overdue = count(db, "SELECT COUNT(*) as count FROM schedule WHERE completed = 0 AND scheduled_date < date('now')")
+  const upcoming = count(db, "SELECT COUNT(*) as count FROM schedule WHERE completed = 0 AND scheduled_date >= date('now')")
   const recentVideo = count(
+    db,
     "SELECT COUNT(*) as count FROM recordings WHERE parent_recording_id IS NULL AND recorded_at >= datetime('now', '-7 days')",
   )
 

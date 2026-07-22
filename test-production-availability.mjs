@@ -8,6 +8,11 @@ import Database from 'better-sqlite3'
 const DEFAULT_BASE_URL = 'https://hooptrack.194-146-12-139.sslip.io'
 const CHECK_COUNT = 5
 const REQUEST_TIMEOUT_MS = 10_000
+const ROUTES = [
+  { path: '/', attempts: CHECK_COUNT },
+  { path: '/coach', attempts: CHECK_COUNT },
+  { path: '/api/health', attempts: CHECK_COUNT, expectJsonOk: true },
+]
 
 function normalizeBaseUrl(value) {
   return value.endsWith('/') ? value.slice(0, -1) : value
@@ -20,6 +25,12 @@ function hasNextApplicationError(body) {
     'An error occurred in the Server Components render',
     'Internal Server Error',
   ].some((message) => body.includes(message))
+}
+
+function formatError(error) {
+  if (!(error instanceof Error)) return String(error)
+  const cause = error.cause instanceof Error ? `: ${error.cause.message}` : ''
+  return `${error.message}${cause}`
 }
 
 async function getBody(response) {
@@ -46,12 +57,26 @@ async function fetchWithTimeout(url) {
   }
 }
 
-async function assertProductionHomeAvailability(baseUrl) {
-  const url = `${normalizeBaseUrl(baseUrl)}/`
+async function assertProductionRouteAvailability(baseUrl, route) {
+  const base = normalizeBaseUrl(baseUrl)
+  const url = `${base}${route.path}`
+  const checks = []
 
-  for (let attempt = 1; attempt <= CHECK_COUNT; attempt += 1) {
-    const response = await fetchWithTimeout(url)
+  for (let attempt = 1; attempt <= route.attempts; attempt += 1) {
+    let response
+    try {
+      response = await fetchWithTimeout(url)
+    } catch (error) {
+      assert.fail(`attempt ${attempt}: ${url} request failed: ${formatError(error)}`)
+    }
     const body = await getBody(response)
+    const record = {
+      path: route.path,
+      attempt,
+      status: response.status,
+      finalUrl: response.url,
+      passed: response.status >= 200 && response.status < 400 && !hasNextApplicationError(body),
+    }
 
     assert.notEqual(response.status, 500, `attempt ${attempt}: ${url} returned HTTP 500`)
     assert.ok(
@@ -63,6 +88,26 @@ async function assertProductionHomeAvailability(baseUrl) {
       false,
       `attempt ${attempt}: ${url} body contained a Next.js application error`
     )
+    if (route.expectJsonOk) {
+      let payload
+      try {
+        payload = JSON.parse(body)
+      } catch (error) {
+        assert.fail(`attempt ${attempt}: ${url} did not return JSON: ${error.message}`)
+      }
+      assert.equal(payload.ok, true, `attempt ${attempt}: ${url} did not report ok=true`)
+      record.ok = payload.ok
+      record.service = payload.service
+    }
+
+    checks.push(record)
+  }
+
+  return {
+    path: route.path,
+    configured: true,
+    passed: true,
+    attempts: checks,
   }
 }
 
@@ -163,13 +208,25 @@ async function assertPartiallyMigratedDbImports() {
 
 export async function run() {
   const baseUrl = process.env.HOOPTRACK_AVAILABILITY_BASE_URL || DEFAULT_BASE_URL
+  const endpoints = []
 
   await assertPartiallyMigratedDbImports()
-  await assertProductionHomeAvailability(baseUrl)
+  for (const route of ROUTES) {
+    endpoints.push(await assertProductionRouteAvailability(baseUrl, route))
+  }
+
+  return {
+    configured: true,
+    passed: true,
+    baseUrl: normalizeBaseUrl(baseUrl),
+    endpoints,
+  }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  run().catch((error) => {
+  run().then((result) => {
+    console.log(JSON.stringify(result, null, 2))
+  }).catch((error) => {
     console.error(error)
     process.exitCode = 1
   })
