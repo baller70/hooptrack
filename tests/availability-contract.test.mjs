@@ -45,7 +45,7 @@ test('availability runner checks home, coach, and health endpoints repeatedly', 
   }
 
   try {
-    const result = await runAvailabilityChecks()
+    const result = await runAvailabilityChecks({ checkFixture: false })
 
     assert.equal(result.configured, true)
     assert.equal(result.passed, true)
@@ -55,6 +55,70 @@ test('availability runner checks home, coach, and health endpoints repeatedly', 
     assert.equal(requestCounts.get('/api/health'), 5)
     assert.ok(result.endpoints.every((endpoint) => endpoint.configured && endpoint.passed))
     assert.ok(result.endpoints.every((endpoint) => endpoint.attempts.length === 5))
+    assert.equal(result.fixture.skipped, true)
+  } finally {
+    if (previousBaseUrl === undefined) {
+      delete process.env.HOOPTRACK_AVAILABILITY_BASE_URL
+    } else {
+      process.env.HOOPTRACK_AVAILABILITY_BASE_URL = previousBaseUrl
+    }
+    globalThis.fetch = previousFetch
+  }
+})
+
+test('availability runner fixture preserves users while completing migrations', async () => {
+  const previousBaseUrl = process.env.HOOPTRACK_AVAILABILITY_BASE_URL
+  const previousFetch = globalThis.fetch
+  process.env.HOOPTRACK_AVAILABILITY_BASE_URL = 'https://availability.test'
+  globalThis.fetch = async (url) => {
+    const parsedUrl = new URL(url)
+    if (parsedUrl.pathname === '/api/health') {
+      return new Response(JSON.stringify({ ok: true, service: 'hooptrack' }), { status: 200 })
+    }
+    return new Response('<main>HoopTrack</main>', { status: 200 })
+  }
+
+  try {
+    const result = await runAvailabilityChecks()
+
+    assert.equal(result.fixture.configured, true)
+    assert.equal(result.fixture.passed, true)
+    assert.equal(result.fixture.usersBefore, 1)
+    assert.equal(result.fixture.usersAfter, 1)
+    assert.ok(result.fixture.migrationVersion >= 18)
+  } finally {
+    if (previousBaseUrl === undefined) {
+      delete process.env.HOOPTRACK_AVAILABILITY_BASE_URL
+    } else {
+      process.env.HOOPTRACK_AVAILABILITY_BASE_URL = previousBaseUrl
+    }
+    globalThis.fetch = previousFetch
+  }
+})
+
+test('availability runner reports fixture evidence when live endpoints fail', async () => {
+  const previousBaseUrl = process.env.HOOPTRACK_AVAILABILITY_BASE_URL
+  const previousFetch = globalThis.fetch
+  process.env.HOOPTRACK_AVAILABILITY_BASE_URL = 'https://availability.test'
+  globalThis.fetch = async () => {
+    throw new Error('network blocked')
+  }
+
+  try {
+    await assert.rejects(
+      runAvailabilityChecks(),
+      (error) => {
+        assert.equal(error.name, 'AvailabilityCheckError')
+        assert.equal(error.result.configured, true)
+        assert.equal(error.result.passed, false)
+        assert.equal(error.result.fixture.passed, true)
+        assert.equal(error.result.fixture.usersBefore, 1)
+        assert.equal(error.result.fixture.usersAfter, 1)
+        assert.equal(error.result.endpoints.length, 3)
+        assert.ok(error.result.endpoints.every((endpoint) => endpoint.configured && !endpoint.passed))
+        return true
+      }
+    )
   } finally {
     if (previousBaseUrl === undefined) {
       delete process.env.HOOPTRACK_AVAILABILITY_BASE_URL

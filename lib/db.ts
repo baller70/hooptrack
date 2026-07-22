@@ -2,9 +2,13 @@ import Database from 'better-sqlite3'
 import path from 'path'
 import fs from 'fs'
 
-const DB_PATH = process.env.HOOPTRACK_DB
-  ? path.resolve(/* turbopackIgnore: true */ process.cwd(), process.env.HOOPTRACK_DB)
-  : path.join(/* turbopackIgnore: true */ process.cwd(), 'data', 'hooptrack.db')
+function resolveDbPath(value: string | undefined) {
+  if (!value) return path.join(/* turbopackIgnore: true */ process.cwd(), 'data', 'hooptrack.db')
+  if (value === ':memory:') return value
+  return path.resolve(/* turbopackIgnore: true */ process.cwd(), value)
+}
+
+const DB_PATH = resolveDbPath(process.env.HOOPTRACK_DB)
 
 declare global {
    
@@ -13,7 +17,9 @@ declare global {
 
 function getDb(): Database.Database {
   if (!global.__db) {
-    fs.mkdirSync(path.dirname(DB_PATH), { recursive: true })
+    if (DB_PATH !== ':memory:') {
+      fs.mkdirSync(path.dirname(DB_PATH), { recursive: true })
+    }
     global.__db = new Database(DB_PATH)
     global.__db.pragma('busy_timeout = 30000')
     global.__db.pragma('foreign_keys = ON')
@@ -27,7 +33,7 @@ function getDb(): Database.Database {
   return global.__db
 }
 
-function runMigrations(db: Database.Database) {
+export function runMigrations(db: Database.Database) {
   db.exec('BEGIN IMMEDIATE')
   try {
     db.exec(`CREATE TABLE IF NOT EXISTS _migrations (version INTEGER PRIMARY KEY)`)

@@ -1,18 +1,26 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import http from 'node:http'
+import https from 'node:https'
 import { pathToFileURL } from 'node:url'
 import Database from 'better-sqlite3'
 
 const DEFAULT_BASE_URL = 'https://hooptrack.194-146-12-139.sslip.io'
 const CHECK_COUNT = 5
 const REQUEST_TIMEOUT_MS = 10_000
+const MAX_REDIRECTS = 5
 const ROUTES = [
   { path: '/', attempts: CHECK_COUNT },
   { path: '/coach', attempts: CHECK_COUNT },
   { path: '/api/health', attempts: CHECK_COUNT, expectJsonOk: true },
 ]
+
+class AvailabilityCheckError extends Error {
+  constructor(result) {
+    super('HoopTrack production availability checks failed')
+    this.name = 'AvailabilityCheckError'
+    this.result = result
+  }
+}
 
 function normalizeBaseUrl(value) {
   return value.endsWith('/') ? value.slice(0, -1) : value
@@ -33,15 +41,81 @@ function formatError(error) {
   return `${error.message}${cause}`
 }
 
-async function getBody(response) {
-  try {
-    return await response.text()
-  } catch {
-    return ''
+function resolveSslipAddress(hostname) {
+  const match = hostname.match(/(?:^|\.)(\d{1,3})-(\d{1,3})-(\d{1,3})-(\d{1,3})\.sslip\.io$/i)
+  if (!match) return null
+  const octets = match.slice(1).map(Number)
+  if (octets.some((octet) => octet < 0 || octet > 255)) return null
+  return octets.join('.')
+}
+
+function hostOverrideFor(url) {
+  if (process.env.HOOPTRACK_AVAILABILITY_RESOLVE_IP) {
+    return process.env.HOOPTRACK_AVAILABILITY_RESOLVE_IP
+  }
+  return resolveSslipAddress(new URL(url).hostname)
+}
+
+function responseFromBody(status, finalUrl, body) {
+  return {
+    status,
+    url: finalUrl,
+    text: async () => body,
   }
 }
 
+async function requestWithHostOverride(url, overrideHost, redirectsRemaining = MAX_REDIRECTS) {
+  const parsed = new URL(url)
+  const client = parsed.protocol === 'https:' ? https : http
+  const port = parsed.port ? Number(parsed.port) : parsed.protocol === 'https:' ? 443 : 80
+
+  return new Promise((resolve, reject) => {
+    const request = client.request(
+      {
+        protocol: parsed.protocol,
+        hostname: overrideHost,
+        port,
+        path: `${parsed.pathname}${parsed.search}`,
+        method: 'GET',
+        servername: parsed.hostname,
+        headers: {
+          Host: parsed.host,
+          'User-Agent': 'hooptrack-production-availability/1.0',
+        },
+      },
+      (response) => {
+        const chunks = []
+        response.on('data', (chunk) => chunks.push(chunk))
+        response.on('end', async () => {
+          const status = response.statusCode ?? 0
+          const location = response.headers.location
+          if (location && status >= 300 && status < 400 && redirectsRemaining > 0) {
+            try {
+              const nextUrl = new URL(location, parsed).toString()
+              resolve(await requestWithHostOverride(nextUrl, overrideHost, redirectsRemaining - 1))
+              return
+            } catch (error) {
+              reject(error)
+              return
+            }
+          }
+
+          resolve(responseFromBody(status, url, Buffer.concat(chunks).toString('utf8')))
+        })
+      }
+    )
+    request.setTimeout(REQUEST_TIMEOUT_MS, () => {
+      request.destroy(new Error(`request timed out after ${REQUEST_TIMEOUT_MS}ms`))
+    })
+    request.on('error', reject)
+    request.end()
+  })
+}
+
 async function fetchWithTimeout(url) {
+  const overrideHost = hostOverrideFor(url)
+  if (overrideHost) return requestWithHostOverride(url, overrideHost)
+
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   try {
@@ -69,7 +143,7 @@ async function assertProductionRouteAvailability(baseUrl, route) {
     } catch (error) {
       assert.fail(`attempt ${attempt}: ${url} request failed: ${formatError(error)}`)
     }
-    const body = await getBody(response)
+    const body = await response.text().catch(() => '')
     const record = {
       path: route.path,
       attempt,
@@ -111,8 +185,22 @@ async function assertProductionRouteAvailability(baseUrl, route) {
   }
 }
 
-function createPartiallyMigratedFixture(dbPath) {
-  const fixture = new Database(dbPath)
+async function checkProductionRouteAvailability(baseUrl, route) {
+  try {
+    return await assertProductionRouteAvailability(baseUrl, route)
+  } catch (error) {
+    return {
+      path: route.path,
+      configured: true,
+      passed: false,
+      error: formatError(error),
+      attempts: [],
+    }
+  }
+}
+
+function createPartiallyMigratedFixture() {
+  const fixture = new Database(':memory:')
   fixture.exec(`
     CREATE TABLE _migrations (version INTEGER PRIMARY KEY);
     INSERT INTO _migrations (version) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
@@ -174,59 +262,76 @@ function createPartiallyMigratedFixture(dbPath) {
       completed_at TEXT
     );
   `)
-  fixture.close()
+  return fixture
 }
 
 async function assertPartiallyMigratedDbImports() {
-  const directory = mkdtempSync(join(tmpdir(), 'hooptrack-availability-'))
-  const dbPath = join(directory, 'partial.db')
   const previousDbPath = process.env.HOOPTRACK_DB
+  const fixture = createPartiallyMigratedFixture()
 
   try {
-    createPartiallyMigratedFixture(dbPath)
-    process.env.HOOPTRACK_DB = dbPath
+    process.env.HOOPTRACK_DB = ':memory:'
 
     const dbModule = await import(`./lib/db.ts?fixture=${Date.now()}`)
-    const migratedDb = dbModule.db
-    const userCount = migratedDb.prepare('SELECT COUNT(*) AS count FROM users').get().count
-    const migrationVersion = migratedDb.prepare('SELECT MAX(version) AS version FROM _migrations').get().version
+    const importedDb = dbModule.db
+    const usersBefore = fixture.prepare('SELECT COUNT(*) AS count FROM users').get().count
+
+    dbModule.runMigrations(fixture)
+    const userCount = fixture.prepare('SELECT COUNT(*) AS count FROM users').get().count
+    const migrationVersion = fixture.prepare('SELECT MAX(version) AS version FROM _migrations').get().version
 
     assert.equal(userCount, 1, 'fixture user row count changed during migrations')
     assert.ok(migrationVersion >= 18, `expected fixture migrations to reach >= 18, got ${migrationVersion}`)
 
-    migratedDb.close()
+    importedDb.close()
     globalThis.__db = undefined
+    return {
+      configured: true,
+      passed: true,
+      usersBefore,
+      usersAfter: userCount,
+      migrationVersion,
+    }
   } finally {
     if (previousDbPath === undefined) {
       delete process.env.HOOPTRACK_DB
     } else {
       process.env.HOOPTRACK_DB = previousDbPath
     }
-    rmSync(directory, { recursive: true, force: true })
+    fixture.close()
   }
 }
 
-export async function run() {
+export async function run(options = {}) {
   const baseUrl = process.env.HOOPTRACK_AVAILABILITY_BASE_URL || DEFAULT_BASE_URL
   const endpoints = []
+  const checkFixture = options.checkFixture ?? process.env.HOOPTRACK_AVAILABILITY_SKIP_FIXTURE !== '1'
+  const fixture = checkFixture
+    ? await assertPartiallyMigratedDbImports()
+    : { configured: false, passed: true, skipped: true }
 
-  await assertPartiallyMigratedDbImports()
   for (const route of ROUTES) {
-    endpoints.push(await assertProductionRouteAvailability(baseUrl, route))
+    endpoints.push(await checkProductionRouteAvailability(baseUrl, route))
   }
 
-  return {
+  const result = {
     configured: true,
-    passed: true,
+    passed: fixture.passed && endpoints.every((endpoint) => endpoint.passed),
     baseUrl: normalizeBaseUrl(baseUrl),
+    fixture,
     endpoints,
   }
+  if (!result.passed) throw new AvailabilityCheckError(result)
+  return result
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   run().then((result) => {
     console.log(JSON.stringify(result, null, 2))
   }).catch((error) => {
+    if (error?.result) {
+      console.error(JSON.stringify(error.result, null, 2))
+    }
     console.error(error)
     process.exitCode = 1
   })
