@@ -23,6 +23,8 @@ A basketball tracking application for managing players, sessions, drills, and pr
 - npm 10.x
 - A POSIX environment for `better-sqlite3` native bindings
 
+Runtime versions are pinned in [`.nvmrc`](./.nvmrc) and `package.json`. The repository uses npm and `package-lock.json` for reproducible verification.
+
 ## Getting Started
 
 ```bash
@@ -63,6 +65,9 @@ All variables are documented in [`.env.example`](./.env.example). Summary:
 | `npm run build` | Production build (`.next/`)              |
 | `npm run start` | Start the production server              |
 | `npm run lint`  | Run ESLint                               |
+| `npm test` | Run deterministic Node integration tests |
+| `npm run test:e2e` | Run Playwright browser completeness tests |
+| `npm run verify` | Run lint, typecheck, integration tests, and production build |
 
 ## Production Deployment (PM2)
 
@@ -100,6 +105,10 @@ data/            Runtime data (SQLite db, persisted state)
 - JWTs are signed server-side with `JWT_SECRET`; rotate by updating the secret and invalidating sessions.
 - VAPID private key MUST remain server-side; only `NEXT_PUBLIC_VAPID_PUBLIC_KEY` is sent to the browser.
 - Native modules (`better-sqlite3`) require rebuild on Node version changes: `npm rebuild better-sqlite3`.
+
+## Release Operations
+
+See [`PRODUCTION_READINESS.md`](./PRODUCTION_READINESS.md) for the staging gap, release gate, backup and restore procedure, rollback path, monitoring plan, media lifecycle checks, and PWA/push validation requirements.
 
 ## Troubleshooting
 

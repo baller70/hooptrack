@@ -192,9 +192,14 @@ export default function ProgressPage() {
 
   useEffect(() => {
     fetch('/api/auth/me', { cache: 'no-store' }).then(r => r.json()).then(d => {
-      if (d?.user) setUserRole(d.user.role)
+      if (!d?.user) return
+      setUserRole(d.user.role)
+      if (d.user.role === 'trainer') {
+        fetch('/api/players', { cache: 'no-store' })
+          .then(r => r.ok ? r.json() : { players: [] })
+          .then(playersData => setPlayers(playersData.players || []))
+      }
     })
-    fetch('/api/players').then(r => r.json()).then(d => setPlayers(d.players || []))
   }, [])
 
   const fetchReport = useCallback(() => {

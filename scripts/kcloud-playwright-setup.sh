@@ -21,14 +21,14 @@ pm="npx"
 pw_cmd=(npx playwright)
 
 if [ -f package.json ]; then
-  if [ -f pnpm-lock.yaml ]; then
+  if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
+    pm="npm"
+    npm ci
+    pw_cmd=(npx playwright)
+  elif [ -f pnpm-lock.yaml ]; then
     pm="pnpm"
     pnpm install --frozen-lockfile
-    if pnpm exec playwright --version >/dev/null 2>&1; then
-      pw_cmd=(pnpm exec playwright)
-    else
-      pw_cmd=(pnpm dlx playwright)
-    fi
+    pw_cmd=(pnpm exec playwright)
   elif [ -f yarn.lock ]; then
     pm="yarn"
     yarn install --frozen-lockfile || yarn install --immutable || yarn install
@@ -39,11 +39,7 @@ if [ -f package.json ]; then
     fi
   else
     pm="npm"
-    if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
-      npm ci
-    else
-      npm install
-    fi
+    npm install
     pw_cmd=(npx playwright)
   fi
 else

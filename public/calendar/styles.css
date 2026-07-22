@@ -28,7 +28,7 @@
 
 @font-face {
   font-family: "WilsonX Boxed";
-  src: url("/wilson-x-fonts/boxedsemibold.otf") format("opentype");
+  src: url("/wilson-x-fonts/boxedregular_bold.otf") format("opentype");
   font-weight: 800;
   font-display: swap;
 }

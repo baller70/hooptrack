@@ -17,57 +17,52 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 11
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+
+      - name: Pin npm
+        run: npm install --global npm@10
 
       - name: Install dependencies
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
-        run: pnpm install --no-frozen-lockfile --ignore-scripts
+        run: npm ci
 
       - name: Rebuild native bindings (better-sqlite3)
         run: |
-          pnpm rebuild better-sqlite3 || true
-          PBI=$(ls node_modules/.pnpm/prebuild-install@*/node_modules/prebuild-install/bin.js 2>/dev/null | head -1)
-          for BS in $(find node_modules -type d -path '*/better-sqlite3' 2>/dev/null); do
-            [ -f "$BS/package.json" ] || continue
-            [ -f "$BS/build/Release/better_sqlite3.node" ] && continue
-            ( cd "$BS" && { [ -n "$PBI" ] && node "$PBI"; } || npx --yes node-gyp rebuild ) || true
-          done
-          echo 'better_sqlite3.node present:'; find node_modules -name better_sqlite3.node 2>/dev/null | head -1
+          npm rebuild better-sqlite3
+          test -f node_modules/better-sqlite3/build/Release/better_sqlite3.node
 
       - name: Lint
-        run: pnpm run lint
+        run: npm run verify
 
-      - name: Type-check
-        run: pnpm exec tsc --noEmit
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
 
-      - name: Build (catch build-time errors)
+      - name: Browser completeness
         env:
           CI: "true"
           NODE_OPTIONS: "--max-old-space-size=4096"
-        run: pnpm run build
+          JWT_SECRET: "ci-only-placeholder-secret-at-least-32-characters"
+        run: npm run test:e2e
 
       - name: Dead code (knip)
-        run: pnpm run audit:knip || true
+        run: npm run audit:knip || true
         continue-on-error: true
 
       - name: Unused dependencies (depcheck)
-        run: pnpm run audit:depcheck || true
+        run: npm run audit:depcheck || true
         continue-on-error: true
 
       - name: Circular dependencies (madge)
-        run: pnpm run audit:madge
+        run: npm run audit:madge
 
       - name: License summary
-        run: pnpm run audit:licenses || true
+        run: npm run audit:licenses || true
         continue-on-error: true
 
       - name: Dep vulnerability scan (npm audit)
-        run: pnpm run audit:deps
+        run: npm run audit:deps
         continue-on-error: true

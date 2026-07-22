@@ -1,0 +1,44 @@
+:root {
+  --suite-primary: #f97316;
+  --suite-primary-050: #fff7ed;
+  --suite-primary-strong: #c2410c;
+  --font-label: "WilsonX Boxed", Arial, sans-serif;
+}
+
+.suite-page-header {
+  color: #0a0a0a;
+}
+
+.suite-page-header .row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.suite-page-header .icon {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  fill: none;
+  stroke: var(--suite-primary);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.suite-page-header h1 {
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  letter-spacing: -0.025em;
+}
+
+.suite-page-header .subtitle {
+  margin-top: 8px;
+  color: #57534e;
+  font-size: 1rem;
+}
+
+.suite-page-header .divider {
+  height: 2px;
+  margin: 14px 0 20px;
+  background: #0a0a0a;
+}

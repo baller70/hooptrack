@@ -2,7 +2,9 @@ import Database from 'better-sqlite3'
 import path from 'path'
 import fs from 'fs'
 
-const DB_PATH = path.join(/* turbopackIgnore: true */ process.cwd(), 'data', 'hooptrack.db')
+const DB_PATH = process.env.HOOPTRACK_DB
+  ? path.resolve(/* turbopackIgnore: true */ process.cwd(), process.env.HOOPTRACK_DB)
+  : path.join(/* turbopackIgnore: true */ process.cwd(), 'data', 'hooptrack.db')
 
 declare global {
    
