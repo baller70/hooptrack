@@ -1,6 +1,5 @@
 import { cookies } from 'next/headers'
 import { verifyToken, UserPayload } from './auth'
-import { db } from './db'
 
 const VIEW_AS_COOKIE = 'hooptrack_view_as'
 
@@ -20,9 +19,16 @@ export async function getSession(): Promise<UserPayload | null> {
   if (!Number.isFinite(viewAsId)) return real
   if (viewAsId === real.id) return real // viewing as self = no-op
 
-  const target = db.prepare(
-    "SELECT id, name, email, role FROM users WHERE id = ? AND role = 'player'"
-  ).get(viewAsId) as { id: number; name: string; email: string; role: 'trainer' | 'player' } | undefined
+  let target: { id: number; name: string; email: string; role: 'trainer' | 'player' } | undefined
+  try {
+    const { db } = await import('./db')
+    target = db.prepare(
+      "SELECT id, name, email, role FROM users WHERE id = ? AND role = 'player'"
+    ).get(viewAsId) as { id: number; name: string; email: string; role: 'trainer' | 'player' } | undefined
+  } catch (error) {
+    console.error('Trainer view-as session lookup failed', error)
+    return real
+  }
   if (!target) return real
 
   return {

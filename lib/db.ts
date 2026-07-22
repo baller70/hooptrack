@@ -66,20 +66,30 @@ function runMigrations(db: Database.Database) {
     db.prepare('INSERT INTO _migrations VALUES (?)').run(8)
   }
   if (current < 9) {
-    db.exec(SCHEMA_V9)
-    db.prepare('INSERT INTO _migrations VALUES (?)').run(9)
+    safeAddColumn(db, 'recordings', 'video_path', 'TEXT')
+    safeAddColumn(db, 'recordings', 'video_size_bytes', 'INTEGER')
+    safeAddColumn(db, 'recordings', 'video_mime', 'TEXT')
+    db.prepare('INSERT OR IGNORE INTO _migrations VALUES (?)').run(9)
   }
   if (current < 10) {
-    db.exec(SCHEMA_V10)
-    db.prepare('INSERT INTO _migrations VALUES (?)').run(10)
+    safeAddColumn(db, 'recordings', 'clip_start', 'INTEGER')
+    safeAddColumn(db, 'recordings', 'clip_end', 'INTEGER')
+    db.prepare('INSERT OR IGNORE INTO _migrations VALUES (?)').run(10)
   }
   if (current < 11) {
-    db.exec(SCHEMA_V11)
-    db.prepare('INSERT INTO _migrations VALUES (?)').run(11)
+    safeAddColumn(db, 'recordings', 'title', 'TEXT')
+    safeAddColumn(db, 'recordings', 'parent_recording_id', 'INTEGER REFERENCES recordings(id)')
+    db.exec(SCHEMA_V11_INDEXES)
+    db.prepare('INSERT OR IGNORE INTO _migrations VALUES (?)').run(11)
   }
   if (current < 12) {
-    db.exec(SCHEMA_V12)
-    db.prepare('INSERT INTO _migrations VALUES (?)').run(12)
+    safeAddColumn(db, 'messages', 'attachment_type', 'TEXT')
+    safeAddColumn(db, 'messages', 'attachment_path', 'TEXT')
+    safeAddColumn(db, 'messages', 'attachment_mime', 'TEXT')
+    safeAddColumn(db, 'messages', 'attachment_size_bytes', 'INTEGER')
+    safeAddColumn(db, 'messages', 'attachment_duration_seconds', 'INTEGER')
+    safeAddColumn(db, 'messages', 'attachment_filename', 'TEXT')
+    db.prepare('INSERT OR IGNORE INTO _migrations VALUES (?)').run(12)
   }
   if (current < 13) {
     // Safely add ai_model column if it doesn't exist (may already be in V1 schema)
@@ -122,24 +132,21 @@ function runMigrations(db: Database.Database) {
 }
 
 function safeAddColumn(db: Database.Database, table: string, column: string, definition: string) {
-  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]
+  const identifier = /^[A-Za-z_][A-Za-z0-9_]*$/
+  if (!identifier.test(table) || !identifier.test(column)) {
+    throw new Error(`Unsafe SQLite identifier for ${table}.${column}`)
+  }
+  const tableIdentifier = `"${table}"`
+  const columnIdentifier = `"${column}"`
+  const cols = db.prepare(`PRAGMA table_info(${tableIdentifier})`).all() as { name: string }[]
   if (cols.some(c => c.name === column)) return
   try {
-    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`)
+    db.exec(`ALTER TABLE ${tableIdentifier} ADD COLUMN ${columnIdentifier} ${definition}`)
   } catch (err) {
     const message = err instanceof Error ? err.message : ''
     if (!message.includes('duplicate column name')) throw err
   }
 }
-
-const SCHEMA_V12 = `
-ALTER TABLE messages ADD COLUMN attachment_type TEXT;
-ALTER TABLE messages ADD COLUMN attachment_path TEXT;
-ALTER TABLE messages ADD COLUMN attachment_mime TEXT;
-ALTER TABLE messages ADD COLUMN attachment_size_bytes INTEGER;
-ALTER TABLE messages ADD COLUMN attachment_duration_seconds INTEGER;
-ALTER TABLE messages ADD COLUMN attachment_filename TEXT;
-`
 
 const SCHEMA_V18 = `
 CREATE TABLE IF NOT EXISTS apns_device_tokens (
@@ -223,22 +230,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_content_reports_once
   WHERE message_id IS NOT NULL;
 `
 
-const SCHEMA_V11 = `
-ALTER TABLE recordings ADD COLUMN title TEXT;
-ALTER TABLE recordings ADD COLUMN parent_recording_id INTEGER REFERENCES recordings(id);
+const SCHEMA_V11_INDEXES = `
 CREATE INDEX IF NOT EXISTS idx_recordings_parent ON recordings(parent_recording_id);
 CREATE INDEX IF NOT EXISTS idx_recordings_video_path ON recordings(video_path);
-`
-
-const SCHEMA_V10 = `
-ALTER TABLE recordings ADD COLUMN clip_start INTEGER;
-ALTER TABLE recordings ADD COLUMN clip_end INTEGER;
-`
-
-const SCHEMA_V9 = `
-ALTER TABLE recordings ADD COLUMN video_path TEXT;
-ALTER TABLE recordings ADD COLUMN video_size_bytes INTEGER;
-ALTER TABLE recordings ADD COLUMN video_mime TEXT;
 `
 
 const SCHEMA_V8 = `

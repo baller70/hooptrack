@@ -16,6 +16,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
+    "test:availability": "node test-production-availability.mjs",
     "test:e2e": "playwright test",
     "verify": "npm run lint && npm run typecheck && npm test && npm run build",
     "audit:knip": "knip",

@@ -4,8 +4,15 @@ import { redirect } from 'next/navigation'
 import { appHomeForRole } from '@/lib/app-routes'
 import { getSession } from '@/lib/session'
 
+export const dynamic = 'force-dynamic'
+
 export default async function HomePage() {
-  const session = await getSession()
+  let session: Awaited<ReturnType<typeof getSession>> = null
+  try {
+    session = await getSession()
+  } catch (error) {
+    console.error('Home page session probe failed', error)
+  }
   if (session) redirect(appHomeForRole(session.role))
 
   return (
