@@ -34,7 +34,7 @@ test('player can register, navigate core surfaces, and sign out', async ({ page 
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password').fill('safe-test-password')
   await page.getByRole('button', { name: 'Create Account' }).click()
-  await expect(page.getByRole('heading', { name: 'HoopTrack Player' })).toBeVisible()
+  await expect(page.getByText('Account created!')).toBeVisible()
 
   for (const path of ['/player', '/player/workouts', '/player/calendar', '/player/moves', '/player/progress', '/player/capture', '/dashboard/profile', '/calendar/index.html']) {
     await page.goto(path)
@@ -64,4 +64,41 @@ test('login reports invalid credentials and offline registration failure', async
   await page.getByRole('button', { name: 'Create Account' }).click()
   await expect(page.getByText('Something went wrong')).toBeVisible()
   await context.setOffline(false)
+})
+
+test('denied camera permission offers one-tap native app settings', async ({ page }) => {
+  let settingsRequests = 0
+  await page.exposeFunction('recordSettingsRequest', () => { settingsRequests += 1 })
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: () => Promise.reject(new DOMException('Permission denied', 'NotAllowedError')),
+      },
+    })
+    const nativeWindow = window as unknown as Window & {
+      recordSettingsRequest: () => void
+      webkit?: { messageHandlers?: { openSettings?: { postMessage: (value: string) => void } } }
+    }
+    nativeWindow.webkit = {
+      messageHandlers: {
+        openSettings: { postMessage: () => nativeWindow.recordSettingsRequest() },
+      },
+    }
+  })
+
+  const email = `camera-permission-${Date.now()}@example.test`
+  await page.goto('/register')
+  await page.getByLabel('Full Name').fill('Camera Permission Player')
+  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Password').fill('safe-test-password')
+  await page.getByRole('button', { name: 'Create Account' }).click()
+  await expect(page.getByText('Account created!')).toBeVisible()
+
+  await page.goto('/player/capture')
+  await page.getByRole('button', { name: 'Start Recording Session' }).click()
+  await page.getByRole('button', { name: 'Start Camera' }).click()
+  await expect(page.getByRole('alert').filter({ hasText: 'Camera permission needed' })).toBeVisible()
+  await page.getByRole('button', { name: 'Open App Settings' }).click()
+  await expect.poll(() => settingsRequests).toBe(1)
 })

@@ -157,6 +157,13 @@ export default function VideoRecorder({
   const [saveError, setSaveError] = useState<string | null>(null)
   const [blobKey, setBlobKey] = useState<string | null>(null)
   const [cameraAspect, setCameraAspect] = useState<number>(16 / 9)
+  const [permissionError, setPermissionError] = useState<string | null>(null)
+  const [nativeSettingsAvailable] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return Boolean((window as Window & {
+      webkit?: { messageHandlers?: { openSettings?: { postMessage: (value: string) => void } } }
+    }).webkit?.messageHandlers?.openSettings)
+  })
   const xhrRef = useRef<XMLHttpRequest | null>(null)
   const onStopFiredRef = useRef<boolean>(false)
 
@@ -197,6 +204,7 @@ export default function VideoRecorder({
   }, [cleanup])
 
   async function startPreview() {
+    setPermissionError(null)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -213,9 +221,25 @@ export default function VideoRecorder({
         }
       }
       setPhase('previewing')
-    } catch {
-      toast.error('Camera access denied. Please allow camera permissions.')
+    } catch (error) {
+      const denied = error instanceof DOMException && error.name === 'NotAllowedError'
+      const message = denied
+        ? 'Camera or microphone access is turned off. Allow both permissions, then return here and tap Try Again.'
+        : 'The camera could not start. Check that no other app is using it, then try again.'
+      setPermissionError(message)
+      toast.error(denied ? 'Camera permission is off.' : 'Camera could not start.')
     }
+  }
+
+  function openAppSettings() {
+    const nativeBridge = (window as Window & {
+      webkit?: { messageHandlers?: { openSettings?: { postMessage: (value: string) => void } } }
+    }).webkit?.messageHandlers?.openSettings
+    if (nativeBridge) {
+      nativeBridge.postMessage('camera')
+      return
+    }
+    toast.info('Open this site’s browser permissions and allow Camera and Microphone.')
   }
 
   // Get current interval-mode phase based on elapsed seconds
@@ -1012,6 +1036,22 @@ export default function VideoRecorder({
           </div>
         )}
       </div>
+
+      {permissionError && (
+        <div role="alert" className="w-full max-w-3xl rounded-lg border-2 border-amber-500 bg-amber-50 p-4 text-amber-950">
+          <p className="font-semibold">Camera permission needed</p>
+          <p className="mt-1 text-sm">{permissionError}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {nativeSettingsAvailable && (
+              <Button type="button" onClick={openAppSettings}>Open App Settings</Button>
+            )}
+            <Button type="button" variant="outline" onClick={startPreview}>Try Again</Button>
+          </div>
+          {!nativeSettingsAvailable && (
+            <p className="mt-2 text-xs">In your browser, open this site&apos;s permissions and allow Camera and Microphone.</p>
+          )}
+        </div>
+      )}
     </div>
   )
 }
