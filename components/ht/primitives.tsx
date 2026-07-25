@@ -37,7 +37,13 @@ export function PageTitle({
   )
 }
 
-/** Bold condensed uppercase panel heading, e.g. "QUICK ACCESS". */
+/**
+ * Bold condensed uppercase panel heading, e.g. "QUICK ACCESS".
+ *
+ * The desktop size is measured, not chosen: every panel heading in the pack —
+ * QUICK ACCESS, TRAINING PLAN, MEMBERS, TOP WEAK AREAS — has a 20px cap height,
+ * which for this face (cap ≈ 0.72em) is a 28px font.
+ */
 export function SectionTitle({
   children,
   className,
@@ -46,7 +52,12 @@ export function SectionTitle({
   className?: string
 }) {
   return (
-    <h2 className={cn('ht-heading text-[22px] tracking-[0.01em] text-ht-ink', className)}>
+    <h2
+      className={cn(
+        'ht-heading text-[22px] tracking-[0.01em] text-ht-ink lg:text-[28px]',
+        className,
+      )}
+    >
       {children}
     </h2>
   )
@@ -62,6 +73,12 @@ export function RuleTitle({ children }: { children: React.ReactNode }) {
   )
 }
 
+/**
+ * The one card shell. Every panel on every screen is this component, so radius,
+ * hairline and padding cannot drift between screens: 14px radius, 1px #E0E1E4
+ * hairline, 28px of padding on desktop (measured off the pack — the panel
+ * headings sit 28-30px in from the card edge on 001, 002, 004 and 005 alike).
+ */
 export function Card({
   children,
   className,
@@ -75,7 +92,7 @@ export function Card({
     <section
       className={cn(
         'rounded-xl border border-ht-line bg-ht-surface',
-        padded && 'p-5',
+        padded && 'p-5 lg:p-7',
         className,
       )}
     >

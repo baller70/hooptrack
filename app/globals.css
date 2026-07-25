@@ -214,12 +214,28 @@
     text-transform: uppercase;
     letter-spacing: -0.005em;
   }
-  /* Bold condensed upright — panel headings, buttons, stat labels. */
+  /* Bold condensed upright — panel headings, buttons, stat labels.
+     900, not 700: the pack's headings are noticeably heavier than a normal
+     bold, and Tungsten's 700-900 face is what gives them their weight. */
   .ht-heading {
     font-family: var(--font-russo);
-    font-weight: 700;
+    font-weight: 900;
     text-transform: uppercase;
     letter-spacing: 0.02em;
+  }
+  /* Big counters — REQUESTS 3, 28 CLIPS, 65%. Upright, not italic: the pack
+     reserves the oblique for the wordmark, page titles and the Start Capture
+     hero, and sets every numeral bolt upright. */
+  .ht-num {
+    font-family: var(--font-russo);
+    font-weight: 900;
+    font-style: normal;
+    letter-spacing: -0.01em;
+  }
+  /* Body copy in the pack sits at medium, not regular — labels, table cells
+     and list rows all read heavier than a default 400. */
+  .ht-ui {
+    font-weight: 500;
   }
 }
 
