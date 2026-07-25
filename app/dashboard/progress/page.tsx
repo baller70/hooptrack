@@ -1,10 +1,44 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { Award, Clock, Flame, Activity, CheckCircle2, AlertCircle, Target, Sparkles, Loader2, ChevronDown } from 'lucide-react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import type { LucideIcon } from 'lucide-react'
+import {
+  Activity,
+  AlertCircle,
+  BrainCircuit,
+  CalendarCheck,
+  ChevronDown,
+  CircleDot,
+  Clock,
+  Crosshair,
+  Dumbbell,
+  Footprints,
+  Loader2,
+  ShieldCheck,
+  Sparkles,
+  Target,
+} from 'lucide-react'
 import GradeCard from '@/components/grade-card'
-import { HoursByCategoryChart, WeeklyHoursChart, SubjectRadar } from '@/components/progress-charts'
+import {
+  DailyVolumeChart,
+  HoursByCategoryChart,
+  SubjectRadar,
+  type DailyHour,
+} from '@/components/progress-charts'
+import { cn } from '@/lib/utils'
+import {
+  Card,
+  EmptyState,
+  PageTitle,
+  PrimaryButton,
+  SectionTitle,
+} from '@/components/ht/primitives'
+import TeamProgress from './team-progress'
+
+/* Player-facing report implementing design/hooptrack-raw-individual-screens/
+ * ios/011-player-progress-report-raw.png. The coach team view lives in
+ * ./team-progress.tsx. */
 
 type Period = 'week' | 'month' | 'year'
 
@@ -54,6 +88,7 @@ interface Report {
   weakest: string[]
   charts: {
     weekly_hours: { week: string; hours: number }[]
+    daily_hours: DailyHour[]
     subject_hours: { subject: string; hours: number }[]
     radar: { subject: string; score: number; fullMark: number }[]
   }
@@ -63,12 +98,36 @@ interface Report {
 
 interface Player { id: number; name: string }
 
-function gpaLetterColor(letter: string): string {
-  if (letter.startsWith('A')) return 'text-green-700'
-  if (letter.startsWith('B')) return 'text-blue-700'
-  if (letter.startsWith('C')) return 'text-yellow-700'
-  if (letter === 'D') return 'text-orange-700'
-  return 'text-red-700'
+const SUBJECT_ICON: Record<string, LucideIcon> = {
+  Shooting: Crosshair,
+  'Ball Handling': CircleDot,
+  Footwork: Footprints,
+  Defense: ShieldCheck,
+  Conditioning: Dumbbell,
+  'Basketball IQ': BrainCircuit,
+  Consistency: CalendarCheck,
+  Effort: Clock,
+}
+
+function subjectIcon(subject: string): LucideIcon {
+  return SUBJECT_ICON[subject] ?? Target
+}
+
+/**
+ * Detail sections are gated on this rather than CSS-hidden: a recharts
+ * ResponsiveContainer inside a display:none parent measures 0x0 and keeps
+ * retrying, which pegged the phone render and stopped it ever going idle.
+ */
+function useIsDesktop(): boolean {
+  const [isDesktop, setIsDesktop] = useState(false)
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 1024px)')
+    const update = () => setIsDesktop(query.matches)
+    update()
+    query.addEventListener('change', update)
+    return () => query.removeEventListener('change', update)
+  }, [])
+  return isDesktop
 }
 
 function scorePercent(score: number): number {
@@ -78,6 +137,72 @@ function scorePercent(score: number): number {
 function hoursPercent(currentHours: number, targetHours: number): number {
   if (targetHours <= 0) return 0
   return Math.max(0, Math.min(100, Math.round((currentHours / targetHours) * 100)))
+}
+
+/* ------------------------------------------------------------------ pieces */
+
+/**
+ * The four hairline-divided tiles at the top of the phone design. Local rather
+ * than the shared StatStrip because that primitive reflows into rows of three
+ * on phones, and this screen needs all four across at 390px.
+ */
+function StatQuad({ tiles }: { tiles: { label: string; value: React.ReactNode; caption: string }[] }) {
+  return (
+    <Card padded={false} className="overflow-hidden">
+      <div className="grid grid-cols-4">
+        {tiles.map((tile, i) => (
+          <div
+            key={tile.label}
+            className={cn('px-1.5 py-4 text-center lg:px-4', i > 0 && 'border-l border-ht-line-soft')}
+          >
+            <div className="ht-heading text-[10px] leading-[1.2] tracking-[0.04em] text-ht-muted lg:text-[13px]">
+              {tile.label}
+            </div>
+            <div className="ht-display mt-1.5 text-[32px] leading-none text-ht-orange lg:text-[40px]">
+              {tile.value}
+            </div>
+            <div className="mt-1 text-[11px] leading-[1.2] text-ht-muted lg:text-[13px]">
+              {tile.caption}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  )
+}
+
+/** One "TOP STRENGTHS" / "AREAS TO IMPROVE" row: icon, name, optional bar, %. */
+function MetricRow({
+  subject,
+  percent,
+  showBar,
+  last,
+}: {
+  subject: string
+  percent: number
+  showBar?: boolean
+  last?: boolean
+}) {
+  const Icon = subjectIcon(subject)
+  return (
+    <div className={cn('flex items-center gap-3.5 py-3', !last && 'border-b border-ht-line-soft')}>
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ht-orange-tint">
+        <Icon className="size-5 text-ht-orange" strokeWidth={1.7} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[15px] text-ht-ink">{subject}</p>
+        {showBar ? (
+          <span className="mt-1.5 block h-[9px] w-full overflow-hidden rounded-full bg-ht-ring">
+            <span
+              className="block h-full rounded-full bg-ht-orange"
+              style={{ width: `${percent}%` }}
+            />
+          </span>
+        ) : null}
+      </div>
+      <span className="ht-heading shrink-0 text-[17px] text-ht-orange">{percent}%</span>
+    </div>
+  )
 }
 
 function LevelUpPlanDropdown({
@@ -93,73 +218,77 @@ function LevelUpPlanDropdown({
   const targetPercent = hoursPercent(plan.currentHours, plan.plan.targetHours)
 
   return (
-    <div className="bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_#0A0A0A] overflow-hidden">
+    <Card padded={false} className="overflow-hidden">
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="w-full flex items-center justify-between gap-4 p-5 text-left hover:bg-gray-50 transition-colors"
+        className="flex w-full items-center justify-between gap-4 p-5 text-left transition-colors hover:bg-ht-chip/50"
       >
         <div className="min-w-0">
-          <p className="font-[family-name:var(--font-russo)] text-base">{plan.subject}</p>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="ht-heading text-[16px] text-ht-ink">{plan.subject}</p>
+          <p className="mt-1 text-[13.5px] text-ht-muted">
             Tap to see the plan to move from {plan.currentLetter} to {plan.plan.targetLetter}.
           </p>
         </div>
-        <div className="flex items-center gap-3 shrink-0">
-          <span className={`font-[family-name:var(--font-russo)] text-2xl ${gpaLetterColor(plan.currentLetter)}`}>
+        <div className="flex shrink-0 items-center gap-3">
+          <span className="ht-display text-[26px] leading-none text-ht-orange">
             {plan.currentLetter}
           </span>
-          <ChevronDown className={`h-5 w-5 transition-transform ${open ? 'rotate-180' : ''}`} />
+          <ChevronDown
+            className={cn('size-5 text-ht-muted transition-transform', open && 'rotate-180')}
+            strokeWidth={2}
+          />
         </div>
       </button>
 
       {open && (
-        <div className="border-t-2 border-gray-100 p-5 pt-4">
-          <div className="grid lg:grid-cols-[1fr_220px] gap-5">
+        <div className="border-t border-ht-line-soft p-5">
+          <div className="grid gap-5 lg:grid-cols-[1fr_220px]">
             <div>
-              <p className="text-sm leading-relaxed">
+              <p className="text-[14.5px] leading-[1.55] text-ht-ink">
                 Right now this area has <strong>{plan.currentHours} hours</strong>. To reach a{' '}
-                <strong>{plan.plan.targetLetter}</strong>, add <strong>{plan.plan.minutesPerDay} minutes per day</strong>{' '}
-                for {plan.plan.weeks} weeks. That adds <strong>{plan.plan.addHours} hours</strong> and gets this area
-                to roughly <strong>{plan.plan.targetHours} total hours</strong>.
+                <strong>{plan.plan.targetLetter}</strong>, add{' '}
+                <strong>{plan.plan.minutesPerDay} minutes per day</strong> for {plan.plan.weeks}{' '}
+                weeks. That adds <strong>{plan.plan.addHours} hours</strong> and gets this area to
+                roughly <strong>{plan.plan.targetHours} total hours</strong>.
               </p>
 
-              <ul className="text-sm mt-4 space-y-2">
+              <ul className="mt-4 space-y-2 text-[14px] text-ht-ink">
                 <li className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <Clock className="size-4 shrink-0 text-ht-muted" strokeWidth={1.8} />
                   Add <strong>{plan.plan.minutesPerDay} min/day</strong> for {plan.plan.weeks} weeks
                 </li>
                 <li className="flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-muted-foreground" />
+                  <Activity className="size-4 shrink-0 text-ht-muted" strokeWidth={1.8} />
                   That is <strong>+{plan.plan.addHours} hours</strong> total
                 </li>
                 <li className="flex items-center gap-2">
-                  <Award className="h-4 w-4 text-muted-foreground" />
+                  <Target className="size-4 shrink-0 text-ht-muted" strokeWidth={1.8} />
                   Target pace: <strong>{plan.plan.targetHours} hours</strong> overall
                 </li>
               </ul>
             </div>
 
-            <div className="rounded-lg border-2 border-gray-100 p-4 bg-gray-50">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Progress graph</p>
-              <div className="space-y-4">
+            <div className="rounded-lg border border-ht-line-soft bg-ht-chip/40 p-4">
+              <p className="ht-heading text-[12px] tracking-[0.06em] text-ht-muted">Progress</p>
+              <div className="mt-3 space-y-4">
                 <div>
-                  <div className="flex items-center justify-between text-xs font-semibold mb-1">
+                  <div className="flex items-center justify-between text-[12.5px] font-semibold text-ht-ink">
                     <span>Grade score</span>
                     <span>{currentPercent}%</span>
                   </div>
-                  <div className="h-3 rounded-full bg-white border border-gray-200 overflow-hidden">
-                    <div className="h-full bg-black" style={{ width: `${currentPercent}%` }} />
+                  <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-ht-ring">
+                    <div className="h-full rounded-full bg-ht-ink" style={{ width: `${currentPercent}%` }} />
                   </div>
                 </div>
                 <div>
-                  <div className="flex items-center justify-between text-xs font-semibold mb-1">
+                  <div className="flex items-center justify-between text-[12.5px] font-semibold text-ht-ink">
                     <span>Hours to target</span>
                     <span>{targetPercent}%</span>
                   </div>
-                  <div className="h-3 rounded-full bg-white border border-gray-200 overflow-hidden">
-                    <div className="h-full bg-red-600" style={{ width: `${targetPercent}%` }} />
+                  <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-ht-ring">
+                    <div className="h-full rounded-full bg-ht-orange" style={{ width: `${targetPercent}%` }} />
                   </div>
                 </div>
               </div>
@@ -167,19 +296,34 @@ function LevelUpPlanDropdown({
           </div>
         </div>
       )}
-    </div>
+    </Card>
   )
 }
 
+/* ------------------------------------------------------------------- page */
+
 export default function ProgressPage() {
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
   const [period, setPeriod] = useState<Period>('month')
   const [players, setPlayers] = useState<Player[]>([])
-  const [selectedPlayerId, setSelectedPlayerId] = useState<string>(searchParams.get('playerId') || '')
   const [userRole, setUserRole] = useState('')
+
+  // ?playerId= is the source of truth, not local state. Held in state, a
+  // client-side navigation here (the team view's GENERATE REPORT link) changed
+  // the URL without remounting, so the selection never moved off the team view.
+  const selectedPlayerId = searchParams.get('playerId') || ''
+  const selectPlayer = useCallback((id: string) => {
+    router.replace(id ? `${pathname}?playerId=${id}` : pathname, { scroll: false })
+  }, [router, pathname])
+
   const [report, setReport] = useState<Report | null>(null)
+  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showDetail, setShowDetail] = useState(false)
   const [openPlans, setOpenPlans] = useState<Set<string>>(() => new Set())
+  const isDesktop = useIsDesktop()
 
   const togglePlan = useCallback((subject: string) => {
     setOpenPlans((current) => {
@@ -202,196 +346,242 @@ export default function ProgressPage() {
     })
   }, [])
 
+  // /api/players is trainer-only — players would just get a 403.
+  useEffect(() => {
+    if (userRole !== 'trainer') return
+    fetch('/api/players').then(r => r.json()).then(d => setPlayers(d.players || []))
+  }, [userRole])
+
   const fetchReport = useCallback(() => {
     setLoading(true)
     let url = `/api/progress/report?period=${period}`
     if (selectedPlayerId) url += `&playerId=${selectedPlayerId}`
     fetch(url)
-      .then(r => r.json())
+      .then(async (r) => {
+        // A stale ?playerId= 404s here. Without this check the error body was
+        // cast straight to Report and the render died on report.player.name.
+        if (!r.ok) {
+          const body = await r.json().catch(() => null)
+          throw new Error(body?.error || `Could not load this report (${r.status}).`)
+        }
+        return r.json() as Promise<Report>
+      })
       .then(d => {
-        setReport(d as Report)
+        setReport(d)
+        setError('')
+      })
+      .catch((e: Error) => {
+        setReport(null)
+        setError(e.message)
       })
       .finally(() => setLoading(false))
   }, [period, selectedPlayerId])
 
+  // A trainer with no player selected gets the team view; picking a player (from
+  // the dropdown or a ?playerId= link) drops back to that player's own report.
+  const showTeamView = userRole === 'trainer' && !selectedPlayerId
+
   useEffect(() => {
+    if (!userRole || showTeamView) return
     // eslint-disable-next-line react-hooks/set-state-in-effect -- setReport/setLoading are in the async fetch chain
     fetchReport()
-  }, [fetchReport])
+  }, [userRole, showTeamView, fetchReport])
+
+  if (!userRole) {
+    return (
+      <div className="flex items-center justify-center gap-2 py-24 text-ht-muted">
+        <Loader2 className="size-5 animate-spin" />
+        <span className="text-[15px]">Loading...</span>
+      </div>
+    )
+  }
+
+  if (showTeamView) return <TeamProgress />
+
+  const subjectScore = (name: string) =>
+    scorePercent(report?.subjects.find(s => s.subject === name)?.score ?? 0)
+
+  const tiles = report
+    ? [
+        { label: 'Overall Grade', value: report.overall_letter, caption: `GPA ${report.gpa.toFixed(1)}` },
+        { label: 'Current Streak', value: report.streak_days, caption: 'days' },
+        { label: 'Hours Trained', value: report.total_hours, caption: `this ${report.period}` },
+        { label: 'Recordings', value: report.total_recordings, caption: 'sessions' },
+      ]
+    : []
+
+  /* The PNG stops after Areas To Improve. Everything below it is desktop-only,
+   * or revealed on a phone by Generate Report. */
+  const showAll = showDetail || isDesktop
 
   return (
-    <div className="p-4 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-        <h2 className="font-[family-name:var(--font-russo)] text-2xl">Progress Report</h2>
-        <div className="flex items-center gap-2 flex-wrap">
-          {userRole === 'trainer' && (
-            <select
-              value={selectedPlayerId}
-              onChange={(e) => setSelectedPlayerId(e.target.value)}
-              className="h-9 rounded-md border-2 border-input bg-background px-3 text-sm"
+    <div className="pt-2">
+      <PageTitle>Progress Report</PageTitle>
+
+      <div className={cn('mt-4 flex-wrap items-center gap-3', showAll ? 'flex' : 'hidden')}>
+        {userRole === 'trainer' && (
+          <select
+            value={selectedPlayerId}
+            onChange={(e) => selectPlayer(e.target.value)}
+            aria-label="Player"
+            className="h-10 rounded-xl border border-ht-line bg-ht-surface px-3 text-[14px] text-ht-ink"
+          >
+            <option value="">Team progress</option>
+            {players.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        )}
+        <div className="inline-flex overflow-hidden rounded-xl border border-ht-line">
+          {(['week', 'month', 'year'] as Period[]).map((p, i) => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              aria-pressed={period === p}
+              className={cn(
+                'px-4 py-2 text-[14px] capitalize transition-colors',
+                i > 0 && 'border-l border-ht-line',
+                period === p
+                  ? 'bg-ht-orange text-white'
+                  : 'bg-ht-surface text-ht-ink hover:bg-ht-chip',
+              )}
             >
-              <option value="">My report</option>
-              {players.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          )}
-          <div className="flex border-2 border-black rounded-lg overflow-hidden">
-            {(['week', 'month', 'year'] as Period[]).map(p => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 text-xs font-semibold capitalize ${period === p ? 'bg-black text-white' : 'bg-white hover:bg-gray-50'}`}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
+              {p}
+            </button>
+          ))}
         </div>
       </div>
 
       {loading && (
-        <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          Building report...
+        <div className="flex items-center justify-center gap-2 py-16 text-ht-muted">
+          <Loader2 className="size-5 animate-spin" />
+          <span className="text-[15px]">Building report...</span>
         </div>
       )}
 
+      {error && !loading && (
+        <Card className="mt-4">
+          <EmptyState
+            icon={AlertCircle}
+            title="Report unavailable"
+            body={error}
+            action={
+              <PrimaryButton onClick={fetchReport} className="w-auto px-6">
+                Try Again
+              </PrimaryButton>
+            }
+          />
+        </Card>
+      )}
+
       {report && !loading && (
-        <div className="space-y-6">
-          {/* Report card header */}
-          <div className="bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_#0A0A0A] p-6">
-            <div className="grid sm:grid-cols-4 gap-4 items-center">
-              <div className="sm:col-span-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Player</p>
-                <h3 className="font-[family-name:var(--font-russo)] text-2xl">{report.player.name}</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {report.period_start} to {report.period_end} · {report.period}
-                </p>
-              </div>
-              <div className="text-center border-l-0 sm:border-l-2 border-gray-100 sm:pl-4">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center justify-center gap-1">
-                  <Award className="h-3 w-3" /> Overall
-                </p>
-                <p className={`font-[family-name:var(--font-russo)] text-5xl ${gpaLetterColor(report.overall_letter)}`}>
-                  {report.overall_letter}
-                </p>
-                <p className="text-xs text-muted-foreground">GPA {report.gpa.toFixed(1)}</p>
-              </div>
-              <div className="grid grid-cols-3 sm:grid-cols-1 gap-2">
-                <div className="text-center sm:text-left">
-                  <p className="text-xs text-muted-foreground flex items-center justify-center sm:justify-start gap-1">
-                    <Clock className="h-3 w-3" /> Hours
-                  </p>
-                  <p className="font-[family-name:var(--font-russo)] text-xl">{report.total_hours}</p>
-                </div>
-                <div className="text-center sm:text-left">
-                  <p className="text-xs text-muted-foreground flex items-center justify-center sm:justify-start gap-1">
-                    <Flame className="h-3 w-3 text-orange-500" /> Streak
-                  </p>
-                  <p className="font-[family-name:var(--font-russo)] text-xl">{report.streak_days}d</p>
-                </div>
-                <div className="text-center sm:text-left">
-                  <p className="text-xs text-muted-foreground flex items-center justify-center sm:justify-start gap-1">
-                    <Activity className="h-3 w-3" /> Sessions
-                  </p>
-                  <p className="font-[family-name:var(--font-russo)] text-xl">{report.total_recordings}</p>
-                </div>
-              </div>
+        <div className="mt-4 space-y-4">
+          {showAll && (
+            <p className="text-[13.5px] text-ht-muted">
+              {report.player.name} · {report.period_start} to {report.period_end}
+            </p>
+          )}
+
+          <StatQuad tiles={tiles} />
+
+          <Card padded={false}>
+            <div className="flex items-baseline gap-2 px-5 pt-5">
+              <SectionTitle>Training Volume</SectionTitle>
+              <span className="ht-heading text-[13px] text-ht-muted">(Hours)</span>
             </div>
+            <div className="px-2 pt-2 pb-4">
+              <DailyVolumeChart data={report.charts.daily_hours} labelKey="weekday" />
+            </div>
+          </Card>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card padded={false}>
+              <div className="px-5 pt-5">
+                <SectionTitle>Top Strengths</SectionTitle>
+              </div>
+              <div className="px-5 pb-2">
+                {report.strongest.length === 0 ? (
+                  <EmptyState icon={Target} title="No graded subjects yet" />
+                ) : (
+                  report.strongest.map((name, i) => (
+                    <MetricRow
+                      key={name}
+                      subject={name}
+                      percent={subjectScore(name)}
+                      last={i === report.strongest.length - 1}
+                    />
+                  ))
+                )}
+              </div>
+            </Card>
+
+            <Card padded={false}>
+              <div className="px-5 pt-5">
+                <SectionTitle>Areas To Improve</SectionTitle>
+              </div>
+              <div className="px-5 pb-2">
+                {report.weakest.length === 0 ? (
+                  <EmptyState icon={Target} title="Nothing flagged yet" />
+                ) : (
+                  report.weakest.map((name, i) => (
+                    <MetricRow
+                      key={name}
+                      subject={name}
+                      percent={subjectScore(name)}
+                      showBar
+                      last={i === report.weakest.length - 1}
+                    />
+                  ))
+                )}
+              </div>
+              <div className="px-5 pt-2 pb-5">
+                <PrimaryButton
+                  onClick={() => {
+                    setShowDetail(true)
+                    fetchReport()
+                  }}
+                  disabled={loading}
+                >
+                  Generate Report
+                </PrimaryButton>
+              </div>
+            </Card>
           </div>
 
-          {/* Subject grades grid */}
+          {showAll && (
           <div>
-            <h3 className="font-[family-name:var(--font-russo)] text-lg mb-3">Subject Grades</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <SectionTitle>Subject Grades</SectionTitle>
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {report.subjects.map(s => (
                 <GradeCard key={s.subject} {...s} />
               ))}
             </div>
           </div>
+          )}
 
-          {/* Charts row */}
-          <div className="grid lg:grid-cols-2 gap-4">
-            <div className="bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_#0A0A0A] p-4">
-              <h4 className="font-[family-name:var(--font-russo)] text-sm mb-2">Hours by Category</h4>
-              <HoursByCategoryChart data={report.charts.subject_hours} />
-            </div>
-            <div className="bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_#0A0A0A] p-4">
-              <h4 className="font-[family-name:var(--font-russo)] text-sm mb-2">Hours per Week (last 8)</h4>
-              <WeeklyHoursChart data={report.charts.weekly_hours} />
-            </div>
+          {showAll && (
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card padded={false}>
+              <div className="px-5 pt-5">
+                <SectionTitle>Hours By Category</SectionTitle>
+              </div>
+              <div className="px-2 pt-2 pb-4">
+                <HoursByCategoryChart data={report.charts.subject_hours} />
+              </div>
+            </Card>
+            <Card padded={false}>
+              <div className="px-5 pt-5">
+                <SectionTitle>Skill Profile</SectionTitle>
+              </div>
+              <div className="px-2 pt-2 pb-4">
+                <SubjectRadar data={report.charts.radar} />
+              </div>
+            </Card>
           </div>
+          )}
 
-          {/* Radar chart full width */}
-          <div className="bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_#0A0A0A] p-4">
-            <h4 className="font-[family-name:var(--font-russo)] text-sm mb-2 flex items-center gap-1">
-              <Target className="h-4 w-4" /> Skill Profile
-            </h4>
-            <SubjectRadar data={report.charts.radar} />
-          </div>
-
-          {/* Strengths + Areas to improve */}
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_#0A0A0A] p-5">
-              <h4 className="font-[family-name:var(--font-russo)] text-base mb-3 flex items-center gap-2 text-green-700">
-                <CheckCircle2 className="h-5 w-5" />
-                What You&apos;re Crushing
-              </h4>
-              {report.analysis?.strengths?.length ? (
-                <ul className="space-y-2">
-                  {report.analysis.strengths.map((s, i) => (
-                    <li key={i} className="flex gap-2 text-sm">
-                      <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-green-600" />
-                      <span>{s}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <ul className="space-y-1 text-sm">
-                  {report.strongest.map(s => (
-                    <li key={s} className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      {s}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            <div className="bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_#0A0A0A] p-5">
-              <h4 className="font-[family-name:var(--font-russo)] text-base mb-3 flex items-center gap-2 text-orange-700">
-                <AlertCircle className="h-5 w-5" />
-                Keep Grinding
-              </h4>
-              {report.analysis?.areas_to_improve?.length ? (
-                <ul className="space-y-2">
-                  {report.analysis.areas_to_improve.map((s, i) => (
-                    <li key={i} className="flex gap-2 text-sm">
-                      <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-orange-600" />
-                      <span>{s}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <ul className="space-y-1 text-sm">
-                  {report.weakest.map(s => (
-                    <li key={s} className="flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4 text-orange-600" />
-                      {s}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-
-          {/* Improvement plans (hours math) */}
-          {report.improvement_plans.length > 0 && (
+          {showAll && report.improvement_plans.length > 0 && (
             <div>
-              <h3 className="font-[family-name:var(--font-russo)] text-lg mb-3 flex items-center gap-2">
-                <Target className="h-5 w-5" /> How to Level Up
-              </h3>
-              <div className="space-y-3">
+              <SectionTitle>How To Level Up</SectionTitle>
+              <div className="mt-3 space-y-3">
                 {report.improvement_plans.map(p => (
                   <LevelUpPlanDropdown
                     key={p.subject}
@@ -404,28 +594,29 @@ export default function ProgressPage() {
             </div>
           )}
 
-          {/* AI Coach Note */}
-          {report.analysis?.summary && (
-            <div className="bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_#0A0A0A] p-5">
-              <h4 className="font-[family-name:var(--font-russo)] text-base mb-2 flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-purple-600" />
-                Coach Note
-              </h4>
-              <p className="text-sm leading-relaxed">{report.analysis.summary}</p>
+          {showAll && report.analysis?.summary && (
+            <Card>
+              <div className="flex items-center gap-2">
+                <Sparkles className="size-5 text-ht-orange" strokeWidth={2} />
+                <SectionTitle>Coach Note</SectionTitle>
+              </div>
+              <p className="mt-2 text-[14.5px] leading-[1.55] text-ht-ink">
+                {report.analysis.summary}
+              </p>
               {report.analysis.next_steps?.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-gray-100">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Next Steps</p>
-                  <ul className="space-y-1 text-sm">
+                <div className="mt-4 border-t border-ht-line-soft pt-4">
+                  <p className="ht-heading text-[12px] tracking-[0.06em] text-ht-muted">Next Steps</p>
+                  <ul className="mt-2 space-y-1.5 text-[14.5px] text-ht-ink">
                     {report.analysis.next_steps.map((s, i) => (
                       <li key={i} className="flex gap-2">
-                        <span className="text-muted-foreground shrink-0">{i + 1}.</span>
+                        <span className="shrink-0 text-ht-muted">{i + 1}.</span>
                         <span>{s}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
               )}
-            </div>
+            </Card>
           )}
         </div>
       )}

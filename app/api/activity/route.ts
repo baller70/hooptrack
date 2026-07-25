@@ -8,6 +8,8 @@ interface ActivityItem {
   at: string
   player_id: number
   player_name: string
+  /** Null until the player uploads a photo; the UI falls back to initials. */
+  avatar_path: string | null
   title: string
   subtitle?: string
   meta?: Record<string, unknown>
@@ -27,7 +29,7 @@ export async function GET(request: Request) {
   const params: (number | string)[] = playerId ? [playerId] : []
 
   const recordings = db.prepare(`
-    SELECT r.id, r.player_id, u.name as player_name, r.recorded_at as at,
+    SELECT r.id, r.player_id, u.name as player_name, u.avatar_path, r.recorded_at as at,
            r.duration_seconds, r.rep_count, r.video_path, r.video_size_bytes,
            d.name as drill_name, w.title as workout_title
     FROM recordings r
@@ -40,6 +42,7 @@ export async function GET(request: Request) {
     id: number
     player_id: number
     player_name: string
+    avatar_path: string | null
     at: string
     duration_seconds: number
     rep_count: number | null
@@ -50,7 +53,7 @@ export async function GET(request: Request) {
   }>
 
   const attempts = db.prepare(`
-    SELECT a.id, a.player_id, u.name as player_name, a.completed_at as at, a.score,
+    SELECT a.id, a.player_id, u.name as player_name, u.avatar_path, a.completed_at as at, a.score,
            q.title as quiz_title
     FROM quiz_attempts a
     JOIN quizzes q ON q.id = a.quiz_id
@@ -61,13 +64,14 @@ export async function GET(request: Request) {
     id: number
     player_id: number
     player_name: string
+    avatar_path: string | null
     at: string
     score: number
     quiz_title: string
   }>
 
   const completions = db.prepare(`
-    SELECT s.id, s.player_id, u.name as player_name, s.completed_at as at,
+    SELECT s.id, s.player_id, u.name as player_name, u.avatar_path, s.completed_at as at,
            s.title, s.item_type
     FROM schedule s
     JOIN users u ON u.id = s.player_id
@@ -77,6 +81,7 @@ export async function GET(request: Request) {
     id: number
     player_id: number
     player_name: string
+    avatar_path: string | null
     at: string
     title: string | null
     item_type: string
@@ -90,6 +95,7 @@ export async function GET(request: Request) {
       at: r.at,
       player_id: r.player_id,
       player_name: r.player_name,
+      avatar_path: r.avatar_path,
       title: `${r.drill_name} (${r.workout_title})`,
       subtitle: `${Math.floor(r.duration_seconds / 60)}:${String(r.duration_seconds % 60).padStart(2, '0')}${r.rep_count != null ? ` · ${r.rep_count} reps` : ''}${r.video_path ? '' : ' · device-only'}`,
       meta: { recordingId: r.id, hasVideo: !!r.video_path },
@@ -101,6 +107,7 @@ export async function GET(request: Request) {
       at: a.at,
       player_id: a.player_id,
       player_name: a.player_name,
+      avatar_path: a.avatar_path,
       title: a.quiz_title,
       subtitle: `${a.score}%`,
       meta: { score: a.score },
@@ -112,6 +119,7 @@ export async function GET(request: Request) {
       at: c.at,
       player_id: c.player_id,
       player_name: c.player_name,
+      avatar_path: c.avatar_path,
       title: c.title || c.item_type,
       subtitle: 'completed',
       meta: { itemType: c.item_type },

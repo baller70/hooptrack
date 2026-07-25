@@ -25,7 +25,9 @@ export async function GET(request: Request) {
 
   let query = `
     SELECT r.*, d.name as drill_name, d.category as drill_category, w.title as workout_title,
-           u.name as player_name
+           u.name as player_name, u.avatar_path,
+           (SELECT COUNT(*) FROM messages m
+             WHERE m.context_type = 'recording' AND m.context_id = r.id) AS feedback_count
     FROM recordings r
     JOIN drills d ON d.id = r.drill_id
     JOIN workouts w ON w.id = d.workout_id

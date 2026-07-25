@@ -89,6 +89,29 @@
   --font-heading: var(--font-russo);
   --color-hoop-orange: #F97316;
   --color-hoop-black: #0A0A0A;
+
+  /* HoopTrack screen-pack tokens — sampled from design/hooptrack-raw-individual-screens.
+     These drive the desktop/app shell; the older neobrutalist styles remain untouched. */
+  --color-ht-orange: #FE4800;
+  --color-ht-orange-hover: #E84200;
+  --color-ht-orange-tint: #FEF3EB;
+  --color-ht-orange-soft: #FFF1E9;
+  --color-ht-ink: #0A0A0A;
+  --color-ht-muted: #6B6B70;
+  --color-ht-line: #E0E1E4;
+  --color-ht-line-soft: #EDEDF0;
+  --color-ht-surface: #FFFFFF;
+  --color-ht-canvas: #FEFEFE;
+  --color-ht-chip: #F1F1F1;
+  --color-ht-ring: #E6E6E9;
+  --color-ht-green: #16A34A;
+  --color-ht-green-tint: #F2FCF3;
+  --color-ht-red: #E11D2E;
+  --color-ht-red-tint: #FEF2F2;
+  --color-ht-blue: #2563EB;
+  --color-ht-blue-tint: #EFF4FF;
+  --color-ht-purple: #7C3AED;
+  --color-ht-purple-tint: #F5F0FF;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -163,6 +186,41 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+}
+
+@layer components {
+  /* The screen pack uses condensed type for display/headings only; nav labels,
+     body copy, tables and form fields are a normal-width sans. The app's global
+     --font-sans is the condensed stack, so the shell opts back out here and the
+     .ht-display / .ht-heading rules below opt back in where it matters. */
+  /* :not(.ht-heading) matters — `.ht-ui button` (0,1,1) out-specifies
+     `.ht-heading` (0,1,0), which silently stripped the condensed face from
+     every button rendered as a real <button> while the <Link> variants kept
+     it. Same for the other element selectors. */
+  .ht-ui,
+  .ht-ui input:not(.ht-heading),
+  .ht-ui textarea:not(.ht-heading),
+  .ht-ui select:not(.ht-heading),
+  .ht-ui button:not(.ht-heading) {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+      "Helvetica Neue", Arial, sans-serif;
+  }
+
+  /* Heavy condensed italic — HOOPTRACK wordmark and page titles. */
+  .ht-display {
+    font-family: var(--font-russo);
+    font-weight: 900;
+    font-style: italic;
+    text-transform: uppercase;
+    letter-spacing: -0.005em;
+  }
+  /* Bold condensed upright — panel headings, buttons, stat labels. */
+  .ht-heading {
+    font-family: var(--font-russo);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
 }
 
 @layer base {

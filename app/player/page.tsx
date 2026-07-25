@@ -1,9 +1,31 @@
 import { redirect } from 'next/navigation'
-import { Award, CalendarDays, Camera, CheckCircle2, Clock, Dumbbell, UserPlus, Video } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
-import { AppActionButton } from '@/components/app-action-button'
+import Link from 'next/link'
+import {
+  Camera,
+  ChartNoAxesColumnIncreasing,
+  ChartNoAxesCombined,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  SquareDot,
+  SquarePlay,
+  UserRound,
+} from 'lucide-react'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
+import {
+  Card,
+  CardHeader,
+  NavRow,
+  SectionTitle,
+  StatStrip,
+  type Stat,
+} from '@/components/ht/primitives'
+
+/* Implements design/hooptrack-raw-individual-screens/web-desktop/
+ * 001-player-web-dashboard-raw.png at lg+, and ios/001-player-home-raw.png
+ * below it. The phone screen is deliberately shorter: stat card, one
+ * horizontal Start Capture bar, Quick Access — nothing else. */
 
 type CountRow = { count: number }
 
@@ -11,139 +33,267 @@ function count(sql: string, ...params: Array<string | number>) {
   return (db.prepare(sql).get(...params) as CountRow | undefined)?.count ?? 0
 }
 
+type PlanRow = {
+  id: number
+  scheduled_date: string
+  completed: number
+  title: string | null
+  workout_title: string | null
+  duration_seconds: number | null
+}
+
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+/** Percentage change against the previous window, rounded for display. */
+function delta(current: number, previous: number) {
+  if (previous <= 0) return current > 0 ? 100 : 0
+  return Math.round(((current - previous) / previous) * 100)
+}
+
 export default async function PlayerHomePage() {
   const session = await getSession()
   if (!session) redirect('/login')
   if (session.role !== 'player') redirect('/coach')
 
+  const pendingRequests = count(
+    "SELECT COUNT(*) as count FROM coach_group_invites WHERE player_id = ? AND status = 'pending'",
+    session.id,
+  )
   const upcoming = count(
-    "SELECT COUNT(*) as count FROM schedule WHERE player_id = ? AND completed = 0 AND scheduled_date >= date('now')",
+    `SELECT COUNT(*) as count FROM schedule
+     WHERE player_id = ? AND completed = 0
+       AND scheduled_date >= date('now') AND scheduled_date < date('now', '+7 days')`,
     session.id,
   )
   const overdue = count(
     "SELECT COUNT(*) as count FROM schedule WHERE player_id = ? AND completed = 0 AND scheduled_date < date('now')",
     session.id,
   )
-  const completed = count('SELECT COUNT(*) as count FROM schedule WHERE player_id = ? AND completed = 1', session.id)
-  const recordings = count('SELECT COUNT(*) as count FROM recordings WHERE player_id = ? AND parent_recording_id IS NULL', session.id)
-  const pendingRequests = count(
-    "SELECT COUNT(*) as count FROM coach_group_invites WHERE player_id = ? AND status = 'pending'",
+  const completed = count(
+    'SELECT COUNT(*) as count FROM schedule WHERE player_id = ? AND completed = 1',
+    session.id,
+  )
+  const recordings = count(
+    'SELECT COUNT(*) as count FROM recordings WHERE player_id = ? AND parent_recording_id IS NULL',
     session.id,
   )
 
-  return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6">
-      <section className="rounded-lg border-2 border-black bg-white shadow-[4px_4px_0px_0px_#0A0A0A]">
-        <div className="grid gap-5 border-b-2 border-black bg-[linear-gradient(135deg,#fff7ed_0%,#ffffff_48%,#ecfeff_100%)] p-5 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-end">
-          <div>
-            <h1 className="font-[family-name:var(--font-russo)] text-4xl leading-none text-hoop-black">
-              HoopTrack Player
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Train, record, complete assigned work, and track your progress from one player-first app.
-            </p>
-          </div>
-          <AppActionButton
-            href="/player/capture"
-            aria-label="Start Capture"
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border-2 border-black bg-hoop-orange px-4 text-sm font-black text-white shadow-[2px_2px_0px_0px_#0A0A0A] hover:opacity-90"
-          >
-            <Camera aria-hidden="true" className="h-4 w-4" />
-            <span aria-hidden="true">Start Capture</span>
-          </AppActionButton>
-        </div>
+  const stats: Stat[] = [
+    { label: 'Requests', value: pendingRequests, caption: 'Pending' },
+    { label: 'Upcoming', value: upcoming, caption: 'This Week' },
+    { label: 'Overdue', value: overdue, caption: 'Workouts', alert: overdue > 0 },
+    { label: 'Completed', value: completed, caption: 'All Time' },
+    { label: 'Recordings', value: recordings, caption: 'Total Clips' },
+  ]
 
-        <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-5">
-          <Metric icon={UserPlus} label="Requests" value={pendingRequests} />
-          <Metric icon={CalendarDays} label="Upcoming" value={upcoming} />
-          <Metric icon={Clock} label="Overdue" value={overdue} />
-          <Metric icon={CheckCircle2} label="Completed" value={completed} />
-          <Metric icon={Video} label="Recordings" value={recordings} />
-        </div>
-      </section>
+  // This week's plan, Monday-anchored to match the design's Mon→Sun ordering.
+  const plan = db
+    .prepare(
+      `SELECT s.id, s.scheduled_date, s.completed, s.title, w.title AS workout_title, w.duration_seconds
+       FROM schedule s
+       LEFT JOIN workouts w ON w.id = s.workout_id
+       WHERE s.player_id = ?
+         AND s.scheduled_date >= date('now', 'weekday 1', '-7 days')
+         AND s.scheduled_date <  date('now', 'weekday 1')
+       ORDER BY s.scheduled_date, s.id
+       LIMIT 6`,
+    )
+    .all(session.id) as PlanRow[]
 
-      <section className="mt-5 grid gap-4 md:grid-cols-2">
-        <ActionCard
-          href="/player/requests"
-          icon={UserPlus}
-          title="Team Requests"
-          body="Accept or decline coach requests to join teams and training sessions."
-        />
-        <ActionCard
-          href="/player/workouts"
-          icon={Dumbbell}
-          title="Assigned Workouts"
-          body="Open the training library and follow the work your coach wants completed."
-        />
-        <ActionCard
-          href="/player/calendar"
-          icon={CalendarDays}
-          title="Training Plan"
-          body="See what is due today and what is coming next on the shared calendar."
-        />
-        <ActionCard
-          href="/player/moves"
-          icon={Video}
-          title="Move Library"
-          body="Study coach-approved clips and upload your own reps for review."
-        />
-        <ActionCard
-          href="/player/progress"
-          icon={Award}
-          title="Progress Report"
-          body="Track grades, streaks, training volume, and the next areas to improve."
-        />
-      </section>
-    </main>
+  const firstOpen = plan.find((row) => !row.completed)?.id
+
+  // Progress snapshot — this month against the previous month.
+  const clipsThisMonth = count(
+    "SELECT COUNT(*) as count FROM recordings WHERE player_id = ? AND parent_recording_id IS NULL AND recorded_at >= datetime('now','start of month')",
+    session.id,
   )
-}
+  const clipsPrevMonth = count(
+    `SELECT COUNT(*) as count FROM recordings WHERE player_id = ? AND parent_recording_id IS NULL
+      AND recorded_at >= datetime('now','start of month','-1 month')
+      AND recorded_at <  datetime('now','start of month')`,
+    session.id,
+  )
+  const doneThisMonth = count(
+    "SELECT COUNT(*) as count FROM schedule WHERE player_id = ? AND completed = 1 AND completed_at >= datetime('now','start of month')",
+    session.id,
+  )
+  const donePrevMonth = count(
+    `SELECT COUNT(*) as count FROM schedule WHERE player_id = ? AND completed = 1
+      AND completed_at >= datetime('now','start of month','-1 month')
+      AND completed_at <  datetime('now','start of month')`,
+    session.id,
+  )
+  const secondsRow = db
+    .prepare(
+      "SELECT COALESCE(SUM(duration_seconds),0) AS count FROM recordings WHERE player_id = ? AND recorded_at >= datetime('now','start of month')",
+    )
+    .get(session.id) as CountRow
+  const prevSecondsRow = db
+    .prepare(
+      `SELECT COALESCE(SUM(duration_seconds),0) AS count FROM recordings WHERE player_id = ?
+        AND recorded_at >= datetime('now','start of month','-1 month')
+        AND recorded_at <  datetime('now','start of month')`,
+    )
+    .get(session.id) as CountRow
 
-function Metric({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: LucideIcon
-  label: string
-  value: number
-}) {
+  const snapshot = [
+    { label: 'Clips Recorded', value: clipsThisMonth, change: delta(clipsThisMonth, clipsPrevMonth) },
+    { label: 'Workouts Completed', value: doneThisMonth, change: delta(doneThisMonth, donePrevMonth) },
+    {
+      label: 'Minutes Trained',
+      value: Math.round(secondsRow.count / 60),
+      change: delta(secondsRow.count, prevSecondsRow.count),
+    },
+  ]
+
   return (
-    <div className="rounded-md border-2 border-black bg-white p-3 shadow-[2px_2px_0px_0px_#0A0A0A]">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
-        <Icon className="h-4 w-4 text-hoop-orange" />
+    <div className="pt-2">
+      <StatStrip stats={stats} />
+
+      {/* Phones get the design's short horizontal bar; the tall hero below is
+          the desktop treatment. */}
+      <Link
+        href="/player/capture"
+        className="mt-5 flex h-[65px] items-center justify-center gap-6 rounded-lg bg-ht-orange transition-colors hover:bg-ht-orange-hover lg:hidden"
+      >
+        <Camera className="size-12 shrink-0 text-white" strokeWidth={1.2} />
+        <span className="ht-heading text-[32px] leading-none text-white">Start Capture</span>
+      </Link>
+
+      <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1fr)_minmax(0,1.16fr)]">
+        {/* Start Capture — the single orange call to action on the screen. */}
+        <Link
+          href="/player/capture"
+          className="hidden flex-col items-center justify-center gap-4 rounded-xl bg-ht-orange px-8 py-16 text-center transition-colors hover:bg-ht-orange-hover lg:flex"
+        >
+          <Camera className="size-32 text-white" strokeWidth={1.3} />
+          {/* Upright in the pack — the italic display face is page titles only.
+              Stays on one line, as the design does. */}
+          <span className="ht-heading whitespace-nowrap text-[50px] leading-none text-white">
+            Start Capture
+          </span>
+          <span className="max-w-[250px] text-[19px] leading-[1.45] text-white/90">
+            Record and upload clips to track your progress.
+          </span>
+        </Link>
+
+        <div className="flex flex-col">
+          {/* On the phone the heading sits above the card, not inside it. */}
+          <SectionTitle className="mb-2.5 lg:hidden">Quick Access</SectionTitle>
+          <Card padded={false} className="lg:flex-1 lg:p-4">
+            <SectionTitle className="hidden lg:block">Quick Access</SectionTitle>
+            {/* Desktop draws the rows inside their own bordered box; the phone
+                card is that box already. */}
+            <div className="lg:mt-6 lg:overflow-hidden lg:rounded-xl lg:border lg:border-ht-line">
+              <NavRow icon={UserRound} label="Team Requests" href="/player/requests" count={pendingRequests} />
+              <NavRow icon={SquareDot} label="Assigned Workouts" href="/player/workouts" count={upcoming} />
+              <NavRow icon={ChartNoAxesColumnIncreasing} label="Training Plan" href="/player/calendar" />
+              <NavRow icon={SquarePlay} label="Move Library" href="/player/moves" />
+              <NavRow icon={ChartNoAxesCombined} label="Progress Report" href="/player/progress" last />
+            </div>
+          </Card>
+        </div>
+
+        <div className="hidden flex-col gap-5 lg:flex">
+          <Card padded={false}>
+            <div className="px-6 pt-5">
+              <SectionTitle>Training Plan</SectionTitle>
+              <p className="mt-1 text-[18px] text-ht-muted">This Week</p>
+            </div>
+            <div className="mt-4 space-y-3.5 px-6">
+              {plan.length === 0 ? (
+                <p className="pb-2 text-[18px] text-ht-muted">Nothing scheduled this week.</p>
+              ) : (
+                plan.map((row) => {
+                  const day = DAY_LABELS[new Date(`${row.scheduled_date}T00:00:00`).getDay()]
+                  const isNext = row.id === firstOpen
+                  return (
+                    <div key={row.id} className="flex items-center gap-4">
+                      <span className="w-10 shrink-0 text-[19px] font-medium text-ht-ink">{day}</span>
+                      {row.completed ? (
+                        <CheckCircle2 className="size-6 shrink-0 fill-ht-orange text-white" strokeWidth={2} />
+                      ) : isNext ? (
+                        <span className="size-6 shrink-0 rounded-full border-2 border-ht-orange" />
+                      ) : (
+                        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-ht-ring">
+                          <span className="h-0.5 w-2.5 rounded bg-white" />
+                        </span>
+                      )}
+                      <span className="min-w-0 flex-1 truncate text-[19px] text-ht-ink">
+                        {row.title || row.workout_title || 'Training'}
+                      </span>
+                      <span className="shrink-0 text-[18px] text-ht-muted">
+                        {row.duration_seconds ? `${Math.round(row.duration_seconds / 60)} min` : '—'}
+                      </span>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+            <div className="mt-5 px-6 pb-6">
+              <RailLink href="/player/calendar">View Full Plan</RailLink>
+            </div>
+          </Card>
+
+          <Card padded={false}>
+            <div className="px-6 pt-5">
+              <CardHeader
+                title="Progress Snapshot"
+                action={
+                  <span className="flex items-center gap-1.5 text-[18px] text-ht-muted">
+                    This Month
+                    <ChevronDown className="size-5" strokeWidth={2} />
+                  </span>
+                }
+              />
+            </div>
+            <div className="mt-5 grid grid-cols-3 px-6">
+              {snapshot.map((item, index) => (
+                <div
+                  key={item.label}
+                  className={index > 0 ? 'min-w-0 border-l border-ht-line-soft pl-2' : 'min-w-0 pr-2'}
+                >
+                  {/* Sized to fill the column like the pack does rather than to
+                      the pack's px: this face is wider, and "Workouts
+                      Completed" has to stay on one line. */}
+                  <div className="truncate text-[12.5px] leading-5 text-ht-muted">{item.label}</div>
+                  {/* The pack sets these counters upright, not in the italic
+                      display face. */}
+                  <div className="ht-heading mt-2.5 text-[44px] leading-none text-ht-ink">
+                    {item.value}
+                  </div>
+                  <div
+                    className={`mt-2 text-[17px] font-semibold ${
+                      item.change >= 0 ? 'text-ht-green' : 'text-ht-red'
+                    }`}
+                  >
+                    {item.change >= 0 ? '↑' : '↓'} {Math.abs(item.change)}%
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 px-6 pb-6">
+              <RailLink href="/player/progress">View Progress Report</RailLink>
+            </div>
+          </Card>
+        </div>
       </div>
-      <p className="mt-2 font-[family-name:var(--font-russo)] text-3xl leading-none">{value}</p>
     </div>
   )
 }
 
-function ActionCard({
-  href,
-  icon: Icon,
-  title,
-  body,
-}: {
-  href: string
-  icon: LucideIcon
-  title: string
-  body: string
-}) {
+/**
+ * The grey footer button closing each right-rail card. The pack sets these in
+ * sentence case and the body face, not the condensed heading face.
+ */
+function RailLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <AppActionButton
+    <Link
       href={href}
-      aria-label={`${title}. ${body}`}
-      className="w-full rounded-lg border-2 border-black bg-white p-4 text-left shadow-[3px_3px_0px_0px_#0A0A0A] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:bg-orange-50 hover:shadow-[1px_1px_0px_0px_#0A0A0A]"
+      className="flex items-center justify-center gap-3 rounded-lg bg-ht-chip py-3.5 text-[18px] font-medium text-ht-orange transition-colors hover:bg-ht-orange-tint"
     >
-      <div aria-hidden="true" className="flex gap-3">
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-hoop-black text-hoop-orange">
-          <Icon className="h-5 w-5" />
-        </span>
-        <span>
-          <span className="block font-[family-name:var(--font-russo)] text-xl leading-none">{title}</span>
-          <span className="mt-2 block text-sm leading-6 text-muted-foreground">{body}</span>
-        </span>
-      </div>
-    </AppActionButton>
+      {children}
+      <ChevronRight className="size-[18px]" strokeWidth={2.5} />
+    </Link>
   )
 }

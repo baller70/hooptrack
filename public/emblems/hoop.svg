@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="hoop emblem">
+  <circle cx="100" cy="100" r="100" fill="#0A0A0A"/>
+    <rect x="52" y="40" width="96" height="56" rx="5" fill="none" stroke="#FE4800" stroke-width="9"/>
+    <ellipse cx="100" cy="106" rx="34" ry="11" fill="none" stroke="#FE4800" stroke-width="9"/>
+    <path d="M70 110l12 34h36l12-34M84 112l6 32M100 113v31M116 112l-6 32"
+      fill="none" stroke="#FE4800" stroke-width="7" stroke-linejoin="round"/>
+</svg>

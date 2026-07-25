@@ -68,3 +68,6 @@ build/
 *.ipa
 xcuserdata/
 *.xcuserstate
+
+# Design source pack (80MB of reference PNGs) — kept locally, not in git
+design/

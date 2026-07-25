@@ -2,72 +2,74 @@ import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
+import { ChevronLeft } from 'lucide-react'
 import RecordClient from './record-client'
-import RecordSetup from '@/components/record-setup'
+import { appPath, appForRole } from '@/lib/app-routes'
+import type { PRData, ResolvedDrill } from '@/components/record-setup'
 
-interface Drill {
-  id: number
-  name: string
-  duration_seconds: number
-  timer_mode: 'timed' | 'stopwatch' | 'reps'
-  target_reps: number | null
-}
+/* Implements design/hooptrack-raw-individual-screens/ios/008-player-live-recording-raw.png */
 
-interface PRData {
-  previous_seconds: number | null
-  best_seconds: number | null
-  previous_reps: number | null
-  best_reps: number | null
-}
-
-export default async function RecordPage({ searchParams }: { searchParams: Promise<{ drillId?: string; workoutId?: string }> }) {
+export default async function RecordPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ drillId?: string; workoutId?: string }>
+}) {
   const session = await getSession()
   if (!session) redirect('/login')
 
   const { drillId, workoutId } = await searchParams
+  const app = appForRole(session.role)
 
-  // No drillId → setup screen
-  if (!drillId) {
-    return (
-      <div className="p-4 max-w-2xl mx-auto">
-        <h2 className="font-[family-name:var(--font-russo)] text-2xl mb-4">Record</h2>
-        <RecordSetup />
-      </div>
-    )
+  let drill: ResolvedDrill | null = null
+  let pr: PRData | undefined
+
+  if (drillId) {
+    drill =
+      (db
+        .prepare(
+          `SELECT d.id, d.name, d.duration_seconds, d.timer_mode, d.target_reps, u.name AS coach_name
+           FROM drills d
+           JOIN workouts w ON w.id = d.workout_id
+           LEFT JOIN users u ON u.id = w.created_by
+           WHERE d.id = ?`,
+        )
+        .get(drillId) as ResolvedDrill | undefined) ?? null
+    if (!drill) notFound()
+
+    const history = db
+      .prepare(
+        'SELECT duration_seconds, rep_count FROM recordings WHERE drill_id = ? AND player_id = ? ORDER BY recorded_at DESC',
+      )
+      .all(drill.id, session.id) as Array<{ duration_seconds: number; rep_count: number | null }>
+
+    pr = {
+      previous_seconds: history[0]?.duration_seconds ?? null,
+      best_seconds: history.length > 0 ? Math.min(...history.map((h) => h.duration_seconds)) : null,
+      previous_reps: history[0]?.rep_count ?? null,
+      best_reps: history.some((h) => h.rep_count != null)
+        ? Math.max(...history.filter((h) => h.rep_count != null).map((h) => h.rep_count as number))
+        : null,
+    }
   }
 
-  // drillId provided → existing drill-driven flow
-  const drill = db.prepare(
-    'SELECT id, name, duration_seconds, timer_mode, target_reps FROM drills WHERE id = ?'
-  ).get(drillId) as Drill | undefined
-  if (!drill) notFound()
-
-  const history = db.prepare(
-    'SELECT duration_seconds, rep_count FROM recordings WHERE drill_id = ? AND player_id = ? ORDER BY recorded_at DESC'
-  ).all(drill.id, session.id) as Array<{ duration_seconds: number; rep_count: number | null }>
-
-  const pr: PRData = {
-    previous_seconds: history[0]?.duration_seconds ?? null,
-    best_seconds: history.length > 0 ? Math.min(...history.map((h) => h.duration_seconds)) : null,
-    previous_reps: history[0]?.rep_count ?? null,
-    best_reps: history.some((h) => h.rep_count != null)
-      ? Math.max(...history.filter((h) => h.rep_count != null).map((h) => h.rep_count as number))
-      : null,
-  }
+  const backHref = workoutId ? appPath(app, `/workouts/${workoutId}`) : appPath(app, '/capture')
 
   return (
-    <div className="p-4 max-w-4xl mx-auto">
-      <Link
-        href={workoutId ? `/dashboard/workouts/${workoutId}` : '/dashboard/workouts'}
-        className="flex items-center gap-1 text-sm text-muted-foreground mb-4 hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back
-      </Link>
+    <div className="pt-2">
+      <div className="relative flex items-center justify-center py-1">
+        <Link
+          href={backHref}
+          aria-label="Back"
+          className="absolute left-0 rounded-lg p-1.5 text-ht-ink hover:bg-ht-chip"
+        >
+          <ChevronLeft className="size-7" strokeWidth={2} />
+        </Link>
+        <h1 className="ht-display text-[26px] leading-none text-ht-ink">Live Recording</h1>
+      </div>
 
-      <h2 className="font-[family-name:var(--font-russo)] text-2xl mb-6 text-center">{drill.name}</h2>
-      <RecordClient drill={drill} pr={pr} />
+      <div className="mt-4">
+        <RecordClient drill={drill} pr={pr} />
+      </div>
     </div>
   )
 }

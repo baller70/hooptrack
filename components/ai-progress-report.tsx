@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Award, ArrowRight, Sparkles } from 'lucide-react'
+import { Award, ChevronRight, Sparkles } from 'lucide-react'
 
 export default function AIProgressReport({ playerId }: { playerId?: number }) {
   const href = playerId ? `/dashboard/progress?playerId=${playerId}` : '/dashboard/progress'
@@ -9,23 +9,21 @@ export default function AIProgressReport({ playerId }: { playerId?: number }) {
   return (
     <Link
       href={href}
-      className="block bg-white border-2 border-black rounded-xl p-5 shadow-[3px_3px_0px_0px_#0A0A0A] hover:shadow-[1px_1px_0px_0px_#0A0A0A] hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
+      className="flex items-center gap-4 rounded-xl border border-ht-line bg-ht-surface p-5 transition-colors hover:bg-ht-orange-tint/60"
     >
-      <div className="flex items-center gap-3">
-        <div className="h-12 w-12 rounded-lg bg-black text-white flex items-center justify-center shrink-0">
-          <Award className="h-6 w-6" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-[family-name:var(--font-russo)] text-lg flex items-center gap-2">
-            Progress Report
-            <Sparkles className="h-4 w-4 text-purple-600" />
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            Letter grades, hours practiced, charts, and a coaching plan to level up.
-          </p>
-        </div>
-        <ArrowRight className="h-5 w-5 text-muted-foreground shrink-0" />
-      </div>
+      <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-ht-orange-soft">
+        <Award className="size-6 text-ht-orange" strokeWidth={1.8} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="ht-heading flex items-center gap-2 text-[17px] tracking-[0.01em] text-ht-ink">
+          Progress Report
+          <Sparkles className="size-4 text-ht-orange" strokeWidth={2} />
+        </span>
+        <span className="mt-1 block text-[14px] leading-6 text-ht-muted">
+          Letter grades, hours practiced, charts, and a coaching plan to level up.
+        </span>
+      </span>
+      <ChevronRight className="size-5 shrink-0 text-ht-muted" strokeWidth={2} />
     </Link>
   )
 }

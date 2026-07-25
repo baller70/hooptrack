@@ -2,9 +2,23 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell, Dumbbell, PlayCircle, GraduationCap, MessageSquareQuote, Trophy, Flame, Info, Check } from 'lucide-react'
+import {
+  Bell,
+  BellOff,
+  Check,
+  Dumbbell,
+  Flame,
+  GraduationCap,
+  Info,
+  MessageSquareQuote,
+  PlayCircle,
+  Trophy,
+  UserRoundPlus,
+  Video,
+} from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
+import { Card, EmptyState, GhostButton, PageTitle, Pill } from '@/components/ht/primitives'
 
 interface Notification {
   id: number
@@ -26,13 +40,26 @@ const TYPE_ICON: Record<string, LucideIcon> = {
   reminder: Bell,
   inspirational: MessageSquareQuote,
   system: Info,
+  team_invite: UserRoundPlus,
+  message_received: MessageSquareQuote,
+  video_uploaded: Video,
 }
 
 const FILTERS = ['all', 'unread', 'workouts', 'moves', 'quizzes', 'prs'] as const
 type Filter = typeof FILTERS[number]
 
 function fmt(iso: string): string {
-  return new Date(iso).toLocaleString()
+  const then = new Date(iso).getTime()
+  if (Number.isNaN(then)) return ''
+  const ms = Date.now() - then
+  if (ms < 60_000) return 'just now'
+  const mins = Math.floor(ms / 60_000)
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 7) return `${days}d ago`
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 export default function NotificationsPage() {
@@ -67,6 +94,8 @@ export default function NotificationsPage() {
     load()
   }
 
+  const unreadCount = items.filter((n) => !n.read_at).length
+
   const filtered = items.filter((n) => {
     if (filter === 'all') return true
     if (filter === 'unread') return !n.read_at
@@ -78,55 +107,107 @@ export default function NotificationsPage() {
   })
 
   return (
-    <div className="p-4 max-w-3xl mx-auto">
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <h2 className="font-[family-name:var(--font-russo)] text-2xl flex items-center gap-2">
-          <Bell className="h-5 w-5" />
-          Notifications
-        </h2>
-        <Button variant="outline" size="sm" onClick={markAllRead}>Mark all read</Button>
+    <div className="pt-2 lg:max-w-3xl">
+      {/* Wraps on phones — the title, count and action do not fit on one 390px row. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2.5">
+        <div className="flex items-center gap-3">
+          <PageTitle>Notifications</PageTitle>
+          {unreadCount > 0 ? <Pill tone="orange">{unreadCount} new</Pill> : null}
+        </div>
+        {unreadCount > 0 ? (
+          <GhostButton onClick={markAllRead} className="ml-auto w-auto shrink-0 px-4 py-2 text-[13px]">
+            Mark All Read
+          </GhostButton>
+        ) : null}
       </div>
 
-      <div className="flex gap-1 mb-4 flex-wrap">
-        {FILTERS.map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-3 py-1 text-xs font-semibold capitalize rounded-md border-2 ${
-              filter === f
-                ? 'border-black bg-black text-white'
-                : 'border-input bg-background hover:border-black'
-            }`}
-          >
-            {f}
-          </button>
-        ))}
-      </div>
-
-      {loading && <p className="text-center text-sm text-muted-foreground py-8">Loading...</p>}
-
-      {!loading && filtered.length === 0 && (
-        <p className="text-center text-sm text-muted-foreground py-12">Nothing here.</p>
-      )}
-
-      <div className="space-y-2">
-        {filtered.map((n) => {
-          const Icon = TYPE_ICON[n.type] || Info
+      {/* Bleeds to the screen edge so a clipped chip reads as "scroll for more". */}
+      <div className="-mx-5 mt-4 flex gap-2.5 overflow-x-auto px-5 pb-1 lg:mx-0 lg:px-0">
+        {FILTERS.map((f) => {
+          const active = filter === f
           return (
             <button
-              key={n.id}
-              onClick={() => markRead(n)}
-              className={`w-full text-left bg-white border-2 border-black rounded-xl p-4 flex items-start gap-3 shadow-[3px_3px_0px_0px_#0A0A0A] hover:shadow-[1px_1px_0px_0px_#0A0A0A] hover:translate-x-[2px] hover:translate-y-[2px] transition-all ${!n.read_at ? 'bg-orange-50' : ''}`}
+              key={f}
+              type="button"
+              onClick={() => setFilter(f)}
+              aria-pressed={active}
+              className={cn(
+                'shrink-0 rounded-full border px-4 py-2 text-[14px] whitespace-nowrap capitalize transition-colors',
+                active
+                  ? 'border-ht-orange bg-ht-orange font-semibold text-white'
+                  : 'border-ht-line bg-ht-surface text-ht-ink hover:bg-ht-chip',
+              )}
             >
-              <Icon className={`h-5 w-5 mt-0.5 shrink-0 ${!n.read_at ? 'text-hoop-orange' : 'text-muted-foreground'}`} />
-              <div className="flex-1 min-w-0">
-                <p className={`text-sm ${!n.read_at ? 'font-semibold' : ''}`}>{n.message}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{fmt(n.created_at)}</p>
-              </div>
-              {!n.read_at && <span className="h-2.5 w-2.5 rounded-full bg-hoop-orange shrink-0 mt-1.5" />}
+              {f}
             </button>
           )
         })}
+      </div>
+
+      <div className="mt-3.5 space-y-3">
+        {loading ? (
+          <Card>
+            <EmptyState icon={Bell} title="Loading notifications" />
+          </Card>
+        ) : filtered.length === 0 ? (
+          <Card>
+            <EmptyState
+              icon={BellOff}
+              title={filter === 'all' ? 'No notifications yet' : 'Nothing in this filter'}
+              body={
+                filter === 'all'
+                  ? 'Assignments, team requests and milestones land here.'
+                  : 'Try another filter to see the rest.'
+              }
+            />
+          </Card>
+        ) : (
+          filtered.map((n) => {
+            const Icon = TYPE_ICON[n.type] || Info
+            const unread = !n.read_at
+            return (
+              <button
+                key={n.id}
+                type="button"
+                onClick={() => markRead(n)}
+                className={cn(
+                  'flex w-full items-start gap-3.5 rounded-xl border px-4 py-4 text-left transition-colors',
+                  unread
+                    ? 'border-ht-orange/40 bg-ht-orange-tint hover:bg-ht-orange-soft'
+                    : 'border-ht-line bg-ht-surface hover:bg-ht-chip/60',
+                )}
+              >
+                <span
+                  className={cn(
+                    'flex size-10 shrink-0 items-center justify-center rounded-full',
+                    unread ? 'bg-ht-orange' : 'bg-ht-chip',
+                  )}
+                >
+                  <Icon
+                    className={cn('size-5', unread ? 'text-white' : 'text-ht-muted')}
+                    strokeWidth={1.8}
+                  />
+                </span>
+
+                <span className="min-w-0 flex-1">
+                  <span
+                    className={cn(
+                      'block text-[15px] leading-6 whitespace-pre-line',
+                      unread ? 'font-semibold text-ht-ink' : 'text-ht-muted',
+                    )}
+                  >
+                    {n.message}
+                  </span>
+                  <span className="mt-1 block text-[13px] text-ht-muted">{fmt(n.created_at)}</span>
+                </span>
+
+                {unread ? (
+                  <span className="mt-1.5 size-2.5 shrink-0 rounded-full bg-ht-orange" />
+                ) : null}
+              </button>
+            )
+          })
+        )}
       </div>
     </div>
   )

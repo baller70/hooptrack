@@ -43,7 +43,7 @@ export async function GET() {
   const members = groupIds.length === 0
     ? []
     : db.prepare(`
-      SELECT m.group_id, u.id, u.name, u.email, m.joined_at
+      SELECT m.group_id, u.id, u.name, u.email, u.position_abbr, u.avatar_path, m.joined_at
       FROM coach_group_members m
       JOIN users u ON u.id = m.player_id
       WHERE m.group_id IN (${groupIds.map(() => '?').join(',')})

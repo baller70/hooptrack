@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="cone emblem">
+  <circle cx="100" cy="100" r="100" fill="#0A0A0A"/>
+    <path d="M100 42l30 96H70z" fill="none" stroke="#FE4800" stroke-width="9" stroke-linejoin="round"/>
+    <path d="M84 92h32M78 114h44" stroke="#FE4800" stroke-width="8" stroke-linecap="round"/>
+    <rect x="52" y="142" width="96" height="18" rx="9" fill="#FE4800"/>
+</svg>

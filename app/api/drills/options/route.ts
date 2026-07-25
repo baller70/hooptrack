@@ -16,6 +16,8 @@ interface DrillFull {
   duration_seconds: number
   timer_mode: 'timed' | 'stopwatch' | 'reps'
   target_reps: number | null
+  /** Whoever built the workout — shown on the record screen's drill card. */
+  coach_name: string | null
 }
 
 export async function GET(request: Request) {
@@ -27,7 +29,11 @@ export async function GET(request: Request) {
 
   if (drillId) {
     const drill = db.prepare(
-      'SELECT id, name, duration_seconds, timer_mode, target_reps FROM drills WHERE id = ?'
+      `SELECT d.id, d.name, d.duration_seconds, d.timer_mode, d.target_reps, u.name AS coach_name
+       FROM drills d
+       JOIN workouts w ON w.id = d.workout_id
+       LEFT JOIN users u ON u.id = w.created_by
+       WHERE d.id = ?`
     ).get(drillId) as DrillFull | undefined
     if (!drill) return Response.json({ error: 'Drill not found' }, { status: 404 })
 

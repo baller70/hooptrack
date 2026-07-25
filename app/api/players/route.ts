@@ -5,6 +5,7 @@ interface PlayerActivity {
   id: number
   name: string
   email: string
+  avatar_path: string | null
   last_recording_at: string | null
   total_recordings: number
   recordings_last_7d: number
@@ -29,14 +30,14 @@ export async function GET(request: Request) {
 
   if (!wantActivity) {
     const players = db.prepare(
-      "SELECT id, name, email FROM users WHERE role = 'player' ORDER BY name"
+      "SELECT id, name, email, avatar_path FROM users WHERE role = 'player' ORDER BY name"
     ).all()
     return Response.json({ players })
   }
 
   const players = db.prepare(
-    "SELECT id, name, email FROM users WHERE role = 'player' ORDER BY name"
-  ).all() as Array<{ id: number; name: string; email: string }>
+    "SELECT id, name, email, avatar_path FROM users WHERE role = 'player' ORDER BY name"
+  ).all() as Array<{ id: number; name: string; email: string; avatar_path: string | null }>
 
   const today = new Date().toISOString().slice(0, 10)
   const sevenAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
@@ -94,6 +95,7 @@ export async function GET(request: Request) {
       id: p.id,
       name: p.name,
       email: p.email,
+      avatar_path: p.avatar_path,
       last_recording_at: recAgg.last_recording_at,
       total_recordings: recAgg.total_recordings || 0,
       recordings_last_7d: recAgg.recordings_last_7d || 0,

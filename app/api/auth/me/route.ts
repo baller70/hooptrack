@@ -18,6 +18,13 @@ export async function GET() {
     })
   }
 
+  // Avatars are not in the JWT, so every caller that renders the signed-in user
+  // would otherwise have to make a second request for them.
+  const avatar = db
+    .prepare('SELECT avatar_path FROM users WHERE id = ?')
+    .get(session.id) as { avatar_path: string | null } | undefined
+  Object.assign(session, { avatar_path: avatar?.avatar_path ?? null })
+
   // Get freshest data from DB for trainers (like ai_model, ai_credentials)
   if (session.role === 'trainer') {
     const dbUser = db
