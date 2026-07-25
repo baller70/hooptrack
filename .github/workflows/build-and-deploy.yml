@@ -103,6 +103,13 @@ jobs:
           rsync -az -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new" \
             ./pnpm-lock.yaml ./package.json root@"$HOST":$APP/
 
+          # public/ is served straight off disk by `next start`, so it is NOT
+          # part of .next and was never shipped — any new static asset 404'd in
+          # production while working locally. No --delete: recordings, uploads
+          # and other runtime-written files live under public/ on the server.
+          rsync -az -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new" \
+            ./public/ root@"$HOST":$APP/public/
+
           $SSH root@"$HOST" "bash -s" <<'REMOTE'
             set -uo pipefail
             APP=/opt/apps/hooptrack
