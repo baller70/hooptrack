@@ -112,6 +112,24 @@ function runMigrations(db: Database.Database) {
     db.exec(SCHEMA_V18)
     db.prepare('INSERT OR IGNORE INTO _migrations VALUES (?)').run(18)
   }
+  if (current < 19) {
+    // safeAddColumn rather than a raw ALTER block: this runs inside the
+    // migration transaction, so one "duplicate column name" on a database
+    // that partially has these would roll back every migration and throw.
+    safeAddColumn(db, 'users', 'jersey_number', 'INTEGER')
+    safeAddColumn(db, 'users', 'position', 'TEXT')
+    safeAddColumn(db, 'users', 'position_abbr', 'TEXT')
+    safeAddColumn(db, 'users', 'grade_level', 'TEXT')
+    safeAddColumn(db, 'users', 'height', 'TEXT')
+    safeAddColumn(db, 'users', 'class_year', 'TEXT')
+    safeAddColumn(db, 'users', 'school', 'TEXT')
+    safeAddColumn(db, 'users', 'avatar_path', 'TEXT')
+    // No CHECK constraint: SQLite cannot add one via ALTER, and the app is the
+    // only writer. Defaults to 'active' so existing rows stay valid.
+    safeAddColumn(db, 'users', 'roster_status', "TEXT NOT NULL DEFAULT 'active'")
+    safeAddColumn(db, 'coach_groups', 'emblem', 'TEXT')
+    db.prepare('INSERT OR IGNORE INTO _migrations VALUES (?)').run(19)
+  }
     db.exec('COMMIT')
   } catch (error) {
     if (db.inTransaction) db.exec('ROLLBACK')

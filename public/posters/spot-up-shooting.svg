@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360" role="img" aria-label="Spot Up Shooting placeholder poster">
+  <defs>
+    <linearGradient id="p" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1B1B1F"/><stop offset="1" stop-color="#0A0A0A"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="360" fill="url(#p)"/>
+  <g stroke="#FE4800" stroke-width="2" fill="none" opacity="0.22">
+    <circle cx="320" cy="360" r="120"/><path d="M180 360h280M320 240v120"/>
+    <rect x="250" y="40" width="140" height="86" rx="4"/><circle cx="320" cy="140" r="26"/>
+  </g>
+  <circle cx="320" cy="180" r="44" fill="#ffffff" opacity="0.92"/>
+  <path d="M308 158l34 22-34 22z" fill="#0A0A0A"/>
+  <text x="320" y="286" text-anchor="middle" font-family="system-ui, sans-serif"
+    font-size="20" fill="#ffffff" opacity="0.66">Spot Up Shooting</text>
+</svg>

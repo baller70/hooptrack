@@ -5,11 +5,28 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Video, Square, RotateCcw, Check, Circle, Sparkles, Loader2, Trophy, Plus } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import {
+  Bookmark,
+  Camera,
+  CameraOff,
+  Check,
+  Circle,
+  Loader2,
+  Pause,
+  Play,
+  RotateCcw,
+  Sparkles,
+  Square,
+  Trophy,
+  Video,
+  Volleyball,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 import EntityChat from '@/components/entity-chat'
 import RecordingsList from '@/components/recordings-list'
+import { Card, GhostButton, PrimaryButton, SectionTitle } from '@/components/ht/primitives'
 
 export type RecorderTimerMode = 'timed' | 'stopwatch' | 'reps' | 'interval'
 
@@ -39,6 +56,8 @@ interface Drill {
   duration_seconds: number
   timer_mode: 'timed' | 'stopwatch' | 'reps'
   target_reps: number | null
+  /** Name of whoever built the workout this drill belongs to. */
+  coach_name?: string | null
 }
 
 interface PRData {
@@ -47,6 +66,9 @@ interface PRData {
   previous_reps: number | null
   best_reps: number | null
 }
+
+/** Why the camera can't be opened, when it can't. */
+type CameraBlock = { kind: 'denied' | 'missing' | 'insecure'; message: string }
 
 function getSupportedMimeType(): string {
   const types = [
@@ -91,6 +113,17 @@ function makeBeeper() {
   return { beep }
 }
 
+/** Frame rate handed to canvas.captureStream(); also what the HUD reports. */
+const CAPTURE_FPS = 30
+
+/** Longest recorded edge. 1920 keeps a 1080p phone camera at its own size. */
+const MAX_CAPTURE_EDGE = 1920
+
+/** ~0.11 bits per pixel per frame — roughly 6 Mbps at 1080p60, 2 at 720p30. */
+function bitrateFor(width: number, height: number, fps: number) {
+  return Math.round(Math.min(8_000_000, Math.max(1_500_000, width * height * fps * 0.11)))
+}
+
 const FLASH_COLORS = ['#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#A855F7']
 const CORNERS = ['nw', 'ne', 'sw', 'se'] as const
 type Corner = typeof CORNERS[number]
@@ -116,11 +149,14 @@ export default function VideoRecorder({
   pr,
   options,
   onBack,
+  onOpenOptions,
 }: {
   drill: Drill
   pr?: PRData
   options?: RecorderOptions
   onBack?: () => void
+  /** Opens the session-options sheet from the drill card while idle. */
+  onOpenOptions?: () => void
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -156,9 +192,17 @@ export default function VideoRecorder({
   const [uploadProgress, setUploadProgress] = useState<number>(0)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [blobKey, setBlobKey] = useState<string | null>(null)
-  const [cameraAspect, setCameraAspect] = useState<number>(16 / 9)
+  // Square until a stream reports its real shape — matches the design's
+  // viewfinder and avoids a letterboxed strip before the camera opens.
+  const [cameraAspect, setCameraAspect] = useState<number>(1)
+  const [paused, setPaused] = useState(false)
+  const [cameraBlock, setCameraBlock] = useState<CameraBlock | null>(null)
+  const [captureSpec, setCaptureSpec] = useState<string | null>(null)
   const xhrRef = useRef<XMLHttpRequest | null>(null)
   const onStopFiredRef = useRef<boolean>(false)
+  const pausedRef = useRef(false)
+  const pauseStartedAtRef = useRef(0)
+  const captureFpsRef = useRef(CAPTURE_FPS)
 
   const videoPreviewRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -196,13 +240,64 @@ export default function VideoRecorder({
     return cleanup
   }, [cleanup])
 
+  // Detect an unusable camera up front so the screen can say so instead of
+  // offering a Start button that can only fail (headless browsers, desktops
+  // without a webcam, pages served over plain http).
+  useEffect(() => {
+    let cancelled = false
+    async function probe() {
+      if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+        if (cancelled) return
+        const insecure = typeof window !== 'undefined' && !window.isSecureContext
+        setCameraBlock({
+          kind: insecure ? 'insecure' : 'missing',
+          message: insecure
+            ? 'Recording needs a secure (https) connection.'
+            : 'This browser cannot open a camera.',
+        })
+        return
+      }
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices()
+        if (cancelled) return
+        if (!devices.some((device) => device.kind === 'videoinput')) {
+          setCameraBlock({ kind: 'missing', message: 'No camera was found on this device.' })
+        }
+      } catch {
+        // enumerateDevices can throw in locked-down webviews; Start will
+        // surface the real reason when it is tapped.
+      }
+    }
+    probe()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   async function startPreview() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraBlock({ kind: 'missing', message: 'This browser cannot open a camera.' })
+      return
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        // 1080p60 is what the design's badge advertises, so ask for it. These
+        // are ideals, not demands — a 720p webcam still opens, it just reports
+        // itself honestly in the badge.
+        video: {
+          facingMode: 'environment',
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 60 },
+        },
         audio: true,
       })
       cameraStreamRef.current = stream
+      setCameraBlock(null)
+      const settings = stream.getVideoTracks()[0]?.getSettings()
+      if (settings?.height) {
+        setCaptureSpec(`${settings.height}p ${Math.round(settings.frameRate ?? CAPTURE_FPS)} FPS`)
+      }
       if (videoPreviewRef.current) {
         videoPreviewRef.current.srcObject = stream
         videoPreviewRef.current.play()
@@ -213,8 +308,18 @@ export default function VideoRecorder({
         }
       }
       setPhase('previewing')
-    } catch {
-      toast.error('Camera access denied. Please allow camera permissions.')
+    } catch (error) {
+      const name = (error as DOMException)?.name
+      if (name === 'NotFoundError' || name === 'DevicesNotFoundError' || name === 'OverconstrainedError') {
+        setCameraBlock({ kind: 'missing', message: 'No camera was found on this device.' })
+        toast.error('No camera was found on this device.')
+      } else {
+        setCameraBlock({
+          kind: 'denied',
+          message: 'Camera access is required to record videos. You can enable it in Settings.',
+        })
+        toast.error('Camera access denied. Please allow camera permissions.')
+      }
     }
   }
 
@@ -290,17 +395,25 @@ export default function VideoRecorder({
 
     // Match the canvas (and therefore the recorded video) to the camera's
     // actual orientation. Portrait stream → portrait canvas. Cap the longer
-    // edge at 1280px to keep file sizes reasonable. H.264/VP9 encoders
-    // require even dimensions — round to multiples of 2 or MediaRecorder
-    // can fail silently and never fire onstop.
+    // edge at 1920px so a 1080p phone camera records at its own resolution
+    // rather than being thrown away. H.264/VP9 encoders require even
+    // dimensions — round to multiples of 2 or MediaRecorder can fail silently
+    // and never fire onstop.
     const srcW = video.videoWidth || 1280
     const srcH = video.videoHeight || 720
     const longest = Math.max(srcW, srcH)
-    const scale = longest > 1280 ? 1280 / longest : 1
+    const scale = longest > MAX_CAPTURE_EDGE ? MAX_CAPTURE_EDGE / longest : 1
     const evenize = (n: number) => Math.max(2, Math.round(n / 2) * 2)
     canvas.width = evenize(srcW * scale)
     canvas.height = evenize(srcH * scale)
     setCameraAspect(canvas.width / canvas.height)
+
+    // Draw and encode at the rate the camera is actually delivering, so the
+    // badge states a measured fact rather than an aspiration.
+    const trackFps = cameraStreamRef.current?.getVideoTracks()[0]?.getSettings()?.frameRate
+    captureFpsRef.current = Math.min(60, Math.max(24, Math.round(trackFps ?? CAPTURE_FPS)))
+    // What actually gets encoded: the canvas, captured at that rate below.
+    setCaptureSpec(`${canvas.height}p ${captureFpsRef.current} FPS`)
 
     try { await document.fonts.load('bold 36px "Russo One"') } catch {}
     try { await document.fonts.load('bold 120px "Russo One"') } catch {}
@@ -328,10 +441,19 @@ export default function VideoRecorder({
     lastFlashTimes.current.color = Date.now()
 
     function drawFrame() {
-      const now = Date.now()
+      // While paused the clock freezes at the moment Pause was tapped, so the
+      // timer, cue schedule and interval round all resume where they stopped.
+      const now = pausedRef.current ? pauseStartedAtRef.current : Date.now()
       const started = startTimeRef.current !== 0
       const elapsed = started ? Math.floor((now - startTimeRef.current) / 1000) : 0
       if (started) setElapsedSeconds(elapsed)
+
+      // Leave the last drawn frame up so the preview holds still, matching the
+      // recorder, which is capturing nothing right now.
+      if (pausedRef.current) {
+        animFrameRef.current = requestAnimationFrame(drawFrame)
+        return
+      }
 
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
@@ -371,87 +493,27 @@ export default function VideoRecorder({
         ctx.fillText('EYES UP', canvas.width / 2, 165)
       }
 
-      // Mode-specific timer overlay
-      let timeStr = ''
-      let timeColor = '#FFFFFF'
-      let phaseLabel = ''
-      let phaseColor = '#FFFFFF'
-
+      // Timer, drill name and REC state are drawn by the screen HUD, not burned
+      // into the frame — see the viewfinder overlay in the render below. Only
+      // the eye-training cues below stay in the canvas, because those have to
+      // survive into the saved video for the coach to review.
       if (mode === 'timed') {
-        const remaining = effective.durationSeconds - elapsed
-        timeStr = remaining >= 0 ? formatTime(remaining) : '+' + formatTime(elapsed - effective.durationSeconds)
-        timeColor = remaining >= 0 ? '#FFFFFF' : '#F97316'
         fireAudioCue(elapsed)
-      } else if (mode === 'stopwatch') {
-        timeStr = formatTime(elapsed)
-      } else if (mode === 'reps') {
-        const target = effective.targetReps ?? 0
-        timeStr = target > 0 ? `${repsRef.current}/${target}` : `${repsRef.current}`
       } else if (mode === 'interval') {
         const ip = intervalPhase(elapsed)
         if (ip.phase === 'done') {
-          timeStr = '0:00'
-          phaseLabel = 'DONE'
-          phaseColor = '#10B981'
-          // Auto-stop
           cancelAnimationFrame(animFrameRef.current)
           if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop()
           return
-        } else {
-          timeStr = formatTime(ip.remaining)
-          phaseLabel = `${ip.phase.toUpperCase()} · R${ip.round}/${effective.intervalRounds}`
-          phaseColor = ip.phase === 'work' ? '#10B981' : '#F59E0B'
-          // Beep on phase change (entering work or rest)
-          if (elapsed > 0 && ip.remaining === effective.intervalWorkSeconds && ip.phase === 'work') {
-            beeperRef.current?.beep(880, 200)
-          }
-          if (elapsed > 0 && ip.phase === 'rest' && ip.remaining === effective.intervalRestSeconds) {
-            beeperRef.current?.beep(440, 200)
-          }
+        }
+        // Beep on phase change (entering work or rest)
+        if (elapsed > 0 && ip.remaining === effective.intervalWorkSeconds && ip.phase === 'work') {
+          beeperRef.current?.beep(880, 200)
+        }
+        if (elapsed > 0 && ip.phase === 'rest' && ip.remaining === effective.intervalRestSeconds) {
+          beeperRef.current?.beep(440, 200)
         }
       }
-
-      // Phase label (for interval) above timer
-      if (phaseLabel) {
-        ctx.fillStyle = 'rgba(0,0,0,0.7)'
-        ctx.beginPath()
-        ctx.roundRect(canvas.width - 290, 80, 270, 36, 8)
-        ctx.fill()
-        ctx.fillStyle = phaseColor
-        ctx.font = 'bold 18px "Russo One", sans-serif'
-        ctx.textAlign = 'center'
-        ctx.fillText(phaseLabel, canvas.width - 155, 105)
-      }
-
-      // Timer pill
-      ctx.fillStyle = 'rgba(0,0,0,0.7)'
-      ctx.beginPath()
-      ctx.roundRect(canvas.width - 230, 16, 210, 56, 12)
-      ctx.fill()
-      ctx.fillStyle = timeColor
-      ctx.font = 'bold 36px "Russo One", monospace'
-      ctx.textAlign = 'center'
-      ctx.fillText(timeStr, canvas.width - 125, 54)
-
-      // Drill name (top left)
-      ctx.fillStyle = 'rgba(0,0,0,0.6)'
-      ctx.beginPath()
-      ctx.roundRect(12, 16, Math.min(ctx.measureText(drill.name).width + 24, 320), 40, 8)
-      ctx.fill()
-      ctx.fillStyle = '#FFFFFF'
-      ctx.font = '18px "Russo One", sans-serif'
-      ctx.textAlign = 'left'
-      ctx.fillText(drill.name, 24, 42)
-
-      // REC indicator
-      ctx.fillStyle = '#EF4444'
-      ctx.beginPath()
-      ctx.arc(30, 690, 8, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.fillStyle = '#FFFFFF'
-      ctx.font = '14px sans-serif'
-      ctx.textAlign = 'left'
-      ctx.fillText('REC', 44, 695)
 
       // Visual cues
       maybeAddFlash(now)
@@ -495,14 +557,14 @@ export default function VideoRecorder({
 
     drawFrame()
 
-    const canvasStream = canvas.captureStream(30)
+    const canvasStream = canvas.captureStream(captureFpsRef.current)
     const audioTracks = cameraStreamRef.current!.getAudioTracks()
     audioTracks.forEach((track) => canvasStream.addTrack(track))
 
     const mimeType = getSupportedMimeType()
     const recorder = new MediaRecorder(canvasStream, {
       mimeType: mimeType || undefined,
-      videoBitsPerSecond: 2_500_000,
+      videoBitsPerSecond: bitrateFor(canvas.width, canvas.height, captureFpsRef.current),
     })
 
     recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
@@ -544,13 +606,17 @@ export default function VideoRecorder({
     // Start metronome interval
     if (effective.metronomeBpm && effective.metronomeBpm > 0) {
       const periodMs = Math.round(60000 / effective.metronomeBpm)
-      const t = window.setInterval(() => beeperRef.current?.beep(2000, 40, 0.08), periodMs)
+      const t = window.setInterval(() => {
+        if (pausedRef.current) return
+        beeperRef.current?.beep(2000, 40, 0.08)
+      }, periodMs)
       intervalTimersRef.current.push(t)
     }
 
     // Voice cues
     if (effective.voiceCues && effective.voiceCues.words.length > 0 && typeof window !== 'undefined' && 'speechSynthesis' in window) {
       const t = window.setInterval(() => {
+        if (pausedRef.current) return
         const w = effective.voiceCues!.words[Math.floor(Math.random() * effective.voiceCues!.words.length)]
         const u = new SpeechSynthesisUtterance(w)
         u.rate = 1.1
@@ -562,8 +628,44 @@ export default function VideoRecorder({
     }
   }
 
+  /** Real MediaRecorder pause/resume — no frames are captured while paused. */
+  function togglePause() {
+    const recorder = mediaRecorderRef.current
+    if (!recorder) return
+    if (!pausedRef.current) {
+      if (recorder.state !== 'recording') return
+      pauseStartedAtRef.current = Date.now()
+      pausedRef.current = true
+      setPaused(true)
+      try {
+        recorder.pause()
+      } catch (e) {
+        console.error('recorder.pause failed:', e)
+      }
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel()
+      return
+    }
+    if (recorder.state !== 'paused') return
+    // Shift the start marker forward by the paused span so elapsed time, cue
+    // timers and interval rounds continue rather than jumping.
+    const pausedFor = Date.now() - pauseStartedAtRef.current
+    startTimeRef.current += pausedFor
+    lastFlashTimes.current.number += pausedFor
+    lastFlashTimes.current.word += pausedFor
+    lastFlashTimes.current.color += pausedFor
+    pausedRef.current = false
+    setPaused(false)
+    try {
+      recorder.resume()
+    } catch (e) {
+      console.error('recorder.resume failed:', e)
+    }
+  }
+
   function stopRecording() {
     cancelAnimationFrame(animFrameRef.current)
+    pausedRef.current = false
+    setPaused(false)
     const recorder = mediaRecorderRef.current
     if (!recorder) {
       setPhase('reviewing')
@@ -603,7 +705,7 @@ export default function VideoRecorder({
     if (!recordedBlob) return
     setSaving(true)
     setSaveError(null)
-    const finalReps = mode === 'reps' ? repsRef.current : null
+    const finalReps = mode === 'reps' || repsRef.current > 0 ? repsRef.current : null
 
     // Use an idempotent blob_key so retries don't create duplicate rows.
     let key = blobKey
@@ -747,6 +849,8 @@ export default function VideoRecorder({
     setReps(0)
     repsRef.current = 0
     chunksRef.current = []
+    pausedRef.current = false
+    setPaused(false)
     setPhase('previewing')
   }
 
@@ -759,259 +863,435 @@ export default function VideoRecorder({
   const showPR = (mode === 'stopwatch' && (pr?.previous_seconds != null || pr?.best_seconds != null))
     || (mode === 'reps' && (pr?.previous_reps != null || pr?.best_reps != null))
 
+  const live = phase === 'recording'
+  const showRig = phase === 'idle' || phase === 'previewing' || phase === 'recording'
+  const round = mode === 'interval' ? intervalPhase(elapsedSeconds) : null
+
+  // The pill under the viewfinder counts down in the modes that have an end and
+  // counts up in the ones that don't.
+  const clockSeconds =
+    mode === 'timed' ? Math.max(0, effective.durationSeconds - elapsedSeconds)
+    : mode === 'interval' ? (round?.remaining ?? 0)
+    : elapsedSeconds
+
+  // Right-hand counter: whatever "how far through this session am I" means for
+  // the mode that is actually running.
+  const goal: { label: string; value: string; suffix?: string } =
+    mode === 'interval'
+      ? { label: 'Set', value: String(round?.round ?? 1), suffix: `of ${effective.intervalRounds}` }
+      : mode === 'reps' && effective.targetReps
+        ? { label: 'Target', value: String(effective.targetReps), suffix: 'reps' }
+        : mode === 'timed' && effective.durationSeconds > 0
+          ? { label: 'Length', value: formatTime(effective.durationSeconds) }
+          : { label: 'Length', value: 'Open' }
+
+  const targetCell =
+    effective.targetReps != null
+      ? { value: String(effective.targetReps), unit: 'Reps' }
+      : effective.durationSeconds > 0
+        ? { value: formatTime(effective.durationSeconds), unit: 'Min' }
+        : null
+
   return (
-    <div className="flex flex-col items-center gap-4">
-      {showPR && (phase === 'idle' || phase === 'previewing') && (
-        <div className="w-full max-w-3xl bg-white border-2 border-black rounded-xl p-4 shadow-[3px_3px_0px_0px_#0A0A0A] flex items-center justify-around">
-          {mode === 'stopwatch' && (
+    <div className="mx-auto w-full max-w-[560px] pb-4 lg:max-w-3xl">
+      {showPR && (phase === 'idle' || phase === 'previewing') ? (
+        <Card className="mb-4 flex items-center justify-around py-4">
+          {mode === 'stopwatch' ? (
             <>
-              {pr?.previous_seconds != null && (
-                <div className="text-center">
-                  <p className="text-xs text-muted-foreground">Previous</p>
-                  <p className="font-[family-name:var(--font-russo)] text-xl">{formatTime(pr.previous_seconds)}</p>
-                </div>
-              )}
-              {pr?.best_seconds != null && (
-                <div className="text-center">
-                  <p className="text-xs text-muted-foreground flex items-center gap-1 justify-center">
-                    <Trophy className="h-3 w-3 text-yellow-500" /> Best
-                  </p>
-                  <p className="font-[family-name:var(--font-russo)] text-xl">{formatTime(pr.best_seconds)}</p>
-                </div>
-              )}
+              {pr?.previous_seconds != null ? (
+                <PrCell label="Previous" value={formatTime(pr.previous_seconds)} />
+              ) : null}
+              {pr?.best_seconds != null ? (
+                <PrCell label="Best" value={formatTime(pr.best_seconds)} best />
+              ) : null}
+            </>
+          ) : (
+            <>
+              {pr?.previous_reps != null ? <PrCell label="Previous" value={String(pr.previous_reps)} /> : null}
+              {pr?.best_reps != null ? <PrCell label="Best" value={String(pr.best_reps)} best /> : null}
             </>
           )}
-          {mode === 'reps' && (
-            <>
-              {pr?.previous_reps != null && (
-                <div className="text-center">
-                  <p className="text-xs text-muted-foreground">Previous</p>
-                  <p className="font-[family-name:var(--font-russo)] text-xl">{pr.previous_reps}</p>
-                </div>
-              )}
-              {pr?.best_reps != null && (
-                <div className="text-center">
-                  <p className="text-xs text-muted-foreground flex items-center gap-1 justify-center">
-                    <Trophy className="h-3 w-3 text-yellow-500" /> Best
-                  </p>
-                  <p className="font-[family-name:var(--font-russo)] text-xl">{pr.best_reps}</p>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
+        </Card>
+      ) : null}
 
+      {/* Viewfinder */}
       <div
-        className="relative w-full max-w-3xl bg-black rounded-xl overflow-hidden border-2 border-black mx-auto"
-        style={{ aspectRatio: cameraAspect, maxHeight: '70vh' }}
+        className="relative w-full overflow-hidden rounded-2xl bg-ht-ink"
+        style={{ aspectRatio: cameraAspect, maxHeight: '56vh' }}
       >
-        {phase === 'idle' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
-            <Video className="h-16 w-16 mb-4 opacity-60" />
-            <p className="text-lg font-medium">Ready to record</p>
-            <p className="text-sm text-gray-400">{drill.name} — {idleSummary}</p>
-          </div>
-        )}
-
         <video
           ref={videoPreviewRef}
           muted
           playsInline
-          className={phase === 'previewing' || phase === 'recording' ? 'w-full h-full object-contain' : 'hidden'}
+          className={phase === 'previewing' || phase === 'recording' ? 'size-full object-contain' : 'hidden'}
         />
 
         <canvas
           ref={canvasRef}
           className={
             phase === 'previewing' || phase === 'recording'
-              ? 'absolute inset-0 w-full h-full object-contain'
+              ? 'absolute inset-0 size-full object-contain'
               : 'hidden'
           }
         />
 
-        {phase === 'reviewing' && reviewUrl && (
-          <video
-            ref={reviewVideoRef}
-            src={reviewUrl}
-            controls
-            playsInline
-            className="w-full h-full object-contain"
-          />
-        )}
+        {phase === 'reviewing' && reviewUrl ? (
+          <video ref={reviewVideoRef} src={reviewUrl} controls playsInline className="size-full object-contain" />
+        ) : null}
 
-        {phase === 'recording' && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-full text-sm font-mono">
-            {mode === 'reps'
-              ? `${reps}${effective.targetReps ? ' / ' + effective.targetReps : ''} reps`
-              : formatTime(elapsedSeconds)}
+        {phase === 'idle' ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-8 text-center">
+            {cameraBlock ? (
+              <>
+                <CameraOff className="size-12 text-white/70" strokeWidth={1.4} />
+                <p className="ht-heading mt-1 text-[16px] text-white">
+                  {cameraBlock.kind === 'denied' ? 'Camera access needed' : 'Camera unavailable'}
+                </p>
+                <p className="max-w-[280px] text-[13px] leading-5 text-white/70">{cameraBlock.message}</p>
+              </>
+            ) : (
+              <>
+                <Video className="size-12 text-white/70" strokeWidth={1.4} />
+                <p className="ht-heading mt-1 text-[16px] text-white">Ready to record</p>
+                <p className="text-[13px] text-white/70">
+                  {drill.name} — {idleSummary}
+                </p>
+              </>
+            )}
           </div>
-        )}
+        ) : null}
+
+        {phase === 'saved' ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center">
+            <Check className="size-12 text-white/80" strokeWidth={1.6} />
+            <p className="ht-heading text-[16px] text-white">Clip saved</p>
+          </div>
+        ) : null}
+
+        {live ? (
+          <>
+            <span className="absolute left-3 top-3 inline-flex items-center gap-2 rounded-lg bg-black/75 px-3 py-1.5">
+              {paused ? (
+                <Pause className="size-3.5 fill-white text-white" strokeWidth={0} />
+              ) : (
+                <span className="size-2.5 rounded-full bg-ht-red" />
+              )}
+              <span className="ht-heading text-[13px] text-white">
+                {paused ? 'Paused' : round ? `Rec · ${round.phase}` : 'Rec'}
+              </span>
+            </span>
+
+            {captureSpec ? (
+              <span className="absolute right-3 top-3 rounded-lg bg-black/75 px-3 py-1.5 text-[13px] font-medium text-white">
+                {captureSpec}
+              </span>
+            ) : null}
+
+            <span className="ht-heading absolute bottom-4 left-1/2 -translate-x-1/2 rounded-xl bg-black/75 px-6 py-2 text-[26px] tabular-nums text-white">
+              {formatClock(clockSeconds)}
+            </span>
+          </>
+        ) : null}
       </div>
 
-      <div className="flex items-center gap-4 w-full max-w-3xl flex-wrap justify-center">
-        {phase === 'idle' && (
-          <>
-            <Button onClick={startPreview} size="lg" className="gap-2">
-              <Video className="h-5 w-5" />
-              Start Camera
-            </Button>
-            {onBack && (
-              <Button onClick={onBack} variant="outline" size="lg">
-                Change settings
-              </Button>
-            )}
-          </>
-        )}
-
-        {phase === 'previewing' && (
-          <Button onClick={startRecording} size="lg" className="gap-2 bg-red-600 hover:bg-red-700">
-            <Circle className="h-5 w-5 fill-current" />
-            {(mode === 'timed' || mode === 'interval') ? 'Start (3-2-1)' : 'Start Recording'}
-          </Button>
-        )}
-
-        {phase === 'recording' && mode === 'reps' && (
-          <Button
-            onClick={tapRep}
-            size="lg"
-            className="gap-2 h-16 px-8 text-xl bg-hoop-orange hover:opacity-90 border-2 border-black shadow-[3px_3px_0px_0px_#0A0A0A]"
-          >
-            <Plus className="h-6 w-6" />
-            +1 Rep ({reps})
-          </Button>
-        )}
-
-        {phase === 'recording' && (
-          <Button onClick={stopRecording} size="lg" variant="destructive" className="gap-2">
-            <Square className="h-5 w-5 fill-current" />
-            Stop
-          </Button>
-        )}
-
-        {phase === 'reviewing' && (
-          <>
-            {saving && (
-              <div className="w-full max-w-3xl bg-blue-50 border-2 border-blue-700 rounded-xl p-3 mb-2">
-                <div className="flex items-center gap-2 mb-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-blue-700" />
-                  <p className="text-sm font-bold text-blue-700">
-                    {uploadStatus === 'uploading'
-                      ? `Uploading to library... ${uploadProgress}%`
-                      : uploadStatus === 'uploaded'
-                      ? 'Finalizing...'
-                      : 'Creating recording...'}
-                  </p>
-                </div>
-                {uploadStatus === 'uploading' && (
-                  <div className="h-2 bg-blue-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-blue-700 transition-all"
-                      style={{ width: `${uploadProgress}%` }}
-                    />
-                  </div>
-                )}
-                <p className="text-[11px] text-blue-700 mt-2">
-                  Keep this page open until upload finishes. Larger recordings can take a minute.
-                </p>
+      {showRig ? (
+        <>
+          {/* REPS / SET counters */}
+          <div className="mt-6 grid grid-cols-2">
+            <div className="px-3 text-center">
+              <div className="ht-heading text-[13px] tracking-[0.06em] text-ht-ink">Reps</div>
+              <div className="ht-display mt-2 text-[44px] leading-none text-ht-orange">{reps}</div>
+            </div>
+            <div className="border-l border-ht-line-soft px-3 text-center">
+              <div className="ht-heading text-[13px] tracking-[0.06em] text-ht-ink">{goal.label}</div>
+              <div className="ht-display mt-2 text-[44px] leading-none text-ht-ink">
+                {goal.value}
+                {goal.suffix ? (
+                  <span className="ml-2 font-sans text-[20px] font-normal not-italic text-ht-muted">
+                    {goal.suffix}
+                  </span>
+                ) : null}
               </div>
-            )}
-            {saveError && (
-              <div className="w-full max-w-3xl bg-red-50 border-2 border-red-700 rounded-xl p-3 mb-2">
-                <p className="text-sm font-bold text-red-700">Save didn&apos;t finish</p>
-                <p className="text-xs text-red-700 mt-1">{saveError}</p>
-                <p className="text-xs text-red-700 mt-1 font-bold">
-                  ⚠️ Don&apos;t close this page or hit Redo — your recording isn&apos;t saved yet.
-                </p>
-                <div className="flex gap-2 mt-2">
-                  <Button onClick={retrySave} size="sm" variant="default" disabled={saving}>
-                    {saving ? 'Retrying...' : 'Retry save'}
-                  </Button>
-                </div>
-              </div>
-            )}
-            <Button onClick={redo} variant="outline" size="lg" className="gap-2" disabled={saving}>
-              <RotateCcw className="h-5 w-5" />
-              Redo
-            </Button>
-            <Button onClick={saveRecording} size="lg" className="gap-2 bg-green-600 hover:bg-green-700" disabled={saving}>
-              <Check className="h-5 w-5" />
-              {saving
-                ? uploadStatus === 'uploading'
-                  ? `Uploading ${uploadProgress}%`
-                  : 'Saving...'
-                : 'Save'}
-            </Button>
-          </>
-        )}
+            </div>
+          </div>
 
-        {phase === 'saved' && (
-          <div className="w-full max-w-3xl">
-            <div className="bg-white border-2 border-black rounded-xl mb-4 shadow-[3px_3px_0px_0px_#0A0A0A] overflow-hidden">
-              <div className="p-4 text-center">
-                <Check className="h-8 w-8 text-green-600 mx-auto mb-2" />
-                <p className="font-[family-name:var(--font-russo)] text-lg">Recording Saved!</p>
-                <p className="text-sm text-muted-foreground">
-                  {mode === 'reps' ? `${reps} reps` : formatTime(elapsedSeconds)}
-                </p>
-                {uploadStatus === 'uploading' && (
-                  <p className="text-xs text-muted-foreground mt-2 flex items-center justify-center gap-1">
-                    <Loader2 className="h-3 w-3 animate-spin" /> Uploading to library...
-                  </p>
-                )}
-                {uploadStatus === 'uploaded' && (
-                  <p className="text-xs text-green-700 mt-2">Saved to your library</p>
-                )}
-                {uploadStatus === 'failed' && (
-                  <p className="text-xs text-red-700 mt-2">Upload failed — kept locally only</p>
-                )}
-              </div>
-
-              {loadingFeedback && (
-                <div className="flex items-center justify-center gap-2 text-purple-600 py-4 border-t-2 border-gray-100">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  <span className="text-sm font-medium">AI Coach is analyzing your session...</span>
-                </div>
-              )}
-
-              {aiFeedback && (
-                <div className="p-4 border-t-2 border-gray-100">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Sparkles className="h-4 w-4 text-purple-600" />
-                    <span className="font-semibold text-sm">AI Coach Feedback</span>
-                  </div>
-                  <p className="text-sm">{aiFeedback}</p>
-                </div>
-              )}
-
-              <RecordingsList
-                drillId={drill.id}
-                drillName={drill.name}
-                defaultOpen
-                embedded
-                highlightId={savedRecordingId}
+          {/* Transport */}
+          <div className="mt-5 grid grid-cols-3 gap-3">
+            <ControlButton
+              icon={paused ? Play : Pause}
+              solidIcon
+              label={paused ? 'Resume' : 'Pause'}
+              onClick={togglePause}
+              disabled={!live}
+            />
+            {phase === 'recording' ? (
+              <ControlButton primary solidIcon icon={Square} label="Stop" onClick={stopRecording} />
+            ) : phase === 'previewing' ? (
+              <ControlButton
+                primary
+                solidIcon
+                icon={Circle}
+                label={mode === 'timed' || mode === 'interval' ? 'Start 3-2-1' : 'Record'}
+                onClick={startRecording}
               />
+            ) : (
+              <ControlButton
+                primary
+                icon={Camera}
+                label={cameraBlock ? 'Try Again' : 'Start'}
+                onClick={startPreview}
+              />
+            )}
+            <ControlButton
+              icon={Bookmark}
+              label="Save Rep"
+              onClick={tapRep}
+              disabled={!live || paused}
+            />
+          </div>
 
-              {savedRecordingId && (
-                <EntityChat
-                  contextType="recording"
-                  contextId={savedRecordingId}
-                  contextTitle={drill.name}
-                  defaultOpen
-                  embedded
-                />
+          {/* What is being recorded */}
+          <Card padded={false} className="mt-5">
+            <DrillSummary
+              name={drill.name}
+              coach={drill.coach_name ?? null}
+              target={targetCell}
+              onOpenOptions={phase === 'idle' ? onOpenOptions : undefined}
+            />
+          </Card>
+
+          {phase === 'idle' && onBack ? (
+            <div className="mt-4">
+              <GhostButton onClick={onBack}>Change settings</GhostButton>
+            </div>
+          ) : null}
+        </>
+      ) : null}
+
+      {phase === 'reviewing' ? (
+        <div className="mt-5 space-y-4">
+          {saving ? (
+            <Card className="border-ht-orange/40 bg-ht-orange-soft">
+              <div className="flex items-center gap-2">
+                <Loader2 className="size-4 animate-spin text-ht-orange" />
+                <p className="ht-heading text-[14px] text-ht-ink">
+                  {uploadStatus === 'uploading'
+                    ? `Uploading ${uploadProgress}%`
+                    : uploadStatus === 'uploaded'
+                      ? 'Finalizing'
+                      : 'Creating recording'}
+                </p>
+              </div>
+              {uploadStatus === 'uploading' ? (
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
+                  <div className="h-full bg-ht-orange transition-[width]" style={{ width: `${uploadProgress}%` }} />
+                </div>
+              ) : null}
+              <p className="mt-2 text-[12.5px] text-ht-muted">
+                Keep this page open until the upload finishes. Larger clips can take a minute.
+              </p>
+            </Card>
+          ) : null}
+
+          {saveError ? (
+            <Card className="border-ht-red bg-ht-red-tint">
+              <p className="text-[17px] font-semibold text-ht-ink">Upload failed.</p>
+              <p className="mt-1.5 text-[14px] leading-6 text-ht-ink/80">{saveError}</p>
+              <p className="mt-1.5 text-[13px] text-ht-muted">
+                Don&apos;t close this page or hit Redo — this clip isn&apos;t saved yet.
+              </p>
+              <div className="mt-4">
+                <PrimaryButton onClick={retrySave} disabled={saving}>
+                  {saving ? 'Retrying…' : 'Retry Upload'}
+                </PrimaryButton>
+              </div>
+            </Card>
+          ) : null}
+
+          <div className="grid grid-cols-2 gap-3">
+            <GhostButton onClick={redo} disabled={saving}>
+              <RotateCcw className="size-4" strokeWidth={2.2} />
+              Redo
+            </GhostButton>
+            <PrimaryButton onClick={saveRecording} disabled={saving}>
+              {saving ? (
+                uploadStatus === 'uploading' ? `Uploading ${uploadProgress}%` : 'Saving…'
+              ) : (
+                <>
+                  <Check className="size-4" strokeWidth={2.4} />
+                  Save
+                </>
               )}
+            </PrimaryButton>
+          </div>
+        </div>
+      ) : null}
+
+      {phase === 'saved' ? (
+        <div className="mt-5 space-y-4">
+          <Card padded={false}>
+            <div className="px-5 py-6 text-center">
+              <Check className="mx-auto size-8 text-ht-green" strokeWidth={2.4} />
+              <p className="ht-display mt-2 text-[24px] leading-none text-ht-ink">Recording Saved</p>
+              <p className="mt-1.5 text-[14px] text-ht-muted">
+                {mode === 'reps' ? `${reps} reps` : formatTime(elapsedSeconds)}
+              </p>
+              {uploadStatus === 'uploading' ? (
+                <p className="mt-2 flex items-center justify-center gap-1.5 text-[13px] text-ht-muted">
+                  <Loader2 className="size-3.5 animate-spin" /> Uploading to your library…
+                </p>
+              ) : uploadStatus === 'uploaded' ? (
+                <p className="mt-2 text-[13px] text-ht-green">Saved to your library</p>
+              ) : uploadStatus === 'failed' ? (
+                <p className="mt-2 text-[13px] text-ht-red">Upload failed — kept on this device only</p>
+              ) : null}
             </div>
 
-            <Button
-              onClick={() => router.push(workoutIdParam ? `/dashboard/workouts/${workoutIdParam}` : '/dashboard/workouts')}
-              className="w-full"
-            >
-              {workoutIdParam ? 'Back to Workout' : 'Back to Workouts'}
-            </Button>
-          </div>
-        )}
-      </div>
+            {loadingFeedback ? (
+              <div className="flex items-center justify-center gap-2 border-t border-ht-line-soft py-4 text-ht-muted">
+                <Loader2 className="size-4 animate-spin" />
+                <span className="text-[14px]">AI Coach is reviewing your session…</span>
+              </div>
+            ) : null}
+
+            {aiFeedback ? (
+              <div className="border-t border-ht-line-soft px-5 py-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <Sparkles className="size-4 text-ht-orange" strokeWidth={2} />
+                  <SectionTitle>AI Coach Feedback</SectionTitle>
+                </div>
+                <p className="text-[14px] leading-6 text-ht-ink">{aiFeedback}</p>
+              </div>
+            ) : null}
+
+            <RecordingsList
+              drillId={drill.id}
+              drillName={drill.name}
+              defaultOpen
+              embedded
+              highlightId={savedRecordingId}
+            />
+
+            {savedRecordingId ? (
+              <EntityChat
+                contextType="recording"
+                contextId={savedRecordingId}
+                contextTitle={drill.name}
+                defaultOpen
+                embedded
+              />
+            ) : null}
+          </Card>
+
+          <PrimaryButton
+            onClick={() => router.push(workoutIdParam ? `/dashboard/workouts/${workoutIdParam}` : '/dashboard/workouts')}
+          >
+            {workoutIdParam ? 'Back to Workout' : 'Back to Workouts'}
+          </PrimaryButton>
+        </div>
+      ) : null}
     </div>
   )
+}
+
+/** HH:MM:SS, as the live-recording design shows it. */
+function formatClock(seconds: number): string {
+  const total = Math.max(0, Math.floor(seconds))
+  const hours = Math.floor(total / 3600)
+  const mins = Math.floor((total % 3600) / 60)
+  const secs = total % 60
+  return [hours, mins, secs].map((part) => String(part).padStart(2, '0')).join(':')
+}
+
+function PrCell({ label, value, best = false }: { label: string; value: string; best?: boolean }) {
+  return (
+    <div className="text-center">
+      <p className="flex items-center justify-center gap-1 text-[12.5px] text-ht-muted">
+        {best ? <Trophy className="size-3.5 text-ht-orange" strokeWidth={2} /> : null}
+        {label}
+      </p>
+      <p className="ht-display mt-1 text-[24px] leading-none text-ht-ink">{value}</p>
+    </div>
+  )
+}
+
+function ControlButton({
+  icon: Icon,
+  label,
+  onClick,
+  disabled = false,
+  primary = false,
+  solidIcon = false,
+}: {
+  icon: LucideIcon
+  label: string
+  onClick: () => void
+  disabled?: boolean
+  primary?: boolean
+  solidIcon?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        'flex flex-col items-center justify-center gap-2.5 rounded-xl py-4 transition-colors',
+        primary
+          ? 'bg-ht-orange text-white hover:bg-ht-orange-hover'
+          : 'border border-ht-line bg-ht-surface text-ht-ink hover:bg-ht-chip/60',
+        'disabled:cursor-not-allowed disabled:opacity-40',
+      )}
+    >
+      <Icon className={cn('size-7', solidIcon && 'fill-current')} strokeWidth={solidIcon ? 0 : 1.8} />
+      <span className="ht-heading text-[14px] tracking-[0.04em]">{label}</span>
+    </button>
+  )
+}
+
+function DrillSummary({
+  name,
+  coach,
+  target,
+  onOpenOptions,
+}: {
+  name: string
+  coach: string | null
+  target: { value: string; unit: string } | null
+  onOpenOptions?: () => void
+}) {
+  const body = (
+    <>
+      <span className="grid size-[52px] shrink-0 place-items-center rounded-full border-2 border-ht-orange">
+        <Volleyball className="size-7 text-ht-orange" strokeWidth={1.6} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="ht-display block truncate text-[22px] leading-none text-ht-ink">{name}</span>
+        {coach ? <span className="mt-1.5 block truncate text-[15px] text-ht-muted">{coach}</span> : null}
+        {onOpenOptions ? (
+          <span className="mt-1.5 block text-[13px] text-ht-orange">Tap to change session options</span>
+        ) : null}
+      </span>
+      {target ? (
+        <span className="shrink-0 border-l border-ht-line-soft pl-4 text-center">
+          <span className="ht-heading block text-[12px] tracking-[0.06em] text-ht-muted">Target</span>
+          <span className="ht-display mt-1 block text-[30px] leading-none text-ht-ink">{target.value}</span>
+          <span className="ht-heading block text-[11px] tracking-[0.06em] text-ht-muted">{target.unit}</span>
+        </span>
+      ) : null}
+    </>
+  )
+
+  if (onOpenOptions) {
+    return (
+      <button
+        type="button"
+        onClick={onOpenOptions}
+        className="flex w-full items-center gap-4 px-4 py-4 text-left transition-colors hover:bg-ht-orange-tint/60"
+      >
+        {body}
+      </button>
+    )
+  }
+  return <div className="flex items-center gap-4 px-4 py-4">{body}</div>
 }

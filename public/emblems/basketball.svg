@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="basketball emblem">
+  <circle cx="100" cy="100" r="100" fill="#0A0A0A"/>
+    <circle cx="100" cy="100" r="58" fill="none" stroke="#FE4800" stroke-width="9"/>
+    <path d="M100 42v116M42 100h116" stroke="#FE4800" stroke-width="8" fill="none"/>
+    <path d="M62 58c22 24 22 60 0 84M138 58c-22 24-22 60 0 84" stroke="#FE4800" stroke-width="8" fill="none"/>
+</svg>

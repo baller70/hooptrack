@@ -32,7 +32,7 @@ export async function GET(request: Request) {
   if (effectivePlayerId instanceof Response) return effectivePlayerId
 
   let query = `
-    SELECT pm.*, u.name as creator_name, p.name as assigned_player_name
+    SELECT pm.*, u.name as creator_name, u.role as creator_role, p.name as assigned_player_name
     FROM player_moves pm
     JOIN users u ON u.id = pm.created_by
     LEFT JOIN users p ON p.id = pm.assigned_to_player_id

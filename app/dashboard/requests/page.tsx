@@ -7,9 +7,7 @@ export default async function RequestsPage() {
   if (!session) redirect('/login')
   if (session.role !== 'player') redirect('/coach/teams')
 
-  return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-6">
-      <PlayerRequestsClient />
-    </main>
-  )
+  // AppShell already supplies <main> and the page gutters, so the client owns
+  // only its own content — same shape as app/player/page.tsx.
+  return <PlayerRequestsClient />
 }

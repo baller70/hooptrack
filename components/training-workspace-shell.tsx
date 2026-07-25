@@ -1,23 +1,8 @@
 import Link from 'next/link'
 import type { LucideIcon } from 'lucide-react'
-import { Camera, Dumbbell, GraduationCap, PlayCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { appPath, type HoopApp } from '@/lib/app-routes'
-
-type WorkspaceKey = 'capture' | 'workouts' | 'moves' | 'classroom'
-
-const workflow: Array<{
-  key: WorkspaceKey
-  path: string
-  label: string
-  helper: string
-  icon: LucideIcon
-}> = [
-  { key: 'capture', path: '/capture', label: 'Capture', helper: 'Record or upload', icon: Camera },
-  { key: 'workouts', path: '/workouts', label: 'Workouts', helper: 'Build the plan', icon: Dumbbell },
-  { key: 'moves', path: '/moves', label: 'Moves', helper: 'Teach the details', icon: PlayCircle },
-  { key: 'classroom', path: '/classroom', label: 'Classroom', helper: 'Check learning', icon: GraduationCap },
-]
+import { type HoopApp } from '@/lib/app-routes'
+import { TrainingWorkspaceTabs, type WorkspaceKey } from '@/components/training-workspace-tabs'
 
 export function TrainingWorkspaceShell({
   active,
@@ -57,29 +42,9 @@ export function TrainingWorkspaceShell({
           {stats && <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">{stats}</div>}
         </div>
 
-        <nav className="grid grid-cols-2 border-b-2 border-black bg-white sm:grid-cols-4" aria-label="Training workflow">
-          {workflow.map((item) => {
-            const Icon = item.icon
-            const selected = item.key === active
-            return (
-              <Link
-                key={item.key}
-                href={appPath(app, item.path)}
-                className={cn(
-                  'min-h-[74px] border-black p-3 transition-colors sm:border-r-2 sm:last:border-r-0',
-                  'border-b-2 sm:border-b-0',
-                  selected ? 'bg-hoop-black text-white' : 'bg-white text-hoop-black hover:bg-orange-50',
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <Icon className={cn('h-5 w-5', selected ? 'text-hoop-orange' : 'text-hoop-orange')} />
-                  <span className="font-[family-name:var(--font-russo)] text-lg leading-none">{item.label}</span>
-                </div>
-                <p className={cn('mt-1 text-xs', selected ? 'text-white/70' : 'text-muted-foreground')}>{item.helper}</p>
-              </Link>
-            )
-          })}
-        </nav>
+        <div className="border-b-2 border-black bg-white px-2">
+          <TrainingWorkspaceTabs active={active} app={app} />
+        </div>
       </section>
 
       <div className={cn('mt-4 grid gap-4', sidebar ? 'lg:grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-1')}>

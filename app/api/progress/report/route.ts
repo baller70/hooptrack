@@ -62,6 +62,41 @@ function periodBounds(period: Period): { start: Date; end: Date; prevStart: Date
   return { start, end, prevStart, prevEnd }
 }
 
+const DAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** Local-time YYYY-MM-DD — toISOString() would shift the day west of UTC. */
+function localIso(date: Date): string {
+  const month = `${date.getMonth() + 1}`.padStart(2, '0')
+  const day = `${date.getDate()}`.padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day}`
+}
+
+/** Midnight-anchored days: the trailing N, or this Mon→Sun week when null. */
+function dailyBuckets(trailingDays: number | null): Date[] {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const days: Date[] = []
+
+  if (trailingDays) {
+    for (let i = trailingDays - 1; i >= 0; i--) {
+      const d = new Date(today)
+      d.setDate(today.getDate() - i)
+      days.push(d)
+    }
+    return days
+  }
+
+  const monday = new Date(today)
+  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7))
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    days.push(d)
+  }
+  return days
+}
+
 interface RecordingRow {
   id: number
   duration_seconds: number
@@ -180,6 +215,8 @@ export async function GET(request: Request) {
   const playerIdParam = searchParams.get('playerId')
   const playerId = playerIdParam ? parseInt(playerIdParam) : session.id
   const period = (searchParams.get('period') as Period) || 'month'
+  const daysParam = Number.parseInt(searchParams.get('days') ?? '', 10)
+  const trailingDays = Number.isInteger(daysParam) ? Math.max(1, Math.min(31, daysParam)) : null
 
   // Trainers can view any player; players only themselves
   if (session.role !== 'trainer' && playerId !== session.id) {
@@ -308,6 +345,26 @@ export async function GET(request: Request) {
     })
   }
 
+  /* Daily training volume. Defaults to the current Mon→Sun week (the phone
+   * progress report charts a weekday per bar); ?days=N instead returns the
+   * trailing N days, which is what the coach "Last 7 Days" picker asks for. */
+  const dailyHours = dailyBuckets(trailingDays).map((day) => {
+    const next = new Date(day)
+    next.setDate(day.getDate() + 1)
+    const sec = recordings
+      .filter((r) => {
+        const d = new Date(r.recorded_at)
+        return d >= day && d < next
+      })
+      .reduce((s, r) => s + (r.duration_seconds || 0), 0)
+    return {
+      date: localIso(day),
+      weekday: DAY_ABBR[day.getDay()],
+      label: `${MONTH_ABBR[day.getMonth()]} ${day.getDate()}`,
+      hours: Math.round((sec / 3600) * 10) / 10,
+    }
+  })
+
   // Hours-by-subject chart
   const subjectHoursChart = Object.entries(hoursBySubject).map(([subject, hours]) => ({ subject, hours }))
 
@@ -355,6 +412,7 @@ export async function GET(request: Request) {
     weakest,
     charts: {
       weekly_hours: weeklyHours,
+      daily_hours: dailyHours,
       subject_hours: subjectHoursChart,
       radar: radarData,
     },

@@ -45,12 +45,15 @@ export default function YouTubeEmbed({
   clipEnd,
   defaultPlaybackRate = 1,
   showSpeedControl = true,
+  autoplay = false,
 }: {
   url: string
   clipStart?: number | null
   clipEnd?: number | null
   defaultPlaybackRate?: number
   showSpeedControl?: boolean
+  /** For callers that mount the player from their own poster's play button. */
+  autoplay?: boolean
 }) {
   const videoId = getYouTubeId(url)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -79,6 +82,7 @@ export default function YouTubeEmbed({
       }
       if (clipStart != null && clipStart > 0) playerVars.start = clipStart
       if (clipEnd != null && clipEnd > 0) playerVars.end = clipEnd
+      if (autoplay) playerVars.autoplay = 1
 
       playerRef.current = new w.YT.Player(div, {
         videoId,
@@ -103,6 +107,17 @@ export default function YouTubeEmbed({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videoId, clipStart, clipEnd])
+
+  // Some screens own the rate outside this component (the move library's
+  // PLAYBACK SPEED segments). Follow the prop instead of making the caller
+  // remount the player, which would restart the clip on every speed change.
+  useEffect(() => {
+    const next = defaultPlaybackRate || 1
+    setRate(next)
+    if (playerRef.current) {
+      try { playerRef.current.setPlaybackRate(next) } catch {}
+    }
+  }, [defaultPlaybackRate])
 
   function changeRate(r: number) {
     setRate(r)

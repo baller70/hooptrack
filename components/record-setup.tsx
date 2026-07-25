@@ -1,18 +1,33 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import dynamic from 'next/dynamic'
 import {
-  Video, Timer, Play, Repeat, Activity, Eye, Volume2, ChevronDown, ChevronUp,
-  Loader2, Mic, Hash, Type, Square as SquareIcon, Sparkles,
+  Activity,
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  Hash,
+  Loader2,
+  Mic,
+  Play,
+  Repeat,
+  Square as SquareIcon,
+  Timer,
+  Type,
+  Volume2,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import type { LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
+import { Card, PrimaryButton, SectionTitle } from '@/components/ht/primitives'
 import type { RecorderTimerMode, RecorderOptions } from '@/components/video-recorder'
 
-const VideoRecorder = dynamic(() => import('@/components/video-recorder'), { ssr: false })
+/**
+ * The session-options surface for the record screen: timer mode, rep target,
+ * eye-training overlays and audio cues. It resolves the drill the recording
+ * will hang off (an attached drill, or the personal Free Play drill) and hands
+ * the finished settings back to the recorder.
+ */
 
 interface DrillOption {
   id: number
@@ -21,15 +36,16 @@ interface DrillOption {
   category: string
 }
 
-interface ResolvedDrill {
+export interface ResolvedDrill {
   id: number
   name: string
   duration_seconds: number
   timer_mode: 'timed' | 'stopwatch' | 'reps'
   target_reps: number | null
+  coach_name?: string | null
 }
 
-interface PRData {
+export interface PRData {
   previous_seconds: number | null
   best_seconds: number | null
   previous_reps: number | null
@@ -38,10 +54,17 @@ interface PRData {
 
 const DEFAULT_REACTION_WORDS = ['LEFT', 'RIGHT', 'SHOOT', 'PASS', 'CROSS', 'FAKE', 'GO', 'STOP']
 
-export default function RecordSetup() {
+export default function RecordSetup({
+  onApply,
+  initialDrillId = null,
+}: {
+  /** Receives the resolved drill plus the settings the recorder should run. */
+  onApply: (payload: { drill: ResolvedDrill; pr: PRData; options: RecorderOptions }) => void
+  initialDrillId?: number | null
+}) {
   const [drills, setDrills] = useState<DrillOption[]>([])
-  const [attachDrill, setAttachDrill] = useState(false) // free play by default
-  const [drillId, setDrillId] = useState<number | null>(null)
+  const [attachDrill, setAttachDrill] = useState(initialDrillId != null)
+  const [drillId, setDrillId] = useState<number | null>(initialDrillId)
   const [loadingDrills, setLoadingDrills] = useState(true)
   const [starting, setStarting] = useState(false)
 
@@ -72,29 +95,40 @@ export default function RecordSetup() {
   const [voiceEvery, setVoiceEvery] = useState(6)
   const [voiceWords, setVoiceWords] = useState(DEFAULT_REACTION_WORDS.join(', '))
 
-  // Started
-  const [recording, setRecording] = useState<{ drill: ResolvedDrill; pr: PRData; options: RecorderOptions } | null>(null)
-
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- all setState calls are inside the async fetch chain, not synchronously here
-    setLoadingDrills(true)
+    let cancelled = false
     fetch('/api/drills/options', { cache: 'no-store' })
       .then((r) => r.json())
-      .then((d) => {
-        const list: DrillOption[] = d.drills || []
-        // Hide the user's own "Free Play" drill from the picker (created lazily; if it exists)
-        const filtered = list.filter((dr) => !(dr.name === 'Free Play Session' && dr.workout_title === 'Free Play'))
+      .then((d: { drills?: DrillOption[] }) => {
+        if (cancelled) return
+        // The personal "Free Play" drill is the fallback, not a pickable drill.
+        const filtered = (d.drills ?? []).filter(
+          (dr) => !(dr.name === 'Free Play Session' && dr.workout_title === 'Free Play'),
+        )
         setDrills(filtered)
-        if (filtered.length > 0) setDrillId(filtered[0].id)
+        setDrillId((current) => current ?? filtered[0]?.id ?? null)
       })
-      .finally(() => setLoadingDrills(false))
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setLoadingDrills(false)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
-  async function start() {
-    if (mode === 'timed' && duration < 1) { toast.error('Duration must be at least 1 second'); return }
-    if (mode === 'reps' && targetReps < 1) { toast.error('Target reps must be at least 1'); return }
+  async function apply() {
+    if (mode === 'timed' && duration < 1) {
+      toast.error('Duration must be at least 1 second')
+      return
+    }
+    if (mode === 'reps' && targetReps < 1) {
+      toast.error('Target reps must be at least 1')
+      return
+    }
     if (mode === 'interval' && (intervalWork < 1 || intervalRest < 0 || intervalRounds < 1)) {
-      toast.error('Check interval values'); return
+      toast.error('Check interval values')
+      return
     }
     if (attachDrill && !drillId) {
       toast.error('Pick a drill or switch to Free Play')
@@ -140,176 +174,171 @@ export default function RecordSetup() {
         if (words.length > 0) opts.voiceCues = { intervalSeconds: voiceEvery, words }
       }
 
-      setRecording({ drill, pr, options: opts })
+      onApply({ drill, pr, options: opts })
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to start')
+      toast.error(e instanceof Error ? e.message : 'Failed to apply settings')
     } finally {
       setStarting(false)
     }
   }
 
-  if (recording) {
-    return (
-      <VideoRecorder
-        drill={recording.drill}
-        pr={recording.pr}
-        options={recording.options}
-        onBack={() => setRecording(null)}
-      />
-    )
-  }
-
   return (
     <div className="space-y-4">
       {/* Drill — optional */}
-      <SectionCard title="Drill (optional)" icon={<Sparkles className="h-4 w-4" />}>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => setAttachDrill(false)}
-            className={`border-2 rounded-md py-3 px-3 text-sm font-semibold ${!attachDrill ? 'border-black bg-black text-white shadow-[2px_2px_0px_0px_#0A0A0A]' : 'border-input bg-background hover:border-black'}`}
-          >
-            Free Play
-          </button>
-          <button
-            type="button"
-            onClick={() => setAttachDrill(true)}
-            className={`border-2 rounded-md py-3 px-3 text-sm font-semibold ${attachDrill ? 'border-black bg-black text-white shadow-[2px_2px_0px_0px_#0A0A0A]' : 'border-input bg-background hover:border-black'}`}
-          >
-            Attach a Drill
-          </button>
+      <Card>
+        <SectionTitle>Drill</SectionTitle>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <Segment active={!attachDrill} onClick={() => setAttachDrill(false)} label="Free Play" />
+          <Segment active={attachDrill} onClick={() => setAttachDrill(true)} label="Attach a Drill" />
         </div>
-        {attachDrill && (
+        {attachDrill ? (
           <div className="mt-3">
             {loadingDrills && drills.length === 0 ? (
-              <p className="text-sm text-muted-foreground flex items-center gap-1">
-                <Loader2 className="h-3 w-3 animate-spin" /> Loading drills...
+              <p className="flex items-center gap-1.5 text-[13px] text-ht-muted">
+                <Loader2 className="size-3.5 animate-spin" /> Loading drills…
               </p>
             ) : drills.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No drills yet — create a workout with drills first, or stick with Free Play.
+              <p className="text-[13px] text-ht-muted">
+                No drills yet — build a workout with drills first, or stick with Free Play.
               </p>
             ) : (
               <select
                 value={drillId ?? ''}
                 onChange={(e) => setDrillId(parseInt(e.target.value))}
-                className="w-full h-10 rounded-md border-2 border-input bg-background px-3 py-2 text-sm"
+                className="h-11 w-full rounded-lg border border-ht-line bg-white px-3 text-[14px] text-ht-ink"
               >
                 {drills.map((d) => (
                   <option key={d.id} value={d.id}>
-                    {d.name}{d.workout_title ? ` — ${d.workout_title}` : ''}
+                    {d.name}
+                    {d.workout_title ? ` — ${d.workout_title}` : ''}
                   </option>
                 ))}
               </select>
             )}
           </div>
-        )}
-        {!attachDrill && (
-          <p className="text-xs text-muted-foreground mt-3">
-            Recordings save to a personal &ldquo;Free Play&rdquo; library — no drill linkage required.
+        ) : (
+          <p className="mt-3 text-[13px] leading-5 text-ht-muted">
+            Recordings save to your personal Free Play library — no drill needed.
           </p>
         )}
-      </SectionCard>
+      </Card>
 
       {/* Time-based modes */}
-      <SectionCard title="Time" icon={<Timer className="h-4 w-4" />}>
-        <div className="grid grid-cols-3 gap-2">
+      <Card>
+        <SectionTitle>Time</SectionTitle>
+        <div className="mt-3 grid grid-cols-3 gap-2">
           <ModeButton active={mode === 'timed'} onClick={() => setMode('timed')} icon={Timer} label="Timed" />
           <ModeButton active={mode === 'stopwatch'} onClick={() => setMode('stopwatch')} icon={Play} label="Stopwatch" />
           <ModeButton active={mode === 'interval'} onClick={() => setMode('interval')} icon={Activity} label="Interval" />
         </div>
 
-        {mode === 'timed' && (
+        {mode === 'timed' ? (
           <div className="mt-3">
-            <Label>Duration (seconds)</Label>
-            <Input type="number" min={1} value={duration} onChange={(e) => setDuration(parseInt(e.target.value) || 60)} />
-            <p className="text-xs text-muted-foreground mt-1">3-2-1 audio lead-in. Buzzer at end.</p>
+            <FieldLabel>Duration (seconds)</FieldLabel>
+            <NumberField value={duration} min={1} onChange={(n) => setDuration(n || 60)} />
+            <p className="mt-1.5 text-[12.5px] text-ht-muted">3-2-1 audio lead-in. Buzzer at the end.</p>
           </div>
-        )}
-        {mode === 'stopwatch' && (
-          <p className="text-xs text-muted-foreground mt-3 italic">Open-ended — counts up until you tap Stop.</p>
-        )}
-        {mode === 'interval' && (
-          <div className="grid grid-cols-3 gap-2 mt-3">
+        ) : null}
+        {mode === 'stopwatch' ? (
+          <p className="mt-3 text-[12.5px] text-ht-muted">Open-ended — counts up until you tap Stop.</p>
+        ) : null}
+        {mode === 'interval' ? (
+          <div className="mt-3 grid grid-cols-3 gap-2">
             <div>
-              <Label>Work (s)</Label>
-              <Input type="number" min={1} value={intervalWork} onChange={(e) => setIntervalWork(parseInt(e.target.value) || 30)} />
+              <FieldLabel>Work (s)</FieldLabel>
+              <NumberField value={intervalWork} min={1} onChange={(n) => setIntervalWork(n || 30)} />
             </div>
             <div>
-              <Label>Rest (s)</Label>
-              <Input type="number" min={0} value={intervalRest} onChange={(e) => setIntervalRest(parseInt(e.target.value) || 0)} />
+              <FieldLabel>Rest (s)</FieldLabel>
+              <NumberField value={intervalRest} min={0} onChange={(n) => setIntervalRest(n || 0)} />
             </div>
             <div>
-              <Label>Rounds</Label>
-              <Input type="number" min={1} value={intervalRounds} onChange={(e) => setIntervalRounds(parseInt(e.target.value) || 1)} />
+              <FieldLabel>Rounds</FieldLabel>
+              <NumberField value={intervalRounds} min={1} onChange={(n) => setIntervalRounds(n || 1)} />
             </div>
           </div>
-        )}
-      </SectionCard>
+        ) : null}
+      </Card>
 
       {/* Reps */}
-      <SectionCard title="Reps" icon={<Repeat className="h-4 w-4" />}>
-        <ModeButton active={mode === 'reps'} onClick={() => setMode('reps')} icon={Repeat} label="Count to a target" full />
-        {mode === 'reps' && (
+      <Card>
+        <SectionTitle>Reps</SectionTitle>
+        <div className="mt-3">
+          <ModeButton
+            active={mode === 'reps'}
+            onClick={() => setMode('reps')}
+            icon={Repeat}
+            label="Count to a target"
+            full
+          />
+        </div>
+        {mode === 'reps' ? (
           <div className="mt-3">
-            <Label>How many reps?</Label>
-            <Input type="number" min={1} value={targetReps} onChange={(e) => setTargetReps(parseInt(e.target.value) || 10)} />
-            <p className="text-xs text-muted-foreground mt-1">Tap +1 on screen for each rep. Auto-stops at target.</p>
+            <FieldLabel>How many reps?</FieldLabel>
+            <NumberField value={targetReps} min={1} onChange={(n) => setTargetReps(n || 10)} />
+            <p className="mt-1.5 text-[12.5px] text-ht-muted">
+              Tap Save Rep on the record screen for each rep. Auto-stops at the target.
+            </p>
           </div>
-        )}
-        {mode !== 'reps' && (
-          <p className="text-xs text-muted-foreground mt-3">
-            Tap to switch to rep counting. Useful when number of reps matters more than time.
+        ) : (
+          <p className="mt-3 text-[12.5px] leading-5 text-ht-muted">
+            Switch to rep counting when the number of reps matters more than the clock.
           </p>
         )}
-      </SectionCard>
+      </Card>
 
       {/* Eye-training overlays */}
       <CollapseCard
         title="Eye-training overlays"
-        icon={<Eye className="h-4 w-4" />}
+        icon={Eye}
         on={numberFlashOn || reactionPromptsOn || colorFlashOn || eyeLevelGuide}
         open={showVisualCues}
         onToggle={() => setShowVisualCues(!showVisualCues)}
       >
-        <p className="text-xs text-muted-foreground">
-          These filters appear on the record window and are saved into the video.
-          Use them to test eyes-up reactions, peripheral vision, and focus while the player performs.
+        <p className="text-[12.5px] leading-5 text-ht-muted">
+          These filters appear on the record window and are burned into the saved video. Use them to
+          test eyes-up reactions, peripheral vision and focus while the player performs.
         </p>
         <ToggleRow
-          icon={<Hash className="h-3.5 w-3.5" />}
+          icon={Hash}
           kicker="Filter option 1"
           label="Number flash filter"
           hint="A random number from 1-9 appears in a corner of the recording window. The player calls it out while continuing the drill."
           on={numberFlashOn}
           onChange={setNumberFlashOn}
-          extra={numberFlashOn && <SecondsInput value={numberFlashEvery} onChange={setNumberFlashEvery} label="every" />}
+          extra={numberFlashOn ? <SecondsInput value={numberFlashEvery} onChange={setNumberFlashEvery} label="every" /> : null}
         />
         <ToggleRow
-          icon={<Type className="h-3.5 w-3.5" />}
+          icon={Type}
           kicker="Filter option 2"
           label="Reaction word filter"
-          hint="A random command appears on the recording window. Use it for live reads like LEFT, RIGHT, SHOOT, PASS, or CROSS."
+          hint="A random command appears on the recording window. Use it for live reads like LEFT, RIGHT, SHOOT, PASS or CROSS."
           on={reactionPromptsOn}
           onChange={setReactionPromptsOn}
-          extra={reactionPromptsOn && (
-            <div className="space-y-1">
-              <SecondsInput value={reactionEvery} onChange={setReactionEvery} label="every" />
-              <Input value={reactionWords} onChange={(e) => setReactionWords(e.target.value)} placeholder="LEFT, RIGHT, SHOOT..." className="text-xs" />
-            </div>
-          )}
+          extra={
+            reactionPromptsOn ? (
+              <div className="space-y-2">
+                <SecondsInput value={reactionEvery} onChange={setReactionEvery} label="every" />
+                <TextField
+                  value={reactionWords}
+                  onChange={setReactionWords}
+                  placeholder="LEFT, RIGHT, SHOOT…"
+                />
+              </div>
+            ) : null
+          }
         />
         <ToggleRow
-          icon={<SquareIcon className="h-3.5 w-3.5" />}
+          icon={SquareIcon}
           kicker="Filter option 3"
           label="Color flash filter"
           hint="A colored block flashes in a corner of the recording window. Use it to train peripheral vision and quick visual recognition."
           on={colorFlashOn}
           onChange={setColorFlashOn}
-          extra={colorFlashOn && <SecondsInput value={colorFlashEvery} onChange={setColorFlashEvery} label="every" />}
+          extra={colorFlashOn ? <SecondsInput value={colorFlashEvery} onChange={setColorFlashEvery} label="every" /> : null}
         />
         <ToggleRow
-          icon={<Eye className="h-3.5 w-3.5" />}
+          icon={Eye}
           kicker="Filter option 4"
           label="Eyes-up guide filter"
           hint="A guide mark appears near the top of the recording window so the player has a visual target for keeping their eyes up."
@@ -321,122 +350,254 @@ export default function RecordSetup() {
       {/* Audio cues */}
       <CollapseCard
         title="Audio cues"
-        icon={<Volume2 className="h-4 w-4" />}
+        icon={Volume2}
         on={metronomeOn || voiceOn}
         open={showAudioCues}
         onToggle={() => setShowAudioCues(!showAudioCues)}
       >
         <ToggleRow
-          icon={<Activity className="h-3.5 w-3.5" />}
+          icon={Activity}
           label="Metronome"
-          hint="Click on the beat for rhythm work"
+          hint="Clicks on the beat for rhythm work."
           on={metronomeOn}
           onChange={setMetronomeOn}
-          extra={metronomeOn && (
-            <div className="flex items-center gap-2">
-              <Input type="number" min={40} max={240} value={metronomeBpm} onChange={(e) => setMetronomeBpm(parseInt(e.target.value) || 120)} className="w-20" />
-              <span className="text-xs text-muted-foreground">BPM</span>
-            </div>
-          )}
+          extra={
+            metronomeOn ? (
+              <div className="flex items-center gap-2">
+                <NumberField value={metronomeBpm} min={40} max={240} onChange={(n) => setMetronomeBpm(n || 120)} className="w-24" />
+                <span className="text-[12.5px] text-ht-muted">BPM</span>
+              </div>
+            ) : null
+          }
         />
         <ToggleRow
-          icon={<Mic className="h-3.5 w-3.5" />}
+          icon={Mic}
           label="Voice cues"
-          hint="Random spoken commands (browser TTS)"
+          hint="Random spoken commands, using the browser's speech synthesis."
           on={voiceOn}
           onChange={setVoiceOn}
-          extra={voiceOn && (
-            <div className="space-y-1">
-              <SecondsInput value={voiceEvery} onChange={setVoiceEvery} label="every" />
-              <Input value={voiceWords} onChange={(e) => setVoiceWords(e.target.value)} placeholder="switch, shoot, explode..." className="text-xs" />
-            </div>
-          )}
+          extra={
+            voiceOn ? (
+              <div className="space-y-2">
+                <SecondsInput value={voiceEvery} onChange={setVoiceEvery} label="every" />
+                <TextField value={voiceWords} onChange={setVoiceWords} placeholder="switch, shoot, explode…" />
+              </div>
+            ) : null
+          }
         />
       </CollapseCard>
 
-      <Button
-        onClick={start}
-        disabled={starting}
-        size="lg"
-        className="w-full gap-2 bg-red-600 hover:bg-red-700 h-14 text-base"
-      >
-        {starting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Video className="h-5 w-5" />}
-        Start Recording Session
-      </Button>
+      <PrimaryButton onClick={apply} disabled={starting} className="py-4">
+        {starting ? <Loader2 className="size-5 animate-spin" /> : null}
+        Apply Session Settings
+      </PrimaryButton>
     </div>
   )
 }
 
-function SectionCard({ title, icon, children }: { title: string; icon?: React.ReactNode; children: React.ReactNode }) {
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return <label className="mb-1.5 block text-[13px] font-medium text-ht-ink">{children}</label>
+}
+
+function NumberField({
+  value,
+  min,
+  max,
+  onChange,
+  className,
+}: {
+  value: number
+  min?: number
+  max?: number
+  onChange: (value: number) => void
+  className?: string
+}) {
   return (
-    <div className="bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_#0A0A0A] p-4">
-      <Label className="font-semibold text-sm flex items-center gap-1.5 mb-2">{icon}{title}</Label>
-      {children}
-    </div>
+    <input
+      type="number"
+      value={value}
+      min={min}
+      max={max}
+      onChange={(e) => onChange(parseInt(e.target.value))}
+      className={cn(
+        'h-11 w-full rounded-lg border border-ht-line bg-white px-3 text-[14px] text-ht-ink',
+        'focus:border-ht-orange focus:outline-none',
+        className,
+      )}
+    />
   )
 }
 
-function CollapseCard({ title, icon, on, open, onToggle, children }: { title: string; icon: React.ReactNode; on: boolean; open: boolean; onToggle: () => void; children: React.ReactNode }) {
+function TextField({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+}) {
   return (
-    <div className="bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_#0A0A0A] overflow-hidden">
-      <button type="button" onClick={onToggle} className="w-full flex items-center justify-between p-4 hover:bg-gray-50">
-        <span className="flex items-center gap-2 font-semibold text-sm">
-          {icon}
-          {title}
-          {on && <span className="text-[10px] bg-black text-white px-1.5 py-0.5 rounded font-bold">ON</span>}
-        </span>
-        {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-      </button>
-      {open && <div className="px-4 pb-4 space-y-3 border-t-2 border-gray-100 pt-3">{children}</div>}
-    </div>
+    <input
+      type="text"
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      className="h-10 w-full rounded-lg border border-ht-line bg-white px-3 text-[13px] text-ht-ink focus:border-ht-orange focus:outline-none"
+    />
   )
 }
 
-function ModeButton({ active, onClick, icon: Icon, label, full = false }: { active: boolean; onClick: () => void; icon: React.ComponentType<{ className?: string }>; label: string; full?: boolean }) {
+function Segment({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex flex-col items-center gap-1 py-3 px-3 rounded-md border-2 text-xs font-semibold ${
+      className={cn(
+        'ht-heading rounded-lg px-3 py-3 text-[13px] tracking-[0.03em] transition-colors',
         active
-          ? 'border-black bg-black text-white shadow-[2px_2px_0px_0px_#0A0A0A]'
-          : 'border-input bg-background hover:border-black'
-      } ${full ? 'w-full flex-row justify-center' : ''}`}
+          ? 'bg-ht-orange text-white'
+          : 'border border-ht-line bg-white text-ht-ink hover:bg-ht-chip/60',
+      )}
     >
-      <Icon className="h-4 w-4" />
       {label}
     </button>
   )
 }
 
-function ToggleRow({ icon, kicker, label, hint, on, onChange, extra }: { icon: React.ReactNode; kicker?: string; label: string; hint: string; on: boolean; onChange: (v: boolean) => void; extra?: React.ReactNode }) {
+function ModeButton({
+  active,
+  onClick,
+  icon: Icon,
+  label,
+  full = false,
+}: {
+  active: boolean
+  onClick: () => void
+  icon: LucideIcon
+  label: string
+  full?: boolean
+}) {
   return (
-    <div className={`space-y-2 rounded-lg border-2 p-3 ${on ? 'border-black bg-gray-50' : 'border-gray-200 bg-white'}`}>
-      <label className="flex items-start gap-3 cursor-pointer">
-        <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} className="mt-1 h-4 w-4" />
-        <div className="flex-1">
-          {kicker && (
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-bold mb-1">{kicker}</p>
-          )}
-          <p className="text-sm font-semibold flex items-center gap-1.5">
-            {icon}
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'ht-heading flex items-center justify-center gap-2 rounded-lg px-3 py-3 text-[12.5px] tracking-[0.03em] transition-colors',
+        full ? 'w-full flex-row' : 'flex-col',
+        active
+          ? 'bg-ht-orange text-white'
+          : 'border border-ht-line bg-white text-ht-ink hover:bg-ht-chip/60',
+      )}
+    >
+      <Icon className="size-4" strokeWidth={2} />
+      {label}
+    </button>
+  )
+}
+
+function CollapseCard({
+  title,
+  icon: Icon,
+  on,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string
+  icon: LucideIcon
+  on: boolean
+  open: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <Card padded={false} className="overflow-hidden">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between px-5 py-4 transition-colors hover:bg-ht-chip/50"
+      >
+        <span className="flex items-center gap-2">
+          <Icon className="size-4 text-ht-ink" strokeWidth={2} />
+          <SectionTitle>{title}</SectionTitle>
+          {on ? (
+            <span className="ht-heading rounded bg-ht-orange px-1.5 py-0.5 text-[10px] text-white">On</span>
+          ) : null}
+        </span>
+        {open ? (
+          <ChevronUp className="size-4 text-ht-muted" strokeWidth={2} />
+        ) : (
+          <ChevronDown className="size-4 text-ht-muted" strokeWidth={2} />
+        )}
+      </button>
+      {open ? <div className="space-y-3 border-t border-ht-line-soft px-5 py-4">{children}</div> : null}
+    </Card>
+  )
+}
+
+function ToggleRow({
+  icon: Icon,
+  kicker,
+  label,
+  hint,
+  on,
+  onChange,
+  extra,
+}: {
+  icon: LucideIcon
+  kicker?: string
+  label: string
+  hint: string
+  on: boolean
+  onChange: (value: boolean) => void
+  extra?: React.ReactNode
+}) {
+  return (
+    <div
+      className={cn(
+        'space-y-2 rounded-lg border p-3',
+        on ? 'border-ht-orange/40 bg-ht-orange-soft' : 'border-ht-line bg-white',
+      )}
+    >
+      <label className="flex cursor-pointer items-start gap-3">
+        <input
+          type="checkbox"
+          checked={on}
+          onChange={(e) => onChange(e.target.checked)}
+          className="mt-1 size-4 accent-[#FE4800]"
+        />
+        <span className="flex-1">
+          {kicker ? (
+            <span className="ht-heading mb-1 block text-[10px] tracking-[0.08em] text-ht-muted">{kicker}</span>
+          ) : null}
+          <span className="flex items-center gap-1.5 text-[14px] font-semibold text-ht-ink">
+            <Icon className="size-3.5" strokeWidth={2} />
             {label}
-            {on && <span className="text-[10px] bg-black text-white px-1.5 py-0.5 rounded font-bold">ON</span>}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{hint}</p>
-        </div>
+          </span>
+          <span className="mt-1 block text-[12.5px] leading-5 text-ht-muted">{hint}</span>
+        </span>
       </label>
-      {extra && <div className="pl-7">{extra}</div>}
+      {extra ? <div className="pl-7">{extra}</div> : null}
     </div>
   )
 }
 
-function SecondsInput({ value, onChange, label }: { value: number; onChange: (n: number) => void; label: string }) {
+function SecondsInput({
+  value,
+  onChange,
+  label,
+}: {
+  value: number
+  onChange: (value: number) => void
+  label: string
+}) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <Input type="number" min={1} max={60} value={value} onChange={(e) => onChange(parseInt(e.target.value) || 5)} className="w-20" />
-      <span className="text-xs text-muted-foreground">seconds</span>
+      <span className="text-[12.5px] text-ht-muted">{label}</span>
+      <NumberField value={value} min={1} max={60} onChange={(n) => onChange(n || 5)} className="w-20" />
+      <span className="text-[12.5px] text-ht-muted">seconds</span>
     </div>
   )
 }

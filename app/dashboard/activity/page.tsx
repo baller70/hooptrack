@@ -1,6 +1,11 @@
 import { getSession } from '@/lib/session'
 import { redirect } from 'next/navigation'
 import ActivityFeedClient from '@/components/activity-feed-client'
+import { PageTitle } from '@/components/ht/primitives'
+
+/* Implements design/hooptrack-raw-individual-screens/
+ *   web-desktop/004-coach-activity-film-review-raw.png (lg+)
+ *   ios/014-coach-live-activity-raw.png                (phone) */
 
 export default async function ActivityPage() {
   const session = await getSession()
@@ -8,11 +13,11 @@ export default async function ActivityPage() {
   if (session.role !== 'trainer') redirect('/player/progress')
 
   return (
-    <div className="p-4 max-w-4xl mx-auto">
-      <h2 className="font-[family-name:var(--font-russo)] text-2xl mb-1">Activity</h2>
-      <p className="text-sm text-muted-foreground mb-6">
-        Everything your players have done, newest first.
-      </p>
+    <div className="pt-2">
+      <PageTitle>
+        <span className="lg:hidden">Live Activity</span>
+        <span className="max-lg:hidden">Activity and Film Review</span>
+      </PageTitle>
       <ActivityFeedClient />
     </div>
   )

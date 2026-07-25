@@ -2,13 +2,19 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Play, Pause, RotateCcw, Link2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Film, Link2, Pause, Play, RotateCcw, SquarePlay } from 'lucide-react'
 import { getVideoFromIndexedDB } from '@/lib/video-storage'
 import VideoSpeedControl from '@/components/video-speed-control'
 import EntityChat from '@/components/entity-chat'
-import LibraryTabs from '@/components/library-tabs'
 import AdaptiveVideo from '@/components/adaptive-video'
+import {
+  Card,
+  EmptyState,
+  GhostButton,
+  PageTitle,
+  PrimaryButton,
+  SectionTitle,
+} from '@/components/ht/primitives'
 
 interface Recording {
   id: number
@@ -26,6 +32,9 @@ interface Player {
   id: number
   name: string
 }
+
+const SELECT_CLASS =
+  'h-11 w-full rounded-lg border border-ht-line bg-ht-surface px-3 text-[14px] text-ht-ink outline-none focus:border-ht-orange'
 
 export default function ComparisonPage() {
   const searchParams = useSearchParams()
@@ -144,15 +153,22 @@ export default function ComparisonPage() {
     if (rightVideoRef.current) rightVideoRef.current.currentTime = 0
   }
 
+  function optionLabel(r: Recording) {
+    const who = role === 'trainer' && r.player_name ? `${r.player_name} · ` : ''
+    return `${who}${r.drill_name} - ${new Date(r.recorded_at).toLocaleDateString()}`
+  }
+
   return (
-    <div className="p-4 max-w-6xl mx-auto">
-      <LibraryTabs />
-      <h2 className="font-[family-name:var(--font-russo)] text-2xl mb-4">Compare Recordings</h2>
+    <div className="pt-2 lg:max-w-6xl">
+      <PageTitle>Compare Recordings</PageTitle>
 
       {role === 'trainer' && (
-        <div className="bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_#0A0A0A] p-3 mb-4 flex items-center gap-2">
-          <label className="text-sm font-semibold">Player:</label>
+        <Card className="mt-4 flex flex-wrap items-center gap-3 lg:max-w-md">
+          <label htmlFor="compare-player" className="ht-heading text-[13px] tracking-[0.04em] text-ht-ink">
+            Player
+          </label>
           <select
+            id="compare-player"
             value={filterPlayerId}
             onChange={(e) => {
               setFilterPlayerId(e.target.value)
@@ -163,45 +179,48 @@ export default function ComparisonPage() {
               setLeftUrl('')
               setRightUrl('')
             }}
-            className="flex-1 rounded-md border-2 border-input bg-white px-2 py-1.5 text-sm"
+            className={`${SELECT_CLASS} min-w-0 flex-1`}
           >
             <option value="">All players</option>
             {players.map((p) => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
-        </div>
+        </Card>
       )}
 
       {recordings.length < 2 && (
-        <div className="text-center py-16 text-muted-foreground">
-          <p>You need at least 2 recordings to compare.</p>
-          <p className="text-sm mt-1">Record some drills first!</p>
-        </div>
+        <Card className="mt-4">
+          <EmptyState
+            icon={Film}
+            title="Not enough recordings to compare"
+            body="Two clips are needed for a side-by-side. Record a couple of drills first."
+          />
+        </Card>
       )}
 
       {recordings.length >= 2 && (
         <>
-          <div className="grid md:grid-cols-2 gap-4 mb-4">
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
             {/* Left panel */}
-            <div className="space-y-2">
+            <div className="space-y-2.5">
+              <label htmlFor="compare-left" className="sr-only">Left recording</label>
               <select
+                id="compare-left"
                 value={leftKey}
                 onChange={(e) => {
                   if (leftUrl?.startsWith('blob:')) URL.revokeObjectURL(leftUrl)
                   setLeftUrl('')
                   setLeftKey(e.target.value)
                 }}
-                className="w-full h-10 rounded-md border-2 border-input bg-background px-3 py-2 text-sm"
+                className={SELECT_CLASS}
               >
                 <option value="">Select recording...</option>
                 {recordings.map((r) => (
-                  <option key={r.id} value={r.blob_key}>
-                    {role === 'trainer' && r.player_name ? `${r.player_name} · ` : ''}{r.drill_name} - {new Date(r.recorded_at).toLocaleDateString()}
-                  </option>
+                  <option key={r.id} value={r.blob_key}>{optionLabel(r)}</option>
                 ))}
               </select>
-              <div className="bg-white border-2 border-black rounded-xl overflow-hidden">
+              <Card padded={false} className="overflow-hidden">
                 {leftSrc ? (
                   <div className="relative">
                     <AdaptiveVideo
@@ -215,43 +234,39 @@ export default function ComparisonPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="aspect-video bg-black w-full flex items-center justify-center text-gray-500">Select a recording</div>
+                  <PanelPlaceholder selected={!!leftSelected} />
                 )}
-                {leftKey && (() => {
-                  const rec = recordings.find((r) => r.blob_key === leftKey)
-                  if (!rec) return null
-                  return (
-                    <EntityChat
-                      contextType="recording"
-                      contextId={rec.id}
-                      contextTitle={`${rec.drill_name} (${new Date(rec.recorded_at).toLocaleDateString()})`}
-                      compact
-                      embedded
-                    />
-                  )
-                })()}
-              </div>
+                {leftSelected ? (
+                  <EntityChat
+                    contextType="recording"
+                    contextId={leftSelected.id}
+                    contextTitle={`${leftSelected.drill_name} (${new Date(leftSelected.recorded_at).toLocaleDateString()})`}
+                    compact
+                    embedded
+                  />
+                ) : null}
+              </Card>
             </div>
 
             {/* Right panel */}
-            <div className="space-y-2">
+            <div className="space-y-2.5">
+              <label htmlFor="compare-right" className="sr-only">Right recording</label>
               <select
+                id="compare-right"
                 value={rightKey}
                 onChange={(e) => {
                   if (rightUrl?.startsWith('blob:')) URL.revokeObjectURL(rightUrl)
                   setRightUrl('')
                   setRightKey(e.target.value)
                 }}
-                className="w-full h-10 rounded-md border-2 border-input bg-background px-3 py-2 text-sm"
+                className={SELECT_CLASS}
               >
                 <option value="">Select recording...</option>
                 {recordings.map((r) => (
-                  <option key={r.id} value={r.blob_key}>
-                    {role === 'trainer' && r.player_name ? `${r.player_name} · ` : ''}{r.drill_name} - {new Date(r.recorded_at).toLocaleDateString()}
-                  </option>
+                  <option key={r.id} value={r.blob_key}>{optionLabel(r)}</option>
                 ))}
               </select>
-              <div className="bg-white border-2 border-black rounded-xl overflow-hidden">
+              <Card padded={false} className="overflow-hidden">
                 {rightSrc ? (
                   <div className="relative">
                     <AdaptiveVideo
@@ -265,64 +280,84 @@ export default function ComparisonPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="aspect-video bg-black w-full flex items-center justify-center text-gray-500">Select a recording</div>
+                  <PanelPlaceholder selected={!!rightSelected} />
                 )}
-                {rightKey && (() => {
-                  const rec = recordings.find((r) => r.blob_key === rightKey)
-                  if (!rec) return null
-                  return (
-                    <EntityChat
-                      contextType="recording"
-                      contextId={rec.id}
-                      contextTitle={`${rec.drill_name} (${new Date(rec.recorded_at).toLocaleDateString()})`}
-                      compact
-                      embedded
-                    />
-                  )
-                })()}
-              </div>
+                {rightSelected ? (
+                  <EntityChat
+                    contextType="recording"
+                    contextId={rightSelected.id}
+                    contextTitle={`${rightSelected.drill_name} (${new Date(rightSelected.recorded_at).toLocaleDateString()})`}
+                    compact
+                    embedded
+                  />
+                ) : null}
+              </Card>
             </div>
           </div>
 
-          {/* Sync controls */}
-          <div className="flex items-center justify-center gap-4 flex-wrap">
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={synced}
-                onChange={(e) => setSynced(e.target.checked)}
-                className="rounded"
-              />
-              Sync playback
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={linkSpeeds}
-                onChange={(e) => setLinkSpeeds(e.target.checked)}
-                className="rounded"
-              />
-              <Link2 className="h-3.5 w-3.5" />
-              Link speeds
-            </label>
-            {synced && (
-              <>
-                <Button onClick={syncPlay} size="sm" className="gap-1">
-                  <Play className="h-4 w-4" />
-                  Play
-                </Button>
-                <Button onClick={syncPause} size="sm" variant="outline" className="gap-1">
-                  <Pause className="h-4 w-4" />
-                  Pause
-                </Button>
-                <Button onClick={syncReset} size="sm" variant="outline" className="gap-1">
-                  <RotateCcw className="h-4 w-4" />
-                  Reset
-                </Button>
-              </>
-            )}
-          </div>
+          <Card className="mt-4">
+            <SectionTitle>Playback</SectionTitle>
+            <div className="mt-3.5 flex flex-wrap items-center gap-x-5 gap-y-3">
+              <label className="flex items-center gap-2 text-[14px] text-ht-ink">
+                <input
+                  type="checkbox"
+                  checked={synced}
+                  onChange={(e) => setSynced(e.target.checked)}
+                  className="size-4 accent-ht-orange"
+                />
+                Sync playback
+              </label>
+              <label className="flex items-center gap-2 text-[14px] text-ht-ink">
+                <input
+                  type="checkbox"
+                  checked={linkSpeeds}
+                  onChange={(e) => setLinkSpeeds(e.target.checked)}
+                  className="size-4 accent-ht-orange"
+                />
+                <Link2 className="size-4 text-ht-muted" strokeWidth={1.8} />
+                Link speeds
+              </label>
+
+              {synced && (
+                <div className="flex flex-1 flex-wrap items-center gap-2.5 lg:justify-end">
+                  <PrimaryButton onClick={syncPlay} className="w-auto px-5 py-2.5 text-[14px]">
+                    <Play className="size-4" strokeWidth={2} />
+                    Play
+                  </PrimaryButton>
+                  <GhostButton onClick={syncPause} className="w-auto px-5 py-2.5 text-[14px]">
+                    <Pause className="size-4" strokeWidth={2} />
+                    Pause
+                  </GhostButton>
+                  <GhostButton onClick={syncReset} className="w-auto px-5 py-2.5 text-[14px]">
+                    <RotateCcw className="size-4" strokeWidth={2} />
+                    Reset
+                  </GhostButton>
+                </div>
+              )}
+            </div>
+          </Card>
         </>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Recordings captured on device keep their video in the browser's IndexedDB and
+ * have no server-side file, so a selected clip can legitimately have no source.
+ * Say which of the two it is instead of mounting an empty <video>.
+ */
+function PanelPlaceholder({ selected }: { selected: boolean }) {
+  return (
+    <div className="flex aspect-video items-center justify-center bg-ht-chip">
+      {selected ? (
+        <EmptyState
+          icon={SquarePlay}
+          title="No video for this clip"
+          body="This recording was captured on another device, so its video is not on this browser."
+        />
+      ) : (
+        <EmptyState icon={SquarePlay} title="Select a recording" />
       )}
     </div>
   )

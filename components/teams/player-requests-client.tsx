@@ -1,20 +1,51 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Check, Loader2, RefreshCw, Users, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import {
+  CalendarDays,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  MessageSquareText,
+  RefreshCw,
+  TrafficCone,
+  UserRoundPlus,
+  Users,
+  Volleyball,
+  XCircle,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import {
+  Card,
+  EmptyState,
+  GhostButton,
+  PageTitle,
+  Pill,
+  PrimaryButton,
+  RuleTitle,
+} from '@/components/ht/primitives'
+
+/* Implements design/hooptrack-raw-individual-screens/ios/
+ * 002-player-requests-raw.png. The iOS app is a WKWebView over this route, so
+ * the phone width is the design and desktop is the same stack, centred. */
+
+type GroupType = 'team' | 'training_session'
 
 type Invite = {
   id: number
   status: 'pending' | 'accepted' | 'declined' | 'cancelled'
   message: string | null
   created_at: string
+  responded_at: string | null
   group_id: number
   group_name: string
-  group_type: 'team' | 'training_session'
+  group_type: GroupType
   player_limit: number | null
+  coach_id: number
   coach_name: string
   coach_email: string
   member_count: number
@@ -23,19 +54,129 @@ type Invite = {
 type Membership = {
   id: number
   name: string
-  group_type: 'team' | 'training_session'
+  group_type: GroupType
   player_limit: number | null
   description: string | null
   joined_at: string
+  coach_id: number
   coach_name: string
   member_count: number
 }
 
+function typeLabel(type: GroupType) {
+  return type === 'team' ? 'Team' : 'Training session'
+}
+
+/** "12/15" when the group is capped, otherwise the raw roster count. */
+function rosterLabel(group: Pick<Membership, 'member_count' | 'player_limit'>) {
+  return group.player_limit == null
+    ? String(group.member_count)
+    : `${group.member_count}/${group.player_limit}`
+}
+
+/** SQLite writes "YYYY-MM-DD HH:MM:SS" in UTC; normalise before parsing. */
+function formatDate(value: string | null) {
+  if (!value) return '—'
+  const parsed = new Date(value.includes('T') ? value : `${value.replace(' ', 'T')}Z`)
+  if (Number.isNaN(parsed.getTime())) return '—'
+  return parsed.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' })
+}
+
+/** Black disc + orange glyph, matching the emblem on the coach teams screen. */
+function Emblem({ type, className }: { type: GroupType; className?: string }) {
+  // lucide ships no basketball glyph; Volleyball is the ball emblem.
+  const Glyph = type === 'team' ? Volleyball : TrafficCone
+  return (
+    <span
+      className={cn(
+        'flex size-14 shrink-0 items-center justify-center rounded-full bg-ht-ink',
+        className,
+      )}
+    >
+      <Glyph className="size-7 text-ht-orange" strokeWidth={1.8} />
+    </span>
+  )
+}
+
+/**
+ * A group is either a team or a training session, so one chip renders per
+ * invite — filled black for a team, orange outline for a training session.
+ */
+function TypePill({ type }: { type: GroupType }) {
+  return (
+    <Pill
+      className={cn(
+        'ht-heading px-3 text-[12.5px]',
+        type === 'team'
+          ? 'border-ht-ink bg-ht-ink text-white'
+          : 'border-ht-orange bg-ht-surface text-ht-orange',
+      )}
+    >
+      {typeLabel(type)}
+    </Pill>
+  )
+}
+
+/** Third button in the accept/decline stack — PrimaryButton's shape, chip fill. */
+function QuietButton({
+  className,
+  children,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      className={cn(
+        'ht-heading inline-flex w-full items-center justify-center gap-2 rounded-lg bg-ht-chip px-5 py-3',
+        'text-[15px] tracking-[0.02em] text-ht-ink transition-colors hover:bg-ht-ring',
+        'disabled:cursor-not-allowed disabled:opacity-60',
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </button>
+  )
+}
+
+/** Circled icon + label + body, used for the message and requested-on blocks. */
+function DetailBlock({
+  icon: Icon,
+  label,
+  children,
+}: {
+  icon: LucideIcon
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="flex gap-3.5">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ht-chip">
+        <Icon className="size-5 text-ht-ink" strokeWidth={1.8} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="ht-heading text-[14px] text-ht-ink">{label}</p>
+        <div className="mt-1 text-[15px] leading-[1.45] text-ht-ink">{children}</div>
+      </div>
+    </div>
+  )
+}
+
+function MembershipDetail({ term, value }: { term: string; value: string }) {
+  return (
+    <div className="flex gap-2">
+      <dt className="shrink-0 text-ht-muted">{term}</dt>
+      <dd className="min-w-0 flex-1 truncate text-ht-ink">{value}</dd>
+    </div>
+  )
+}
+
 export default function PlayerRequestsClient() {
+  const router = useRouter()
   const [invites, setInvites] = useState<Invite[]>([])
   const [memberships, setMemberships] = useState<Membership[]>([])
   const [loading, setLoading] = useState(true)
   const [answeringId, setAnsweringId] = useState<number | null>(null)
+  const [openGroupId, setOpenGroupId] = useState<number | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -66,6 +207,9 @@ export default function PlayerRequestsClient() {
         body: JSON.stringify({ action }),
       })
       const d = await r.json()
+      // A 409 here is the roster filling up between the invite and the tap —
+      // the server's wording is the only thing that explains that, so it goes
+      // straight to the player rather than a generic failure message.
       if (!r.ok) throw new Error(d.error || 'Could not answer request')
       toast.success(action === 'accept' ? 'Request accepted' : 'Request declined')
       await load()
@@ -77,107 +221,172 @@ export default function PlayerRequestsClient() {
   }
 
   const pending = invites.filter((invite) => invite.status === 'pending')
-  const answered = invites.filter((invite) => invite.status !== 'pending')
 
   return (
-    <div className="space-y-5">
-      <section className="rounded-lg border-2 border-black bg-white shadow-[4px_4px_0px_0px_#0A0A0A]">
-        <div className="border-b-2 border-black bg-[linear-gradient(135deg,#fff7ed_0%,#ffffff_48%,#ecfeff_100%)] p-5">
-          <h1 className="font-[family-name:var(--font-russo)] text-3xl leading-none">Team Requests</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Accept a coach request to join a team or a training session. Decline anything that does not belong.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-3 p-4">
-          <Badge variant="outline">{pending.length} pending</Badge>
-          <Badge variant="outline">{memberships.length} active groups</Badge>
-          <Button variant="outline" onClick={load} disabled={loading} className="ml-auto">
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+    <div className="mx-auto w-full max-w-3xl pt-2">
+      <header className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          aria-label="Go back"
+          className="-ml-2 flex size-9 shrink-0 items-center justify-center rounded-full text-ht-ink transition-colors hover:bg-ht-chip"
+        >
+          <ChevronLeft className="size-7" strokeWidth={2.5} />
+        </button>
+        <PageTitle className="flex-1 text-center text-[30px] lg:text-left lg:text-[38px]">
+          Team Requests
+        </PageTitle>
+        {/* Balances the chevron so the title sits dead centre on phones. */}
+        <span className="size-9 shrink-0 lg:hidden" />
+      </header>
+
+      <section className="mt-6">
+        <RuleTitle>Pending Invites</RuleTitle>
+
+        <div className="mt-3.5 space-y-3">
+          {loading ? (
+            <Card>
+              <p className="text-[14px] text-ht-muted">Loading requests…</p>
+            </Card>
+          ) : pending.length === 0 ? (
+            <Card padded={false}>
+              <EmptyState
+                icon={UserRoundPlus}
+                title="No pending invites"
+                body="Requests from a coach land here as soon as they are sent."
+              />
+            </Card>
+          ) : (
+            pending.map((invite) => {
+              const busy = answeringId === invite.id
+              return (
+                <div key={invite.id} className="space-y-3">
+                  <Card>
+                    <div className="flex items-start gap-4">
+                      <Emblem type={invite.group_type} />
+                      <div className="min-w-0 flex-1">
+                        <h3 className="ht-heading text-[20px] leading-tight text-ht-ink">
+                          {invite.group_name}
+                        </h3>
+                        <p className="mt-1 text-[15px] text-ht-muted">Coach {invite.coach_name}</p>
+                        <div className="mt-2.5">
+                          <TypePill type={invite.group_type} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {invite.message ? (
+                      <div className="mt-4 border-t border-ht-line-soft pt-4">
+                        <DetailBlock icon={MessageSquareText} label="Message from coach">
+                          {invite.message}
+                        </DetailBlock>
+                      </div>
+                    ) : null}
+
+                    <div className="mt-4 border-t border-ht-line-soft pt-4">
+                      <DetailBlock icon={CalendarDays} label="Requested on">
+                        {formatDate(invite.created_at)}
+                      </DetailBlock>
+                    </div>
+                  </Card>
+
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <PrimaryButton
+                      onClick={() => answer(invite.id, 'accept')}
+                      disabled={busy}
+                    >
+                      {busy ? (
+                        <Loader2 className="size-[18px] animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="size-[18px]" strokeWidth={2} />
+                      )}
+                      Accept
+                    </PrimaryButton>
+                    <GhostButton onClick={() => answer(invite.id, 'decline')} disabled={busy}>
+                      <XCircle className="size-[18px]" strokeWidth={2} />
+                      Decline
+                    </GhostButton>
+                  </div>
+                </div>
+              )
+            })
+          )}
+
+          <QuietButton onClick={load} disabled={loading} className="sm:max-w-[240px]">
+            <RefreshCw className={cn('size-[18px]', loading && 'animate-spin')} strokeWidth={2} />
             Refresh
-          </Button>
+          </QuietButton>
         </div>
       </section>
 
-      {loading && (
-        <div className="rounded-lg border-2 border-black bg-white p-6 text-center text-sm text-muted-foreground shadow-[3px_3px_0px_0px_#0A0A0A]">
-          Loading requests...
+      <section className="mt-7">
+        <RuleTitle>My Teams and Sessions</RuleTitle>
+
+        <div className="mt-3.5">
+          {loading ? (
+            <Card>
+              <p className="text-[14px] text-ht-muted">Loading teams…</p>
+            </Card>
+          ) : memberships.length === 0 ? (
+            <Card padded={false}>
+              <EmptyState
+                icon={Users}
+                title="No teams yet"
+                body="Accept a request and the team or training session shows up here."
+              />
+            </Card>
+          ) : (
+            <Card padded={false}>
+              {memberships.map((membership, index) => {
+                const open = openGroupId === membership.id
+                return (
+                  <div key={membership.id}>
+                    {index > 0 ? <div className="mx-5 border-t border-ht-line-soft" /> : null}
+                    <button
+                      type="button"
+                      aria-expanded={open}
+                      onClick={() => setOpenGroupId(open ? null : membership.id)}
+                      className="flex w-full items-center gap-4 px-5 py-3 text-left transition-colors hover:bg-ht-orange-tint/60"
+                    >
+                      <Emblem type={membership.group_type} />
+                      <span className="min-w-0 flex-1">
+                        <span className="ht-heading block truncate text-[18px] text-ht-ink">
+                          {membership.name}
+                        </span>
+                        <span className="mt-0.5 block truncate text-[14px] text-ht-muted">
+                          {membership.description || typeLabel(membership.group_type)}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-center">
+                        <span className="block text-[19px] leading-none font-bold text-ht-ink">
+                          {membership.member_count}
+                        </span>
+                        <span className="mt-1 block text-[13px] text-ht-muted">Members</span>
+                      </span>
+                      <ChevronRight
+                        className={cn(
+                          'size-5 shrink-0 text-ht-muted transition-transform',
+                          open && 'rotate-90',
+                        )}
+                        strokeWidth={2}
+                      />
+                    </button>
+
+                    {open ? (
+                      <dl className="grid gap-2 px-5 pb-4 text-[14px] sm:grid-cols-2">
+                        <MembershipDetail term="Type" value={typeLabel(membership.group_type)} />
+                        <MembershipDetail term="Coach" value={membership.coach_name} />
+                        <MembershipDetail term="Joined" value={formatDate(membership.joined_at)} />
+                        <MembershipDetail term="Roster" value={`${rosterLabel(membership)} players`} />
+                      </dl>
+                    ) : null}
+                  </div>
+                )
+              })}
+            </Card>
+          )}
         </div>
-      )}
-
-      {!loading && pending.length === 0 && (
-        <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-          <Users className="mx-auto h-10 w-10 text-hoop-orange" />
-          <h2 className="mt-3 font-semibold">No pending requests</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Coach requests will show up here when they are sent.</p>
-        </div>
-      )}
-
-      <div className="grid gap-4">
-        {pending.map((invite) => (
-          <section key={invite.id} className="rounded-lg border-2 border-black bg-white p-4 shadow-[3px_3px_0px_0px_#0A0A0A]">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="font-[family-name:var(--font-russo)] text-2xl leading-none">{invite.group_name}</h2>
-                  <Badge>{invite.group_type === 'team' ? 'Team' : 'Training session'}</Badge>
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  From {invite.coach_name} · {invite.member_count}{invite.player_limit ? `/${invite.player_limit}` : ''} players
-                </p>
-                {invite.message && <p className="mt-3 rounded-md border border-gray-200 bg-gray-50 p-3 text-sm">{invite.message}</p>}
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => answer(invite.id, 'decline')} disabled={answeringId === invite.id}>
-                  {answeringId === invite.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
-                  Decline
-                </Button>
-                <Button onClick={() => answer(invite.id, 'accept')} disabled={answeringId === invite.id}>
-                  {answeringId === invite.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                  Accept
-                </Button>
-              </div>
-            </div>
-          </section>
-        ))}
-      </div>
-
-      {!loading && memberships.length > 0 && (
-        <section className="rounded-lg border-2 border-black bg-white shadow-[3px_3px_0px_0px_#0A0A0A]">
-          <div className="border-b-2 border-black p-4">
-            <h2 className="font-[family-name:var(--font-russo)] text-2xl leading-none">My Teams And Sessions</h2>
-          </div>
-          <div className="divide-y">
-            {memberships.map((membership) => (
-              <div key={membership.id} className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="font-semibold">{membership.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {membership.group_type === 'team' ? 'Team' : 'Training session'} with {membership.coach_name}
-                  </p>
-                  {membership.description && <p className="mt-1 text-sm text-muted-foreground">{membership.description}</p>}
-                </div>
-                <Badge variant="outline">
-                  {membership.member_count}{membership.player_limit ? `/${membership.player_limit}` : ''} players
-                </Badge>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {!loading && answered.length > 0 && (
-        <section className="rounded-lg border-2 border-black bg-white p-4 shadow-[3px_3px_0px_0px_#0A0A0A]">
-          <h2 className="font-[family-name:var(--font-russo)] text-xl leading-none">Answered Requests</h2>
-          <div className="mt-3 grid gap-2">
-            {answered.slice(0, 10).map((invite) => (
-              <div key={invite.id} className="flex items-center justify-between gap-3 rounded-md border border-gray-200 p-3 text-sm">
-                <span>{invite.group_name}</span>
-                <Badge variant="outline">{invite.status}</Badge>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      </section>
     </div>
   )
 }

@@ -7,9 +7,5 @@ export default async function TeamsPage() {
   if (!session) redirect('/login')
   if ((session.actual_role || session.role) !== 'trainer') redirect('/player/requests')
 
-  return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6">
-      <CoachGroupsClient />
-    </main>
-  )
+  return <CoachGroupsClient />
 }

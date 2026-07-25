@@ -1,51 +1,45 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Plus, PlayCircle, Trash2, Upload, Film, Scissors, ChevronDown, ChevronRight, Folder, CircleDot, Crosshair, Footprints, Flame, Zap, Wind, ShieldCheck, BrainCircuit, Dumbbell, Video } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { DRILL_CATEGORIES } from '@/lib/constants'
+import {
+  ChevronRight,
+  Folder,
+  GraduationCap,
+  Plus,
+  Scissors,
+  Search,
+  Trash2,
+  Upload,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import YouTubeEmbed from '@/components/youtube-embed'
 import YouTubeClipper from '@/components/youtube-clipper'
 import AIMoveRecommendations from '@/components/ai-move-recommendations'
-import VideoSpeedControl from '@/components/video-speed-control'
 import EntityChat from '@/components/entity-chat'
 import InlineRename from '@/components/inline-rename'
+import { appPath, type HoopApp } from '@/lib/app-routes'
+import { cn } from '@/lib/utils'
 import {
-  EmptyWorkspaceState,
-  StatTile,
-  TrainingWorkspaceShell,
-  WorkspaceActionLink,
-  WorkspacePanel,
-} from '@/components/training-workspace-shell'
+  Card,
+  ClipPoster,
+  EmptyState,
+  GhostButton,
+  PageTitle,
+  Pill,
+  PrimaryButton,
+  SectionTitle,
+} from '@/components/ht/primitives'
+import { TrainingWorkspaceTabs } from '@/components/training-workspace-tabs'
 
-function UploadedVideoPlayer({ src, defaultRate }: { src: string; defaultRate: number }) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const [rate, setRate] = useState(defaultRate || 1)
+/* Implements design/hooptrack-raw-individual-screens/ios/
+ * 007-player-move-library-raw.png */
 
-  useEffect(() => {
-    if (videoRef.current) videoRef.current.playbackRate = rate
-  }, [rate])
+const SPEEDS = [0.5, 1, 1.5, 2]
 
-  return (
-    <div className="relative aspect-video">
-      <video
-        ref={videoRef}
-        src={src}
-        controls
-        playsInline
-        onLoadedMetadata={() => { if (videoRef.current) videoRef.current.playbackRate = rate }}
-        className="w-full h-full object-contain bg-black rounded-lg"
-      />
-      <div className="absolute top-2 right-2 z-10">
-        <VideoSpeedControl rate={rate} onChange={setRate} compact />
-      </div>
-    </div>
-  )
-}
+/* The pack's chip order is curated rather than alphabetical; any category
+ * seeded outside this list follows it, sorted by name. */
+const CATEGORY_ORDER = ['Finishing', 'Shooting', 'Ball Handling', 'Footwork']
 
 interface Move {
   id: number
@@ -53,334 +47,512 @@ interface Move {
   youtube_url: string
   category: string
   description: string | null
+  assigned_to_player_id: number | null
   assigned_player_name: string | null
   creator_name: string
+  creator_role: string
   clip_start: number | null
   clip_end: number | null
+  duration_seconds: number | null
   video_type: string
   video_path: string | null
   default_playback_rate: number
 }
 
-const CATEGORY_ICONS: Record<string, LucideIcon> = {
-  'Ball Handling': CircleDot,
-  'Shooting': Crosshair,
-  'Footwork': Footprints,
-  'Finishing': Flame,
-  'Triple Threat': Zap,
-  'Speed & Agility': Wind,
-  'Defense': ShieldCheck,
-  'Mentality': BrainCircuit,
-  'Strength & Conditioning': Dumbbell,
+/** Seeded moves carry no file and no link, so "playable" is never assumed. */
+function playable(move: Move) {
+  if (move.video_type === 'upload') return move.video_path ? 'upload' : null
+  return move.youtube_url ? 'youtube' : null
 }
+
+function clipLabel(seconds: number) {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+}
+
+/** The pack shows a clip length. Only an explicit duration or a trimmed
+ *  YouTube clip has one, so it is left off rather than guessed at. */
+function durationLabel(move: Move) {
+  if (move.duration_seconds) return clipLabel(move.duration_seconds)
+  if (move.clip_start != null && move.clip_end != null && move.clip_end > move.clip_start) {
+    return clipLabel(move.clip_end - move.clip_start)
+  }
+  return null
+}
+
+function byline(move: Move) {
+  return move.creator_role === 'trainer' ? `Coach ${move.creator_name}` : move.creator_name
+}
+
+/* ------------------------------------------------------------------ shell */
 
 export default function MovesPage() {
   const [moves, setMoves] = useState<Move[]>([])
-  const [openCategories, setOpenCategories] = useState<Set<string>>(new Set())
-  const [expandedId, setExpandedId] = useState<number | null>(null)
-  const [editingClipId, setEditingClipId] = useState<number | null>(null)
-  const [pendingClip, setPendingClip] = useState<{ start: number; end: number }>({ start: 0, end: 0 })
-  const [userRole, setUserRole] = useState<string>('')
+  const [userRole, setUserRole] = useState('')
+  const [userId, setUserId] = useState<number | null>(null)
+  const [query, setQuery] = useState('')
+  const [category, setCategory] = useState('All')
+  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [rate, setRate] = useState(1)
+  const [studying, setStudying] = useState(false)
+  const [clipping, setClipping] = useState(false)
+  const [pendingClip, setPendingClip] = useState({ start: 0, end: 0 })
+
+  const fetchMoves = useCallback(async () => {
+    const res = await fetch('/api/moves')
+    const data = await res.json()
+    setMoves(data.moves || [])
+  }, [])
 
   useEffect(() => {
     fetchMoves()
     fetch('/api/auth/me', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(d => {
-      if (d?.user) setUserRole(d.user.role)
+      if (d?.user) {
+        setUserRole(d.user.role)
+        setUserId(d.user.id)
+      }
     }).catch(() => {})
+  }, [fetchMoves])
+
+  const isTrainer = userRole === 'trainer'
+  const app: HoopApp = isTrainer ? 'coach' : 'player'
+
+  const categories = useMemo(() => {
+    const seen: string[] = []
+    for (const move of moves) if (!seen.includes(move.category)) seen.push(move.category)
+    const rank = (name: string) => {
+      const index = CATEGORY_ORDER.indexOf(name)
+      return index < 0 ? CATEGORY_ORDER.length : index
+    }
+    return seen.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))
+  }, [moves])
+
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    return moves.filter(move => {
+      if (category !== 'All' && move.category !== category) return false
+      if (!needle) return true
+      return (
+        move.title.toLowerCase().includes(needle) ||
+        (move.description ?? '').toLowerCase().includes(needle)
+      )
+    })
+  }, [moves, category, query])
+
+  const selected = filtered.find(move => move.id === selectedId) ?? filtered[0] ?? null
+
+  // A new selection resets the per-move view state so panels never carry over.
+  useEffect(() => {
+    setStudying(false)
+    setClipping(false)
+    setRate(selected?.default_playback_rate || 1)
+  }, [selected?.id, selected?.default_playback_rate])
+
+  const deleteMove = useCallback(async (id: number) => {
+    if (!confirm('Delete this move?')) return
+    const res = await fetch(`/api/moves/${id}`, { method: 'DELETE' })
+    if (res.ok) {
+      toast.success('Move deleted')
+      setSelectedId(null)
+      fetchMoves()
+    } else {
+      toast.error('Delete failed')
+    }
+  }, [fetchMoves])
+
+  const renameMove = useCallback(async (id: number, title: string) => {
+    const res = await fetch(`/api/moves/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title }),
+    })
+    if (res.ok) {
+      setMoves(current => current.map(m => (m.id === id ? { ...m, title } : m)))
+      toast.success('Move renamed')
+    } else {
+      toast.error('Rename failed')
+    }
   }, [])
 
-  async function fetchMoves() {
-    const res = await fetch('/api/moves')
-    const data = await res.json()
-    const list: Move[] = data.moves || []
-    setMoves(list)
-    const categories = Array.from(new Set(list.map((move) => move.category))).slice(0, 3)
-    setOpenCategories((current) => current.size === 0 ? new Set(categories) : current)
-  }
-
-  function toggleCategory(cat: string) {
-    setOpenCategories(prev => {
-      const next = new Set(prev)
-      if (next.has(cat)) next.delete(cat)
-      else next.add(cat)
-      return next
-    })
-  }
-
-  async function saveClip(id: number, start: number, end: number) {
+  const saveClip = useCallback(async (id: number, start: number, end: number) => {
     const res = await fetch(`/api/moves/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ clip_start: start, clip_end: end }),
     })
     if (res.ok) {
-      toast.success('Clip updated!')
-      setEditingClipId(null)
+      toast.success('Clip updated')
+      setClipping(false)
       fetchMoves()
     } else {
       toast.error('Failed to save clip')
     }
-  }
+  }, [fetchMoves])
 
-  async function deleteMove(id: number) {
-    if (!confirm('Delete this move?')) return
-    const res = await fetch(`/api/moves/${id}`, { method: 'DELETE' })
-    if (res.ok) {
-      toast.success('Move deleted')
-      fetchMoves()
-    }
-  }
-
-  async function renameMove(id: number, newTitle: string) {
-    const res = await fetch(`/api/moves/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: newTitle }),
-    })
-    if (res.ok) {
-      setMoves(moves.map((m) => (m.id === id ? { ...m, title: newTitle } : m)))
-      toast.success('Move renamed')
-    } else {
-      toast.error('Rename failed')
-    }
-  }
-
-  function formatTime(seconds: number): string {
-    const m = Math.floor(seconds / 60)
-    const s = seconds % 60
-    return `${m}:${String(s).padStart(2, '0')}`
-  }
-
-  // Group moves by category
-  const grouped: Record<string, Move[]> = {}
-  for (const move of moves) {
-    if (!grouped[move.category]) grouped[move.category] = []
-    grouped[move.category].push(move)
-  }
-
-  // All categories — show ones with moves first, then empty ones
-  const categoriesWithMoves = DRILL_CATEGORIES.filter(c => grouped[c]?.length > 0)
-  const categoriesEmpty = DRILL_CATEGORIES.filter(c => !grouped[c]?.length)
-  // Also include any custom categories from AI that aren't in DRILL_CATEGORIES
-  const customCategories = Object.keys(grouped).filter(c => !DRILL_CATEGORIES.includes(c as typeof DRILL_CATEGORIES[number]))
-
-  const totalMoves = moves.length
-  const uploadedCount = moves.filter((move) => move.video_type === 'upload').length
-  const clippedCount = moves.filter((move) => move.clip_start != null && move.clip_end != null).length
-  const visibleCategoryCount = categoriesWithMoves.length + customCategories.length
+  const source = selected ? playable(selected) : null
 
   return (
-    <TrainingWorkspaceShell
-      active="moves"
-      app={userRole === 'trainer' ? 'coach' : 'player'}
-      title="Moves"
-      description="Keep teaching clips organized by skill, then open one clip when it is time to review the exact detail."
-      primary={userRole === 'trainer' && (
-        <>
+    <div className="pt-2 sm:pt-6">
+      <PageTitle>Move Library</PageTitle>
+      {/* The phone design goes straight from the title to the search box; the
+          strip belongs to the desktop workspace layout. */}
+      <TrainingWorkspaceTabs active="moves" app={app} className="mt-3 hidden lg:flex" />
+
+      {isTrainer ? (
+        <div className="mt-5 flex flex-wrap items-center gap-2">
           <Link
-            href="/dashboard/moves/create"
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border-2 border-black bg-hoop-orange px-4 text-sm font-bold text-white shadow-[2px_2px_0px_0px_#0A0A0A] hover:opacity-90"
+            href={appPath(app, '/moves/create')}
+            className="ht-heading inline-flex items-center justify-center gap-2 rounded-lg bg-ht-orange px-4 py-2.5 text-[14px] tracking-[0.02em] text-white transition-colors hover:bg-ht-orange-hover"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="size-4" strokeWidth={2.5} />
             YouTube
           </Link>
           <Link
-            href="/dashboard/moves/upload"
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border-2 border-black bg-hoop-black px-4 text-sm font-bold text-white shadow-[2px_2px_0px_0px_#0A0A0A] hover:opacity-90"
+            href={appPath(app, '/moves/upload')}
+            className="ht-heading inline-flex items-center justify-center gap-2 rounded-lg border border-ht-orange bg-white px-4 py-2.5 text-[14px] tracking-[0.02em] text-ht-orange transition-colors hover:bg-ht-orange-soft"
           >
-            <Upload className="h-4 w-4" />
+            <Upload className="size-4" strokeWidth={2.5} />
             Upload
           </Link>
-        </>
-      )}
-      stats={
-        <>
-          <StatTile label="Moves" value={totalMoves} />
-          <StatTile label="Categories" value={visibleCategoryCount} />
-          <StatTile label="Uploaded" value={uploadedCount} />
-          <StatTile label="Clipped" value={clippedCount} />
-        </>
-      }
-      sidebar={
-        <>
-          {userRole === 'trainer' && <AIMoveRecommendations onAdded={fetchMoves} />}
-          <WorkspaceActionLink
-            href="/dashboard/capture"
-            icon={Video}
-            title="Record a new move"
-            body="Capture from the phone first, then save the clip into the right category."
-          />
-          <WorkspaceActionLink
-            href="/film/index.html"
-            icon={Scissors}
-            title="Analyze the detail"
-            body="Use Film & Video when a move needs side-by-side review or markups."
-          />
-        </>
-      }
-    >
-      <WorkspacePanel
-        title="Move library"
-        description="Open a category, review the clip, and keep the teaching notes close to the video."
-      >
-        {totalMoves === 0 ? (
-          <EmptyWorkspaceState
+        </div>
+      ) : null}
+
+      <div className="relative mt-5">
+        <Search
+          className="pointer-events-none absolute top-1/2 left-3.5 size-[18px] -translate-y-1/2 text-ht-muted"
+          strokeWidth={2}
+        />
+        <input
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search moves"
+          aria-label="Search moves"
+          className="h-11 w-full rounded-xl border border-ht-line bg-ht-surface pr-4 pl-11 text-[15px] text-ht-ink placeholder:text-ht-muted focus:border-ht-orange focus:outline-none"
+        />
+      </div>
+
+      {/* Wrapped, not scrolled: real category names are longer than the four in
+          the design and a scroll row silently hid the last chip. */}
+      <div className="mt-3 flex flex-wrap gap-2.5">
+        {['All', ...categories].map((name) => (
+          <button
+            key={name}
+            type="button"
+            onClick={() => setCategory(name)}
+            aria-pressed={category === name}
+            className={cn(
+              'shrink-0 rounded-full border px-4 py-1.5 text-[14px] transition-colors',
+              category === name
+                ? 'border-ht-orange bg-ht-orange text-white'
+                : 'border-ht-line bg-ht-surface text-ht-ink hover:bg-ht-chip',
+            )}
+          >
+            {name}
+          </button>
+        ))}
+      </div>
+
+      {moves.length === 0 ? (
+        <Card className="mt-4">
+          <EmptyState
             icon={Folder}
             title="No moves yet"
             body="Upload a player clip or add a YouTube reference so this library becomes useful during review."
-            action={userRole === 'trainer' && (
-              <Link
-                href="/dashboard/moves/upload"
-                className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-hoop-black px-4 text-sm font-bold text-white"
-              >
-                <Upload className="h-4 w-4" />
-                Upload move
-              </Link>
-            )}
+            action={
+              isTrainer ? (
+                <PrimaryButton href={appPath(app, '/moves/upload')}>
+                  <Upload className="size-[18px]" strokeWidth={2.5} />
+                  Upload Move
+                </PrimaryButton>
+              ) : undefined
+            }
           />
-        ) : (
-          <div className="space-y-3">
-            {[...categoriesWithMoves, ...customCategories].map((category) => {
-          const items = grouped[category] || []
-          const isOpen = openCategories.has(category)
-          const IconComponent = CATEGORY_ICONS[category] || Folder
+        </Card>
+      ) : filtered.length === 0 ? (
+        <Card className="mt-4">
+          <EmptyState
+            icon={Search}
+            title="No moves match"
+            body="Try a different search or category filter."
+          />
+        </Card>
+      ) : (
+        <div className="mt-4 space-y-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-5 lg:space-y-0">
+          <div className="space-y-4">
+            {selected ? (
+              <>
+                <MoveHero move={selected} source={source} rate={rate} />
 
-          return (
-            <div key={category} className="overflow-hidden rounded-lg border-2 border-black bg-white">
-              {/* Category Header — click to expand */}
-              <button
-                onClick={() => toggleCategory(category)}
-                className="flex w-full items-center justify-between p-4 transition-colors hover:bg-orange-50"
-              >
-                <div className="flex items-center gap-3">
-                  <IconComponent className="h-6 w-6 text-hoop-orange" />
-                  <div className="text-left">
-                    <h3 className="font-[family-name:var(--font-russo)] text-lg">{category}</h3>
-                    <p className="text-sm text-muted-foreground">{items.length} {items.length === 1 ? 'move' : 'moves'}</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {/* The design outlines this one in ink, not brand orange —
+                      orange is reserved for the upload call to action. */}
+                  <GhostButton
+                    onClick={() => setStudying(open => !open)}
+                    aria-pressed={studying}
+                    className="border-ht-ink text-ht-ink hover:bg-ht-chip"
+                  >
+                    <GraduationCap className="size-[18px]" strokeWidth={2} />
+                    Study Clip
+                  </GhostButton>
+                  <PrimaryButton href={appPath(app, '/capture')}>
+                    <Upload className="size-[18px]" strokeWidth={2} />
+                    Upload Your Rep
+                  </PrimaryButton>
+                </div>
+
+                <div>
+                  {/* A field label, not a card heading — SectionTitle's 22px is
+                      wrong here, so this is plain condensed type instead. */}
+                  <p className="ht-heading text-[14px] tracking-[0.04em] text-ht-ink">
+                    Playback Speed
+                  </p>
+                  <div className="mt-2 grid grid-cols-4 overflow-hidden rounded-xl border border-ht-line">
+                    {SPEEDS.map((speed, index) => (
+                      <button
+                        key={speed}
+                        type="button"
+                        onClick={() => setRate(speed)}
+                        aria-pressed={rate === speed}
+                        className={cn(
+                          'py-2.5 text-[15px] transition-colors',
+                          index > 0 && 'border-l border-ht-line',
+                          rate === speed
+                            ? 'bg-ht-orange text-white'
+                            : 'bg-ht-surface text-ht-ink hover:bg-ht-chip',
+                        )}
+                      >
+                        {speed.toFixed(1)}x
+                      </button>
+                    ))}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="text-xs">{items.length}</Badge>
-                  {isOpen ? <ChevronDown className="h-5 w-5 text-muted-foreground" /> : <ChevronRight className="h-5 w-5 text-muted-foreground" />}
-                </div>
-              </button>
 
-              {/* Moves inside category */}
-              {isOpen && (
-                <div className="border-t-2 border-gray-100">
-                  {items.map((move) => (
-                    <div key={move.id} className="border-b border-gray-100 last:border-b-0">
-                      <div
-                        className="p-4 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors"
-                        onClick={() => setExpandedId(expandedId === move.id ? null : move.id)}
+                {isTrainer ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <InlineRename
+                      value={selected.title}
+                      onSave={(v) => renameMove(selected.id, v)}
+                      variant="h4"
+                    />
+                    {selected.youtube_url ? (
+                      <button
+                        type="button"
+                        onClick={() => setClipping(open => !open)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-ht-line px-3 py-1.5 text-[13px] text-ht-ink transition-colors hover:bg-ht-chip"
                       >
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-semibold">{move.title}</h4>
-                            {userRole === 'trainer' && (
-                              <InlineRename value={move.title} onSave={(v) => renameMove(move.id, v)} variant="h4" iconOnly />
-                            )}
-                            {move.video_type === 'upload' && (
-                              <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
-                                <Film className="h-3 w-3 inline mr-0.5" />Custom
-                              </span>
-                            )}
-                            {!move.youtube_url && move.video_type !== 'upload' && (
-                              <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">No video</span>
-                            )}
-                          </div>
-                          {move.description && <p className="text-sm text-muted-foreground line-clamp-1 mt-0.5">{move.description}</p>}
-                          {move.clip_start != null && move.clip_end != null && (
-                            <span className="text-xs text-muted-foreground">
-                              Clip: {formatTime(move.clip_start)} – {formatTime(move.clip_end)}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {userRole === 'trainer' && (
-                            <button onClick={(e) => { e.stopPropagation(); deleteMove(move.id) }} className="text-destructive p-1 hover:opacity-70">
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          )}
-                          <PlayCircle className="h-5 w-5 text-red-600" />
-                        </div>
-                      </div>
+                        <Scissors className="size-3.5" strokeWidth={2} />
+                        {clipping ? 'Cancel' : 'Edit Clip'}
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => deleteMove(selected.id)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-ht-line px-3 py-1.5 text-[13px] text-ht-red transition-colors hover:bg-ht-red-tint"
+                    >
+                      <Trash2 className="size-3.5" strokeWidth={2} />
+                      Delete
+                    </button>
+                  </div>
+                ) : null}
 
-                      {/* Expanded move content */}
-                      {expandedId === move.id && (
-                        <div className="px-4 pb-4">
-                          {move.video_type === 'upload' && move.video_path ? (
-                            <UploadedVideoPlayer src={move.video_path} defaultRate={move.default_playback_rate || 1} />
-                          ) : editingClipId === move.id ? (
-                            <div className="space-y-3">
-                              <YouTubeClipper
-                                url={move.youtube_url}
-                                initialStart={move.clip_start || 0}
-                                initialEnd={move.clip_end || 0}
-                                onClipChange={(start, end) => setPendingClip({ start, end })}
-                              />
-                              <div className="flex gap-2">
-                                <Button size="sm" className="bg-purple-600 hover:bg-purple-700" onClick={() => saveClip(move.id, pendingClip.start, pendingClip.end)}>
-                                  Save Clip
-                                </Button>
-                                <Button size="sm" variant="outline" onClick={() => setEditingClipId(null)}>Cancel</Button>
-                              </div>
-                            </div>
-                          ) : move.youtube_url ? (
-                            <div className="space-y-2">
-                              <div className="aspect-video rounded-lg overflow-hidden">
-                                <YouTubeEmbed
-                                  url={move.youtube_url}
-                                  clipStart={move.clip_start}
-                                  clipEnd={move.clip_end}
-                                  defaultPlaybackRate={move.default_playback_rate || 1}
-                                />
-                              </div>
-                              {userRole === 'trainer' && (
-                                <button onClick={() => setEditingClipId(move.id)} className="flex items-center gap-1 text-sm text-purple-700 hover:text-purple-900 font-medium">
-                                  <Scissors className="h-3.5 w-3.5" />
-                                  Edit Clip
-                                </button>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="bg-gray-50 rounded-lg p-4 text-center space-y-2">
-                              <p className="text-sm text-muted-foreground">No video attached yet.</p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {expandedId === move.id && (
-                        <EntityChat contextType="move" contextId={move.id} contextTitle={move.title} compact embedded />
-                      )}
+                {clipping && selected.youtube_url ? (
+                  <Card>
+                    <YouTubeClipper
+                      url={selected.youtube_url}
+                      initialStart={selected.clip_start || 0}
+                      initialEnd={selected.clip_end || 0}
+                      onClipChange={(start, end) => setPendingClip({ start, end })}
+                    />
+                    <div className="mt-3">
+                      <PrimaryButton
+                        onClick={() => saveClip(selected.id, pendingClip.start, pendingClip.end)}
+                      >
+                        Save Clip
+                      </PrimaryButton>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )
-            })}
+                  </Card>
+                ) : null}
 
-            {categoriesEmpty.length > 0 && (
-              <div>
-                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">Empty categories</p>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {categoriesEmpty.map((category) => {
-                    const Icon = CATEGORY_ICONS[category] || Folder
-                    return (
-                      <div key={category} className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-center opacity-70">
-                        <Icon className="mx-auto h-5 w-5 text-muted-foreground" />
-                        <p className="mt-1 text-xs font-medium">{category}</p>
-                        <p className="text-[10px] text-muted-foreground">0 moves</p>
+                {studying ? (
+                  <Card>
+                    <SectionTitle>About This Move</SectionTitle>
+                    <p className="mt-2 text-[15px] leading-[1.5] text-ht-ink">
+                      {selected.description || 'No teaching notes on this move yet.'}
+                    </p>
+                    {selected.clip_start != null && selected.clip_end != null ? (
+                      <p className="mt-2 text-[13px] text-ht-muted">
+                        Clip {clipLabel(selected.clip_start)} – {clipLabel(selected.clip_end)}
+                      </p>
+                    ) : null}
+                    {/* /api/messages/thread only admits a move's creator or the
+                        player it is assigned to — anyone else 403s, so the
+                        thread is not rendered for them at all. */}
+                    {isTrainer || (userId != null && selected.assigned_to_player_id === userId) ? (
+                      <div className="mt-3">
+                        <EntityChat
+                          contextType="move"
+                          contextId={selected.id}
+                          contextTitle={selected.title}
+                          compact
+                          embedded
+                        />
                       </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
+                    ) : null}
+                  </Card>
+                ) : null}
+              </>
+            ) : null}
           </div>
-        )}
-      </WorkspacePanel>
-    </TrainingWorkspaceShell>
+
+          <div className="space-y-3">
+            {filtered
+              .filter(move => move.id !== selected?.id)
+              .map(move => (
+                <MoveRow key={move.id} move={move} onSelect={() => setSelectedId(move.id)} />
+              ))}
+            {isTrainer ? <AIMoveRecommendations onAdded={fetchMoves} /> : null}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------- sub-pieces */
+
+function UploadedVideoPlayer({ src, rate }: { src: string; rate: number }) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.playbackRate = rate
+  }, [rate])
+
+  return (
+    <video
+      ref={videoRef}
+      src={src}
+      controls
+      playsInline
+      onLoadedMetadata={() => {
+        if (videoRef.current) videoRef.current.playbackRate = rate
+      }}
+      className="aspect-video w-full rounded-xl bg-black object-contain"
+    />
+  )
+}
+
+/**
+ * The pack draws the hero as a poster with a play button, so the player is
+ * mounted on that press rather than on load — which also keeps a third-party
+ * YouTube frame off the screen until it is actually wanted.
+ */
+function MoveHero({
+  move,
+  source,
+  rate,
+}: {
+  move: Move
+  source: string | null
+  rate: number
+}) {
+  const [playing, setPlaying] = useState(false)
+
+  // Selecting another move returns to its poster instead of carrying playback.
+  useEffect(() => setPlaying(false), [move.id])
+
+  if (playing && source === 'upload' && move.video_path) {
+    return <UploadedVideoPlayer src={move.video_path} rate={rate} />
+  }
+
+  if (playing && source === 'youtube') {
+    return (
+      <div className="aspect-video w-full overflow-hidden rounded-xl">
+        <YouTubeEmbed
+          url={move.youtube_url}
+          clipStart={move.clip_start}
+          clipEnd={move.clip_end}
+          defaultPlaybackRate={rate}
+          showSpeedControl={false}
+          autoplay
+        />
+      </div>
+    )
+  }
+
+  return <MovePoster move={move} onPlay={source ? () => setPlaying(true) : null} />
+}
+
+/** The design's hero card: dark poster, copy on the left, play mark centred. */
+function MovePoster({ move, onPlay }: { move: Move; onPlay: (() => void) | null }) {
+  const duration = durationLabel(move)
+
+  const card = (
+    <>
+      {/* Untitled on purpose: the poster captions itself with the title, which
+          this card already sets in display type on top of it. */}
+      <ClipPoster className="absolute inset-0 rounded-none" />
+      {/* Darkens only the copy's half, so a long coach name stays legible where
+          it crosses the poster's play mark. A wide card has room for both, so
+          the scrim pulls back there and leaves the mark at full strength. */}
+      <div className="absolute inset-y-0 left-0 w-[62%] bg-gradient-to-r from-black from-[62%] to-transparent lg:w-[45%]" />
+      <div className="relative flex h-full max-w-[58%] flex-col justify-center px-5 text-left">
+        <h2 className="ht-heading text-[25px] leading-tight text-white">{move.title}</h2>
+        <p className="mt-2 text-[15px] text-white/85">{byline(move)}</p>
+        {duration ? <p className="mt-1 text-[15px] text-white/85">{duration}</p> : null}
+        <div className="mt-3">
+          <Pill tone="orange" className="border-ht-orange bg-transparent">
+            {move.category}
+          </Pill>
+        </div>
+      </div>
+      {onPlay ? null : (
+        <span className="absolute right-4 bottom-3 text-[12px] text-white/60">No video yet</span>
+      )}
+    </>
+  )
+
+  const shell = 'relative block aspect-[2.2/1] w-full overflow-hidden rounded-xl bg-ht-ink'
+
+  // The poster's own play mark is the affordance, so the whole card is the
+  // button rather than stacking a second play glyph on top of it.
+  if (!onPlay) return <div className={shell}>{card}</div>
+
+  return (
+    <button
+      type="button"
+      onClick={onPlay}
+      aria-label={`Play ${move.title}`}
+      className={cn(shell, 'transition-opacity hover:opacity-90')}
+    >
+      {card}
+    </button>
+  )
+}
+
+function MoveRow({ move, onSelect }: { move: Move; onSelect: () => void }) {
+  return (
+    <Card padded={false}>
+      <button
+        type="button"
+        onClick={onSelect}
+        className="flex w-full items-center gap-3.5 p-3 text-left transition-colors hover:bg-ht-chip/50"
+      >
+        {/* The pack shows a video frame here. Without a file on disk the
+            placeholder poster stands in, zoomed past its caption. */}
+        <span className="block h-[60px] w-[92px] shrink-0 overflow-hidden rounded-lg bg-ht-ink">
+          <ClipPoster title={move.title} className="scale-[1.6] rounded-none" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="ht-heading block truncate text-[16px] text-ht-ink">{move.title}</span>
+          <span className="mt-0.5 block truncate text-[14px] text-ht-muted">{byline(move)}</span>
+          <span className="mt-1.5 block">
+            <Pill tone="orange" className="bg-transparent">
+              {move.category}
+            </Pill>
+          </span>
+        </span>
+        <ChevronRight className="size-5 shrink-0 text-ht-muted" strokeWidth={2} />
+      </button>
+    </Card>
   )
 }
