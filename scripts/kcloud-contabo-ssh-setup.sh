@@ -18,6 +18,31 @@ printf 'HTTP proxy configured: %s\n' "$([ -n "${HTTP_PROXY:-${http_proxy:-}}" ] 
 printf 'HTTPS proxy configured: %s\n' "$([ -n "${HTTPS_PROXY:-${https_proxy:-}}" ] && echo yes || echo no)"
 printf 'KCLOUD WebSocket bridge client: %s\n' "$([ -f "$bridge_client" ] && echo present || echo missing)"
 
+ensure_ssh_client() {
+  if command -v ssh >/dev/null 2>&1 && command -v ssh-keygen >/dev/null 2>&1; then
+    return 0
+  fi
+  echo 'ssh client not found; installing openssh-client.'
+  if ! command -v apt-get >/dev/null 2>&1; then
+    echo 'KCLOUD_CONTABO_NO_SSH_CLIENT: ssh is missing and apt-get is unavailable to install it.' >&2
+    exit 10
+  fi
+  # Some Cloud images ship a stale apt index, which 404s on the pinned .deb.
+  apt-get install -y --no-install-recommends openssh-client >/dev/null 2>&1 ||
+    { apt-get update -qq >/dev/null 2>&1 || true; apt-get install -y --no-install-recommends openssh-client >/dev/null 2>&1; } ||
+    {
+      echo 'KCLOUD_CONTABO_NO_SSH_CLIENT: openssh-client could not be installed.' >&2
+      exit 10
+    }
+  command -v ssh >/dev/null 2>&1 || {
+    echo 'KCLOUD_CONTABO_NO_SSH_CLIENT: openssh-client installed but ssh is still not on PATH.' >&2
+    exit 10
+  }
+  echo "ssh client installed: $(ssh -V 2>&1)"
+}
+
+ensure_ssh_client
+
 mkdir -p "${ssh_dir}"
 chmod 700 "${ssh_dir}"
 
