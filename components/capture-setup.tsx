@@ -580,7 +580,10 @@ function ActionRow({
     >
       <Icon className="size-6 shrink-0 text-ht-ink" strokeWidth={1.6} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[15px] font-medium text-ht-ink">{label}</span>
+        {/* 005 measures the row title at a 12.64css cap — 17.5px in this face —
+            over a 13px hint. Ours had it at 15px, the same title-too-small
+            fault as the move and quiz rows. */}
+        <span className="block truncate text-[17.5px] font-medium text-ht-ink">{label}</span>
         {description ? (
           <span className="mt-0.5 block truncate text-[13px] text-ht-muted">{description}</span>
         ) : null}
