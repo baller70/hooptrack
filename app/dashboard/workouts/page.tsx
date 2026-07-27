@@ -508,9 +508,10 @@ function PhoneWorkoutRow({ entry, app }: { entry: WorkoutEntry; app: HoopApp }) 
         <span className="ht-heading block truncate text-[15px] leading-[1.2] text-ht-ink">
           {entry.title}
         </span>
-        <span className="mt-0.5 block truncate text-[13px] leading-[1.25] text-ht-ink">
-          {entry.caption} &nbsp;•&nbsp; {entry.drillCount} Drills &nbsp;•&nbsp;{' '}
-          {minutes(entry.durationSeconds)} min
+        {/* Padded bullets cost ~20px here and pushed the minute count off the
+            row on a 390pt phone; 006 shows the whole meta line. */}
+        <span className="mt-0.5 block truncate text-[12px] leading-[1.25] text-ht-ink">
+          {entry.caption} • {entry.drillCount} Drills • {minutes(entry.durationSeconds)} min
         </span>
       </span>
       <ChevronRight className="size-5 shrink-0 text-ht-ink" strokeWidth={2} />

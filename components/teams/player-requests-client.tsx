@@ -353,7 +353,9 @@ export default function PlayerRequestsClient() {
                         <span className="ht-heading block truncate text-[18px] text-ht-ink">
                           {membership.name}
                         </span>
-                        <span className="mt-0.5 block truncate text-[14px] text-ht-muted">
+                        {/* Group descriptions are free text and run to a full
+                            sentence; one clipped line showed almost none of it. */}
+                        <span className="mt-0.5 line-clamp-2 block text-[13.5px] leading-snug text-ht-muted">
                           {membership.description || typeLabel(membership.group_type)}
                         </span>
                       </span>

@@ -52,7 +52,15 @@ export default async function PlayersRosterPage() {
     gradeLevel: p.grade_level,
     rosterStatus: p.roster_status,
     avatarPath: p.avatar_path,
-    groupNames: (byPlayer.get(p.id) ?? []).join(' · '),
+    /* 009-coach-roster prints a single group per card ("Team Elite"), not the
+     * player's whole membership list. Joining them overflowed the line and
+     * ellipsised mid-name on anyone in two groups, so the card shows the first
+     * group and counts the rest. */
+    groupNames: (() => {
+      const groups = byPlayer.get(p.id) ?? []
+      if (groups.length <= 1) return groups[0] ?? ''
+      return `${groups[0]} +${groups.length - 1}`
+    })(),
   }))
 
   return (

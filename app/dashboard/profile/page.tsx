@@ -155,16 +155,18 @@ function SettingsRow({
     <>
       <Icon className="size-7 shrink-0 text-ht-ink" strokeWidth={1.6} />
       <span className="min-w-0 flex-1">
+        {/* 017 lists every settings row's label and hint in full; these are
+            short, fixed strings, so they wrap rather than clip. */}
         <span
           className={cn(
-            'block truncate text-ht-ink',
+            'block text-ht-ink',
             condensed ? 'ht-heading text-[18px] tracking-[0.01em]' : 'text-[17px] font-semibold',
           )}
         >
           {label}
         </span>
         {description ? (
-          <span className="mt-0.5 block truncate text-[13.5px] font-normal text-ht-muted">
+          <span className="mt-0.5 block text-[13px] leading-snug font-normal text-ht-muted">
             {description}
           </span>
         ) : null}
@@ -397,7 +399,9 @@ function PlayerMe({ user, onSignOut }: { user: UserInfo; onSignOut: () => void }
         <div className="flex items-center gap-4 px-5 pt-5">
           <Avatar name={user.name} src={user.avatar_path} size={68} />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[26px] font-bold leading-tight text-ht-ink">{user.name}</p>
+            {/* The account name is the one thing this card exists to state, so
+                it wraps rather than ellipsising on a phone. */}
+            <p className="text-[23px] font-bold leading-tight text-ht-ink">{user.name}</p>
             <p className="mt-1 truncate text-[15px] text-ht-muted">{user.email}</p>
             <p className="mt-1.5 text-[15px] text-ht-ink">
               {profile?.class_year ? `Class of ${profile.class_year}` : 'Class year not set'}
@@ -624,7 +628,8 @@ function CoachSettings({ user, onSignOut }: { user: UserInfo; onSignOut: () => v
         >
           <Avatar name={user.name} src={user.avatar_path} size={68} />
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[26px] font-bold leading-tight text-ht-ink">
+            {/* Wraps rather than clips: 017 shows the coach's full name. */}
+            <span className="block text-[23px] font-bold leading-tight text-ht-ink">
               {user.name}
             </span>
             <span className="mt-1 block truncate text-[15px] text-ht-muted">{user.email}</span>
@@ -657,7 +662,7 @@ function CoachSettings({ user, onSignOut }: { user: UserInfo; onSignOut: () => v
             <span className="ht-heading block truncate text-[18px] tracking-[0.01em] text-ht-ink">
               View as player
             </span>
-            <span className="mt-0.5 block truncate text-[13.5px] text-ht-muted">
+            <span className="mt-0.5 block text-[13px] leading-snug text-ht-muted">
               {isImpersonating ? `Previewing as ${user.name}` : 'Preview the player experience'}
             </span>
           </span>

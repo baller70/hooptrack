@@ -317,7 +317,9 @@ export default function ActivityFeedClient() {
             {item.player_name}
           </span>
           <span className="block text-[12px] text-ht-muted">{feedVerb(item.kind)}</span>
-          <span className="block truncate text-[14px] font-semibold text-ht-ink">{label}</span>
+          {/* 014 sets the clip/assignment name as the card's headline and never
+              cuts it — a two-line wrap keeps that true for longer real titles. */}
+          <span className="line-clamp-2 block text-[14px] font-semibold text-ht-ink">{label}</span>
           <span className="mt-0.5 flex items-center gap-1 text-[11px] text-ht-muted">
             <Clock className="size-3" strokeWidth={2} />
             {feedTimeLong(item.at)}

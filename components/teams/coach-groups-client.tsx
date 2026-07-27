@@ -256,8 +256,10 @@ function MobileEntryRow({
     <div className="flex items-center gap-3 border-b border-ht-line-soft py-3 last:border-b-0">
       {initials}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[15px] font-semibold text-ht-ink">{title}</span>
-        <span className="mt-0.5 block truncate text-[13px] text-ht-muted">{meta}</span>
+        {/* Group and member names carry the row; the phone column is narrow
+            enough that "Skills Academy" clipped, so they wrap instead. */}
+        <span className="block text-[14.5px] leading-snug font-semibold text-ht-ink">{title}</span>
+        <span className="mt-0.5 block truncate text-[12.5px] text-ht-muted">{meta}</span>
       </span>
       {pill}
     </div>
@@ -669,7 +671,7 @@ export default function CoachGroupsClient() {
                         chip; "Skills Academy" + "Training session" is the
                         tightest pair, so the chip is set smaller than a default
                         Pill to leave the name whole. */}
-                    <span className="mr-0.5 min-w-0 flex-1 truncate text-[15px] font-semibold text-ht-ink">
+                    <span className="mr-0.5 min-w-0 flex-1 text-[15px] leading-snug font-semibold text-ht-ink">
                       {group.name}
                     </span>
                     <Pill
