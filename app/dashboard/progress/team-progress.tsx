@@ -336,7 +336,7 @@ export default function TeamProgress() {
   if (compared.length === 0) {
     return (
       <div className="pt-2">
-        <PageTitle>Team Progress</PageTitle>
+        <PageTitle upright>Team Progress</PageTitle>
         <Card className="mt-5">
           <EmptyState
             icon={Users}
@@ -351,7 +351,7 @@ export default function TeamProgress() {
 
   return (
     <div className="pt-2">
-      <PageTitle>Team Progress</PageTitle>
+      <PageTitle upright>Team Progress</PageTitle>
 
       {/* Phone: the design's three player cards. Desktop gets the matrix. */}
       <div className="mt-4 grid grid-cols-3 gap-2.5 lg:hidden">

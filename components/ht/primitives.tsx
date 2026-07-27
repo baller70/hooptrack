@@ -21,14 +21,25 @@ import { cn } from '@/lib/utils'
 export function PageTitle({
   children,
   className,
+  upright = false,
 }: {
   children: React.ReactNode
   className?: string
+  /**
+   * Sets the title bolt upright instead of oblique. The pack does not apply one
+   * rule here: ROSTER (009), MOVE LIBRARY (007), LIVE ACTIVITY (014), FILM
+   * REVIEW (015), TEAM PROGRESS (016) and COACH SETTINGS (017) are upright,
+   * while TEAM REQUESTS (002), CAPTURE SETUP (005), ASSIGNED WORKOUTS (006),
+   * LIVE RECORDING (008), CLASSROOM (010), PROGRESS REPORT (011) and ME (012)
+   * slant. Oblique stays the default because it is the larger set.
+   */
+  upright?: boolean
 }) {
   return (
     <h1
       className={cn(
-        'ht-display text-[40px] leading-[0.98] text-ht-ink lg:text-[76px] lg:leading-[0.95]',
+        upright ? 'ht-heading' : 'ht-display',
+        'text-[40px] leading-[0.98] text-ht-ink lg:text-[76px] lg:leading-[0.95]',
         className,
       )}
     >

@@ -65,7 +65,7 @@ export default async function PlayersRosterPage() {
 
   return (
     <div className="pt-2">
-      <PageTitle>Roster</PageTitle>
+      <PageTitle upright>Roster</PageTitle>
 
       {/* The roster-limit state lives on Teams, where the request form it locks
        * actually is — see states/002-coach-roster-full-raw.png. It used to be

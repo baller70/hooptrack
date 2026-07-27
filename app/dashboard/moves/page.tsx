@@ -192,7 +192,7 @@ export default function MovesPage() {
 
   return (
     <div className="pt-2 sm:pt-6">
-      <PageTitle>Move Library</PageTitle>
+      <PageTitle upright>Move Library</PageTitle>
       {/* The phone design goes straight from the title to the search box; the
           strip belongs to the desktop workspace layout. */}
       <TrainingWorkspaceTabs active="moves" app={app} className="mt-3 hidden lg:flex" />

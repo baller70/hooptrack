@@ -629,7 +629,7 @@ function CoachSettings({ user, onSignOut }: { user: UserInfo; onSignOut: () => v
 
   return (
     <>
-      <PageTitle>Coach Settings</PageTitle>
+      <PageTitle upright>Coach Settings</PageTitle>
 
       <Card padded={false} className="mt-5">
         <button
