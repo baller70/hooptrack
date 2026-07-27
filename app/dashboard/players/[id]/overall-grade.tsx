@@ -30,7 +30,7 @@ export default function OverallGrade({ playerId }: { playerId: number }) {
   return (
     <Card className="shrink-0 px-4 py-3 text-center">
       <div className="ht-heading text-[11px] tracking-[0.04em] text-ht-ink">Overall</div>
-      <div className="ht-display mt-1.5 text-[34px] leading-none text-ht-orange">
+      <div className="ht-num mt-1.5 text-[34px] leading-none text-ht-orange">
         {letter ?? '—'}
       </div>
     </Card>

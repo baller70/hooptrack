@@ -417,7 +417,7 @@ function PlayerCard({ player, report }: { player: PlayerRow; report: Report | un
           {player.name}
         </span>
       </div>
-      <div className="ht-display mt-1.5 text-[38px] leading-none text-ht-orange">
+      <div className="ht-num mt-1.5 text-[38px] leading-none text-ht-orange">
         {report?.overall_letter ?? '—'}
       </div>
       <div className="mt-2 flex items-center justify-between gap-1">

@@ -53,7 +53,7 @@ export default function GradeCard({ subject, score, letter, hours, trend }: Prop
       </div>
 
       <div className="flex items-baseline justify-between gap-2">
-        <span className="ht-display text-[32px] leading-none text-ht-orange">{letter}</span>
+        <span className="ht-num text-[32px] leading-none text-ht-orange">{letter}</span>
         <span className="text-[12.5px] text-ht-muted">{score}/100</span>
       </div>
 
