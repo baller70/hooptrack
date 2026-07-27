@@ -72,8 +72,13 @@ function localIso(date: Date): string {
   return `${date.getFullYear()}-${month}-${day}`
 }
 
-/** Midnight-anchored days: the trailing N, or this Mon→Sun week when null. */
-function dailyBuckets(trailingDays: number | null): Date[] {
+/**
+ * Midnight-anchored days: the trailing N, or a Mon→Sun week when null.
+ *
+ * @param anchor day whose Mon→Sun week the chart should cover. Defaults to
+ *   today. Only read when `trailingDays` is null.
+ */
+function dailyBuckets(trailingDays: number | null, anchor?: Date): Date[] {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const days: Date[] = []
@@ -87,8 +92,12 @@ function dailyBuckets(trailingDays: number | null): Date[] {
     return days
   }
 
-  const monday = new Date(today)
-  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7))
+  // Copied, not mutated in place — the caller passes a recording timestamp it
+  // still needs.
+  const base = anchor ? new Date(anchor) : today
+  base.setHours(0, 0, 0, 0)
+  const monday = new Date(base)
+  monday.setDate(base.getDate() - ((base.getDay() + 6) % 7))
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday)
     d.setDate(monday.getDate() + i)
@@ -345,10 +354,22 @@ export async function GET(request: Request) {
     })
   }
 
-  /* Daily training volume. Defaults to the current Mon→Sun week (the phone
-   * progress report charts a weekday per bar); ?days=N instead returns the
-   * trailing N days, which is what the coach "Last 7 Days" picker asks for. */
-  const dailyHours = dailyBuckets(trailingDays).map((day) => {
+  /* Daily training volume. Charts a Mon→Sun week, a weekday per bar, as
+   * ios/011-player-progress-report draws it; ?days=N instead returns the
+   * trailing N days, which is what the coach "Last 7 Days" picker asks for.
+   *
+   * The week is anchored to the player's most recent recording, not to today.
+   * Anchoring on today made every day from now to Sunday a structural zero —
+   * on a Monday that is the entire chart, which is how 011 came to render as
+   * a bare axis. Falls back to the current week when there is nothing to
+   * chart, so a new player still sees the right empty week. */
+  const latestRecordingAt = recordings.reduce<Date | null>((latest, r) => {
+    const at = new Date(r.recorded_at)
+    if (Number.isNaN(at.getTime())) return latest
+    return !latest || at > latest ? at : latest
+  }, null)
+
+  const dailyHours = dailyBuckets(trailingDays, latestRecordingAt ?? undefined).map((day) => {
     const next = new Date(day)
     next.setDate(day.getDate() + 1)
     const sec = recordings
