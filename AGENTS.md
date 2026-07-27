@@ -49,8 +49,25 @@ Run targeted checks for the files you touch. For setup/build-readiness work, pre
 ```bash
 npm run lint
 npm run typecheck
-npm run build
+NODE_ENV=production npm run build
 ```
+
+`NODE_ENV=production` is not optional. Codex/Claude Cloud containers export
+`NODE_ENV=development` into the shell, and Next resolves React through the
+`development` export condition while still emitting a production server. The
+two Reacts disagree about the hook dispatcher and every prerender dies with:
+
+```
+Error occurred prerendering page "/_global-error"
+TypeError: Cannot read properties of null (reading 'useContext')
+```
+
+The failure is environmental, not a repo bug: it reproduces on a three-line
+hello-world app under either bundler and on Node 20 and 22 alike, and it
+disappears the moment `NODE_ENV=production` is set. Next warns about the
+non-standard value near the top of the build log — that warning is the tell.
+Note that a `NODE_ENV` line in `.env.local` will not override the exported
+shell variable, so set it on the command itself.
 
 Optional deeper audit:
 
