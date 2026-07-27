@@ -46,14 +46,31 @@ const stamp = (offsetDays, hour = 10) => {
   return d.toISOString().slice(0, 19).replace('T', ' ')
 }
 
+const POSITION_NAMES = { PG: 'Point Guard', SG: 'Shooting Guard', SF: 'Small Forward', PF: 'Power Forward', C: 'Center' }
+const GRADES = ['9th Grade', '10th Grade', '11th Grade', '12th Grade']
+
 const insertUser = db.prepare(
-  'INSERT INTO users (name, email, password_hash, role, position_abbr) VALUES (?, ?, ?, ?, ?)',
+  `INSERT INTO users (name, email, password_hash, role, position_abbr, jersey_number,
+                      position, grade_level, school)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 )
 /* The MEMBERS table in 002-coach-teams-request-flow prints a position against
  * every player (PG/SG/SF/PF/C); without one the column seeds as a wall of
  * em-dashes and the screen stops matching the pack. */
-const addUser = (name, email, role, position = null) =>
-  insertUser.run(name, email, password, role, position).lastInsertRowid
+/* 009 and 013 print "11th Grade  •  G" and "Shooting Guard" beside each player,
+ * reading users.grade_level and users.position — distinct columns from the
+ * position_abbr the MEMBERS table uses. Seeding only the abbreviation left the
+ * roster's whole meta line as em-dashes. */
+let seededPlayers = 0
+const addUser = (name, email, role, position = null, jersey = null) => {
+  const grade = role === 'player' ? GRADES[seededPlayers++ % GRADES.length] : null
+  return insertUser.run(
+    name, email, password, role, position, jersey,
+    position ? (POSITION_NAMES[position] ?? null) : null,
+    grade,
+    role === 'player' ? 'HoopTrack Academy' : null,
+  ).lastInsertRowid
+}
 
 db.exec('BEGIN')
 try {
@@ -71,20 +88,22 @@ try {
   const coach2 = addUser('Jordan Hill', 'jordan.hill@hooptrack.test', 'trainer')
 
   // Primary demo player — the screens show "Marcus" in the account menu.
+  // Jersey numbers follow 009/013 (Jordan 23, Marcus 10, Tyler 34, Eden 12,
+  // Noah 42); the roster and player-detail screens draw them in an orange disc.
   // Positions follow the pack's MEMBERS table: Jaden PG, Liam SG, Noah SF,
   // Mason PF, Ethan C, with the rest filled out to keep a plausible roster.
-  const marcus = addUser('Marcus Williams', 'marcus.williams@email.com', 'player', 'SG')
-  const jordan = addUser('Jordan Smith', 'jordan.smith@email.com', 'player', 'PG')
-  const tyler = addUser('Tyler Johnson', 'tyler.johnson@email.com', 'player', 'SF')
-  const eden = addUser('Eden Davis', 'eden.davis@email.com', 'player', 'PF')
-  const jaden = addUser('Jaden Smith', 'jaden.smith@email.com', 'player', 'PG')
-  const liam = addUser('Liam Johnson', 'liam.johnson@email.com', 'player', 'SG')
-  const noah = addUser('Noah Williams', 'noah.williams@email.com', 'player', 'SF')
-  const mason = addUser('Mason Brown', 'mason.brown@email.com', 'player', 'PF')
-  const ethan = addUser('Ethan Davis', 'ethan.davis@email.com', 'player', 'C')
-  const alex = addUser('Alex Walker', 'alex.walker@email.com', 'player', 'SG')
-  const bryson = addUser('Bryson Smith', 'bryson.smith@email.com', 'player', 'C')
-  const chris = addUser('Chris Taylor', 'chris.taylor@email.com', 'player', 'SF')
+  const marcus = addUser('Marcus Williams', 'marcus.williams@email.com', 'player', 'SG', 10)
+  const jordan = addUser('Jordan Smith', 'jordan.smith@email.com', 'player', 'PG', 23)
+  const tyler = addUser('Tyler Johnson', 'tyler.johnson@email.com', 'player', 'SF', 34)
+  const eden = addUser('Eden Davis', 'eden.davis@email.com', 'player', 'PF', 12)
+  const jaden = addUser('Jaden Smith', 'jaden.smith@email.com', 'player', 'PG', 3)
+  const liam = addUser('Liam Johnson', 'liam.johnson@email.com', 'player', 'SG', 21)
+  const noah = addUser('Noah Williams', 'noah.williams@email.com', 'player', 'SF', 42)
+  const mason = addUser('Mason Brown', 'mason.brown@email.com', 'player', 'PF', 15)
+  const ethan = addUser('Ethan Davis', 'ethan.davis@email.com', 'player', 'C', 55)
+  const alex = addUser('Alex Walker', 'alex.walker@email.com', 'player', 'SG', 7)
+  const bryson = addUser('Bryson Smith', 'bryson.smith@email.com', 'player', 'C', 44)
+  const chris = addUser('Chris Taylor', 'chris.taylor@email.com', 'player', 'SF', 31)
 
   // ---- Groups, members, invites (002-coach-teams-request-flow) ----
   const insertGroup = db.prepare(

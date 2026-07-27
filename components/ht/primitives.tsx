@@ -168,7 +168,17 @@ function StatCell({
       >
         {stat.value}
       </div>
-      <div className="mt-1.5 text-[12px] text-ht-muted lg:text-[13px]">{stat.caption}</div>
+      {/* 003 runs five counters across a phone with every caption on one line
+          ("This Week", "7-Day Clips"). At the shared 12px the four- and
+          five-across layouts wrapped, so the dense variant steps down. */}
+      <div
+        className={cn(
+          'mt-1.5 whitespace-nowrap text-ht-muted lg:text-[13px]',
+          dense ? 'text-[10px]' : 'text-[12px]',
+        )}
+      >
+        {stat.caption}
+      </div>
     </div>
   )
 }
@@ -432,6 +442,41 @@ export function Avatar({
       className={cn('shrink-0 rounded-full object-cover', className)}
       style={{ width: size, height: size }}
     />
+  )
+}
+
+/**
+ * Solid orange disc carrying a player's jersey number, as 009-coach-roster and
+ * 013-coach-player-profile draw it. Falls back to {@link Avatar} when the
+ * player has no number on file, so a roster never renders blank discs.
+ */
+export function JerseyAvatar({
+  name,
+  jerseyNumber,
+  src,
+  size = 48,
+  className,
+}: {
+  name: string
+  jerseyNumber?: number | null
+  src?: string | null
+  size?: number
+  className?: string
+}) {
+  if (jerseyNumber == null) {
+    return <Avatar name={name} src={src} size={size} className={className} />
+  }
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        'ht-num inline-flex shrink-0 items-center justify-center rounded-full bg-ht-orange text-white',
+        className,
+      )}
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.42) }}
+    >
+      {jerseyNumber}
+    </span>
   )
 }
 

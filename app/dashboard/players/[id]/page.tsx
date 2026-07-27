@@ -22,10 +22,10 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
-  Avatar,
   Card,
   EmptyState,
   GhostButton,
+  JerseyAvatar,
   Pill,
   SectionTitle,
   ViewAllLink,
@@ -242,7 +242,7 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ i
           ].map((item, index) => (
             <div key={item.label} className={index > 0 ? 'border-l border-ht-line-soft pl-4' : 'pr-4'}>
               <div className="mt-4 text-[12.5px] leading-4 text-ht-muted">{item.label}</div>
-              <div className="ht-display mt-2 text-[30px] leading-none text-ht-ink">{item.value}</div>
+              <div className="ht-num mt-2 text-[30px] leading-none text-ht-ink">{item.value}</div>
             </div>
           ))}
         </div>
@@ -363,10 +363,17 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ i
 
       <div className="mt-3 flex items-start gap-3.5">
         {/* The placeholder avatar carries the jersey number the design shows. */}
-        <Avatar name={player.name} src={player.avatar_path} size={72} />
+        <JerseyAvatar
+          name={player.name}
+          jerseyNumber={player.jersey_number}
+          src={player.avatar_path}
+          size={72}
+        />
 
         <div className="min-w-0 flex-1">
-          <h1 className="ht-display text-[30px] leading-[1.05] text-ht-ink lg:text-[42px]">
+          {/* Upright: 013 slants the wordmark above it but sets the player's
+              name bolt upright, like every other non-title heading. */}
+          <h1 className="ht-heading text-[30px] leading-[1.05] text-ht-ink lg:text-[42px]">
             {isSelfView ? 'My Library' : player.name}
           </h1>
           {/* No separator between the two: the pair only fits on one line at
@@ -401,10 +408,12 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ i
             <div className="ht-heading mt-2.5 text-[11px] leading-tight tracking-[0.03em] text-ht-ink">
               {label}
             </div>
-            <div className="ht-display mt-1.5 text-[32px] leading-none text-ht-ink lg:text-[38px]">
+            <div className="ht-num mt-1.5 text-[32px] leading-none text-ht-ink lg:text-[38px]">
               {value}
             </div>
-            <div className="mt-1.5 text-[10px] leading-tight text-ht-muted lg:text-[12px]">
+            {/* "hrs this month" sits on one line in 013; at 10px in a quarter
+                of a 390pt screen it wrapped. */}
+            <div className="mt-1.5 text-[9.5px] leading-tight whitespace-nowrap text-ht-muted lg:text-[12px]">
               {caption}
             </div>
           </Card>

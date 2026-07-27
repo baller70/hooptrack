@@ -203,10 +203,13 @@ function MobileSummaryRow({
       aria-expanded={open}
       className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-ht-orange-tint/60"
     >
-      <Icon className="size-6 shrink-0 text-ht-orange" strokeWidth={1.8} />
-      <span className="min-w-0 flex-1">
-        <span className="ht-heading block text-[17px] text-ht-ink">{title}</span>
-        <span className="mt-0.5 block truncate text-[13px] text-ht-muted">{hint}</span>
+      <Icon className="size-5 shrink-0 text-ht-orange" strokeWidth={1.8} />
+      {/* 004 sets the count and its hint on one line — "MEMBERS (12)  Accepted
+          members in your groups" — rather than stacking them. Both are sized
+          to fit that pairing at 390pt without either one clipping. */}
+      <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
+        <span className="ht-heading shrink-0 text-[14px] text-ht-ink">{title}</span>
+        <span className="min-w-0 text-[10.5px] leading-tight text-ht-muted">{hint}</span>
       </span>
       <ChevronRight
         className={cn('size-5 shrink-0 text-ht-ink transition-transform', open && 'rotate-90')}
