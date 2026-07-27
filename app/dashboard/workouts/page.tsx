@@ -564,26 +564,26 @@ function AssignedList({
                 <span
                   className={
                     selected
-                      ? 'grid size-13 shrink-0 place-items-center rounded-xl bg-ht-orange text-white'
-                      : 'grid size-13 shrink-0 place-items-center rounded-full bg-ht-chip text-ht-ink'
+                      ? 'grid size-11 shrink-0 place-items-center rounded-xl bg-ht-orange text-white'
+                      : 'grid size-11 shrink-0 place-items-center rounded-full bg-ht-chip text-ht-ink'
                   }
                 >
-                  <Icon className="size-6" strokeWidth={1.8} />
+                  <Icon className="size-[22px]" strokeWidth={1.8} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  {/* This column is as narrow as the design's, so longer real
-                      titles clip — the tooltip keeps the full name reachable. */}
-                  <span
-                    title={entry.title}
-                    className="block truncate text-[19px] font-semibold leading-tight text-ht-ink"
-                  >
+                  {/* Every assignment name is legible in full in the pack, so
+                      this must never ellipsis. The column is narrow, so a long
+                      real title wraps onto a second line instead of clipping —
+                      the smaller icon and chevron buy back the width that keeps
+                      pack-length names ("Finishing Focus") on one line. */}
+                  <span className="block text-[17px] font-semibold leading-tight text-ht-ink">
                     {entry.title}
                   </span>
-                  <span className="mt-1 block truncate text-[17px] text-ht-muted">
+                  <span className="mt-1 block text-[14px] leading-tight text-ht-muted">
                     {entry.caption}
                   </span>
                 </span>
-                <ChevronRight className="size-6 shrink-0 text-ht-muted" strokeWidth={2} />
+                <ChevronRight className="size-5 shrink-0 text-ht-muted" strokeWidth={2} />
               </Link>
             )
           })}
@@ -1098,10 +1098,14 @@ function RecentActivityCard({
                   <Icon className="size-5" strokeWidth={1.8} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[17px] leading-tight text-ht-ink">
+                  {/* The pack shows the whole entry — "Captured workout:
+                      Shooting Session" — so a long title wraps rather than
+                      ellipsising. Two lines is the ceiling; the card holds
+                      three rows either way. */}
+                  <span className="line-clamp-2 block text-[15px] leading-tight text-ht-ink">
                     {item.title}
                   </span>
-                  <span className="mt-1 block truncate text-[14px] leading-tight text-ht-muted">
+                  <span className="mt-1 block truncate text-[13px] leading-tight text-ht-muted">
                     {longDate(item.at)} • {item.detail}
                   </span>
                 </span>

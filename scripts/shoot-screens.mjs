@@ -53,7 +53,12 @@ const keys = wanted.length ? wanted : Object.keys(TARGETS)
 
 fs.mkdirSync(OUT, { recursive: true })
 
-const browser = await chromium.launch()
+/* Cloud runners ship a pinned Chromium that rarely matches the build Playwright
+ * wants, and re-downloading is often blocked. HOOPTRACK_CHROMIUM points the
+ * launcher at whatever binary the environment already has. */
+const browser = await chromium.launch(
+  process.env.HOOPTRACK_CHROMIUM ? { executablePath: process.env.HOOPTRACK_CHROMIUM } : {},
+)
 const results = []
 
 // One context per persona, reused across every route. /api/auth/login is rate

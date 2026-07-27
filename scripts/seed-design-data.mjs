@@ -47,9 +47,13 @@ const stamp = (offsetDays, hour = 10) => {
 }
 
 const insertUser = db.prepare(
-  'INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
+  'INSERT INTO users (name, email, password_hash, role, position_abbr) VALUES (?, ?, ?, ?, ?)',
 )
-const addUser = (name, email, role) => insertUser.run(name, email, password, role).lastInsertRowid
+/* The MEMBERS table in 002-coach-teams-request-flow prints a position against
+ * every player (PG/SG/SF/PF/C); without one the column seeds as a wall of
+ * em-dashes and the screen stops matching the pack. */
+const addUser = (name, email, role, position = null) =>
+  insertUser.run(name, email, password, role, position).lastInsertRowid
 
 db.exec('BEGIN')
 try {
@@ -67,18 +71,20 @@ try {
   const coach2 = addUser('Jordan Hill', 'jordan.hill@hooptrack.test', 'trainer')
 
   // Primary demo player — the screens show "Marcus" in the account menu.
-  const marcus = addUser('Marcus Williams', 'marcus.williams@email.com', 'player')
-  const jordan = addUser('Jordan Smith', 'jordan.smith@email.com', 'player')
-  const tyler = addUser('Tyler Johnson', 'tyler.johnson@email.com', 'player')
-  const eden = addUser('Eden Davis', 'eden.davis@email.com', 'player')
-  const jaden = addUser('Jaden Smith', 'jaden.smith@email.com', 'player')
-  const liam = addUser('Liam Johnson', 'liam.johnson@email.com', 'player')
-  const noah = addUser('Noah Williams', 'noah.williams@email.com', 'player')
-  const mason = addUser('Mason Brown', 'mason.brown@email.com', 'player')
-  const ethan = addUser('Ethan Davis', 'ethan.davis@email.com', 'player')
-  const alex = addUser('Alex Walker', 'alex.walker@email.com', 'player')
-  const bryson = addUser('Bryson Smith', 'bryson.smith@email.com', 'player')
-  const chris = addUser('Chris Taylor', 'chris.taylor@email.com', 'player')
+  // Positions follow the pack's MEMBERS table: Jaden PG, Liam SG, Noah SF,
+  // Mason PF, Ethan C, with the rest filled out to keep a plausible roster.
+  const marcus = addUser('Marcus Williams', 'marcus.williams@email.com', 'player', 'SG')
+  const jordan = addUser('Jordan Smith', 'jordan.smith@email.com', 'player', 'PG')
+  const tyler = addUser('Tyler Johnson', 'tyler.johnson@email.com', 'player', 'SF')
+  const eden = addUser('Eden Davis', 'eden.davis@email.com', 'player', 'PF')
+  const jaden = addUser('Jaden Smith', 'jaden.smith@email.com', 'player', 'PG')
+  const liam = addUser('Liam Johnson', 'liam.johnson@email.com', 'player', 'SG')
+  const noah = addUser('Noah Williams', 'noah.williams@email.com', 'player', 'SF')
+  const mason = addUser('Mason Brown', 'mason.brown@email.com', 'player', 'PF')
+  const ethan = addUser('Ethan Davis', 'ethan.davis@email.com', 'player', 'C')
+  const alex = addUser('Alex Walker', 'alex.walker@email.com', 'player', 'SG')
+  const bryson = addUser('Bryson Smith', 'bryson.smith@email.com', 'player', 'C')
+  const chris = addUser('Chris Taylor', 'chris.taylor@email.com', 'player', 'SF')
 
   // ---- Groups, members, invites (002-coach-teams-request-flow) ----
   const insertGroup = db.prepare(

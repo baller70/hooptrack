@@ -157,9 +157,12 @@ function StatCell({
       >
         {stat.label}
       </div>
+      {/* Upright, not oblique: the pack slants only the wordmark, the page
+          titles and the Start Capture hero — every counter is set bolt
+          upright, so these use .ht-num rather than .ht-display. */}
       <div
         className={cn(
-          'ht-display mt-1.5 text-[34px] leading-none lg:text-[40px]',
+          'ht-num mt-1.5 text-[34px] leading-none lg:text-[40px]',
           stat.alert ? 'text-ht-orange' : 'text-ht-ink',
         )}
       >
