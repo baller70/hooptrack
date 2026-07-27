@@ -197,13 +197,21 @@
      `.ht-heading` (0,1,0), which silently stripped the condensed face from
      every button rendered as a real <button> while the <Link> variants kept
      it. Same for the other element selectors. */
+  /* Body copy is WilsonX Boxed — the brand kit's text face — not a system
+     sans. Measured off the pack rather than assumed: rendering "Team Requests"
+     and comparing the ink box's width-to-height ratio against
+     ios/001-player-home gives 6.54 for the design, against 7.69 for
+     ui-sans-serif (18% too wide), 4.88 for Tungsten (25% too narrow) and 6.91
+     for Boxed. Every row that used to need a font-size cut to stop clipping was
+     really paying for the wrong face. Tungsten stays on display/headings via
+     .ht-display / .ht-heading below. */
   .ht-ui,
   .ht-ui input:not(.ht-heading),
   .ht-ui textarea:not(.ht-heading),
   .ht-ui select:not(.ht-heading),
   .ht-ui button:not(.ht-heading) {
-    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-      "Helvetica Neue", Arial, sans-serif;
+    font-family: "WilsonX Boxed", ui-sans-serif, system-ui, -apple-system,
+      "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
 
   /* Heavy condensed italic — HOOPTRACK wordmark and page titles. */

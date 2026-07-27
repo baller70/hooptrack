@@ -136,7 +136,9 @@ export default function AppShell({
 
       <div className="relative z-10 flex min-w-0 flex-1 flex-col">
         <HtTopBar app={app} user={user} />
-        <main className="flex-1 px-5 pb-28 lg:px-8 lg:pb-10">{children}</main>
+        {/* 22px, not 20: the cards in 001 sit at x=21.2..367.4 of a 390pt
+            screen, so each side gutter measures ~21.9css. */}
+        <main className="flex-1 px-[22px] pb-28 lg:px-8 lg:pb-10">{children}</main>
 
         {/* Mobile tab bar — mirrors the iOS screens in the pack. */}
         <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-ht-line bg-ht-surface/95 backdrop-blur lg:hidden">

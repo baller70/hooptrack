@@ -117,7 +117,7 @@ function SectionRow({
   return (
     <Link
       href={href}
-      className={`flex items-center gap-5 px-6 py-5 transition-colors hover:bg-ht-orange-tint/60 ${
+      className={`flex items-center gap-4 px-5 py-5 transition-colors hover:bg-ht-orange-tint/60 ${
         last ? '' : 'border-b border-ht-line-soft'
       }`}
     >
@@ -126,7 +126,7 @@ function SectionRow({
         <span className="ht-heading block text-[21px] leading-tight text-ht-ink">{title}</span>
         {/* One line per row in 003 — "Manage groups and sessions" is the
             longest and it does not wrap there. */}
-        <span className="mt-1 block truncate text-[13.5px] text-ht-muted">{description}</span>
+        <span className="mt-1 block truncate text-[12px] text-ht-muted">{description}</span>
       </span>
       {count ? (
         <span className="ht-heading rounded-md bg-ht-orange px-2 py-0.5 text-[13px] text-white">

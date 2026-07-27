@@ -54,7 +54,9 @@ export function SectionTitle({
   return (
     <h2
       className={cn(
-        'ht-heading text-[22px] tracking-[0.01em] text-ht-ink lg:text-[28px]',
+        /* 20px: "QUICK ACCESS" measures 16.25css tall in 001; ours measured
+           17.50css at 22px. */
+        'ht-heading text-[20px] tracking-[0.01em] text-ht-ink lg:text-[28px]',
         className,
       )}
     >
@@ -151,8 +153,11 @@ function StatCell({
     >
       <div
         className={cn(
+          /* 16px, not 12: the label cap height in 001 measures 13.1css and
+             ours measured 9.5css at 12px. Five-across (003) keeps a smaller
+             step so the row still fits. */
           'ht-heading text-ht-ink lg:text-[13px] lg:tracking-[0.06em]',
-          dense ? 'text-[10px] tracking-[0.02em]' : 'text-[12px] tracking-[0.05em]',
+          dense ? 'text-[11px] tracking-[0.02em]' : 'text-[16px] tracking-[0.04em]',
         )}
       >
         {stat.label}
@@ -162,7 +167,9 @@ function StatCell({
           upright, so these use .ht-num rather than .ht-display. */}
       <div
         className={cn(
-          'ht-num mt-1.5 text-[34px] leading-none lg:text-[40px]',
+          /* 43px: the counters in 001 measure 30.7css tall, ours measured
+             24.0css at 34px. */
+          'ht-num mt-1.5 text-[43px] leading-none lg:text-[40px]',
           stat.alert ? 'text-ht-orange' : 'text-ht-ink',
         )}
       >

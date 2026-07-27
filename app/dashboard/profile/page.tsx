@@ -200,7 +200,7 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
   return (
     <div className="flex items-baseline justify-between gap-4 border-b border-ht-line-soft py-2 last:border-b-0">
       <span className="ht-heading shrink-0 text-[12px] tracking-[0.06em] text-ht-muted">{label}</span>
-      <span className="min-w-0 truncate text-right text-[14px] text-ht-ink">{value}</span>
+      <span className="min-w-0 text-right text-[13px] leading-snug text-ht-ink">{value}</span>
     </div>
   )
 }
@@ -379,8 +379,18 @@ function PlayerMe({ user, onSignOut }: { user: UserInfo; onSignOut: () => void }
 
   const toggle = (key: string) => setPanel((current) => (current === key ? null : key))
 
+  /* 012 sets these three facts side by side, so the position shows as its
+     abbreviation ("SG"); the full "Shooting Guard" is a header-line value in
+     013 and overflows a third of a phone screen here. */
+  const abbreviatePosition = (value?: string | null) => {
+    if (!value) return '—'
+    if (value.length <= 3) return value.toUpperCase()
+    const initials = value.split(/\s+/).filter(Boolean).map((w) => w[0]?.toUpperCase() ?? '')
+    return initials.join('') || value
+  }
+
   const facts: Array<[string, string]> = [
-    ['Position', profile?.position || '—'],
+    ['Position', abbreviatePosition(profile?.position)],
     ['Height', profile?.height || '—'],
     ['Jersey', profile?.jersey_number == null ? '—' : String(profile.jersey_number)],
   ]

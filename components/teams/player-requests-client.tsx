@@ -353,13 +353,15 @@ export default function PlayerRequestsClient() {
                         <span className="ht-heading block truncate text-[18px] text-ht-ink">
                           {membership.name}
                         </span>
-                        {/* 002 gives each team a one-line classifier under its
-                            name ("Varsity Boys", "Training Sessions"), so this
-                            stays a single line even though descriptions are
-                            free text — wrapping it turned a 2-row list into a
-                            10-line block that matched nothing in the pack. */}
+                        {/* 002 puts a short classifier under each team name
+                            ("Varsity Boys", "Training Sessions") — the group's
+                            kind, not its description. Free-text descriptions run
+                            to a full sentence, so they either clipped on one
+                            line or turned a two-row list into a ten-line block;
+                            neither matched the pack. The full description stays
+                            available in the expanded detail below. */}
                         <span className="mt-0.5 block truncate text-[13.5px] text-ht-muted">
-                          {membership.description || typeLabel(membership.group_type)}
+                          {typeLabel(membership.group_type)}
                         </span>
                       </span>
                       <span className="shrink-0 text-center">
