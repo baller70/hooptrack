@@ -211,7 +211,7 @@ function MobileSummaryRow({
         <span className="ht-heading shrink-0 text-[15px] text-ht-ink">{title}</span>
         {/* The hint measures 12.64css tall in 004; 10.5px was compensation for
             the old body face and read far smaller than the pack. */}
-        <span className="min-w-0 truncate text-[12px] leading-tight text-ht-muted">{hint}</span>
+        <span className="min-w-0 truncate text-[11px] leading-tight text-ht-muted">{hint}</span>
       </span>
       <ChevronRight
         className={cn('size-5 shrink-0 text-ht-ink transition-transform', open && 'rotate-90')}
