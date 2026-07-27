@@ -678,13 +678,18 @@ function WorkoutDetail({
               <Link
                 key={drill.id}
                 href={`${appPath(app, '/record')}?drillId=${drill.id}&workoutId=${entry.workoutId}`}
-                className="flex items-center gap-4 border-b border-ht-line-soft px-4 py-3.5 transition-colors last:border-b-0 hover:bg-ht-orange-tint/50"
+                className="flex items-center gap-3 border-b border-ht-line-soft px-4 py-3.5 transition-colors last:border-b-0 hover:bg-ht-orange-tint/50"
               >
-                <span className="w-4 shrink-0 text-[19px] font-semibold text-ht-ink">
+                <span className="w-4 shrink-0 text-[16px] font-semibold text-ht-ink">
                   {index + 1}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-[19px] text-ht-ink">{drill.name}</span>
-                <span className="flex shrink-0 items-center gap-1.5 text-[17px] text-ht-muted">
+                {/* The whole row steps down — index, name and duration — rather
+                    than the name alone: at 19/19/17 the coach library's longer
+                    drill names ("Cone Snatchbacks") ran past the card on a
+                    phone by up to 14px, and shrinking only the name recovered
+                    2px of it. The pack shows every drill name in full. */}
+                <span className="min-w-0 flex-1 truncate text-[16px] text-ht-ink">{drill.name}</span>
+                <span className="flex shrink-0 items-center gap-1.5 text-[14px] text-ht-muted">
                   {drill.timer_mode === 'reps' ? (
                     <>
                       <Target className="size-4" strokeWidth={1.8} />
