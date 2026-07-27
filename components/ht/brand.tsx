@@ -8,23 +8,42 @@ export function Wordmark({
   app,
   inline = false,
   className,
+  markClassName,
+  labelClassName,
 }: {
   app?: 'player' | 'coach'
   /** Render the app label on the same line (used by the iOS-style coach header). */
   inline?: boolean
   className?: string
+  /** Overrides the HOOPTRACK size. The inner div carries it, so `className` —
+   *  which lands on the wrapper — cannot reach it. */
+  markClassName?: string
+  /** Overrides the PLAYER / COACH label size in the stacked form. */
+  labelClassName?: string
 }) {
   const label = app === 'coach' ? 'COACH' : app === 'player' ? 'PLAYER' : null
 
   return (
     <div className={cn('select-none leading-none', className)}>
-      <div className="ht-display text-[44px] leading-[0.88] tracking-[-0.012em]">
+      <div
+        className={cn(
+          'ht-display leading-[0.88] tracking-[-0.012em]',
+          markClassName ?? 'text-[44px]',
+        )}
+      >
         <span className="text-ht-ink">HOOP</span>
         <span className="text-ht-orange">TRACK</span>
         {inline && label ? <span className="text-ht-ink">&nbsp;{label}</span> : null}
       </div>
       {!inline && label ? (
-        <div className="ht-ui mt-2 text-[13px] font-bold tracking-[0.44em] text-ht-ink">{label}</div>
+        <div
+          className={cn(
+            'ht-ui mt-2 font-bold tracking-[0.44em] text-ht-ink',
+            labelClassName ?? 'text-[13px]',
+          )}
+        >
+          {label}
+        </div>
       ) : null}
     </div>
   )

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { Bell, ChevronDown, LogOut, UserRound } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { appPath, type HoopApp } from '@/lib/app-routes'
 import { Wordmark } from './brand'
@@ -19,6 +19,11 @@ export default function HtTopBar({ app, user }: { app: HoopApp; user: ShellUser 
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
+  const pathname = usePathname()
+  /* 001-player-home is the one screen in the pack that stacks the wordmark —
+   * HOOPTRACK over a letterspaced PLAYER, roughly twice the size it is
+   * elsewhere. 003-coach-home and every inner screen set it inline instead. */
+  const stackedWordmark = pathname === appPath(app)
 
   useEffect(() => {
     let cancelled = false
@@ -64,7 +69,14 @@ export default function HtTopBar({ app, user }: { app: HoopApp; user: ShellUser 
   return (
     <header className="flex items-center gap-4 px-5 pt-6 pb-2 lg:px-8">
       <Link href={appPath(app)} className="lg:hidden" aria-label="HoopTrack home">
-        <Wordmark app={app} inline className="text-[22px]" />
+        {stackedWordmark && app === 'player' ? (
+          /* 67px / 16px: 001 measures HOOPTRACK at a 47.40css cap and PLAYER
+             at 12.19css, against 31.00 and 10.00 for the shared 44px/13px the
+             desktop sidebar uses. */
+          <Wordmark app={app} markClassName="text-[67px]" labelClassName="text-[16px]" />
+        ) : (
+          <Wordmark app={app} inline className="text-[22px]" />
+        )}
       </Link>
 
       <div
