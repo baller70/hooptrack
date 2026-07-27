@@ -214,29 +214,40 @@
       "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
 
-  /* Heavy condensed italic — HOOPTRACK wordmark and page titles. */
+  /* Condensed italic — HOOPTRACK wordmark and page titles.
+     600, not 900: the wordmark's ink coverage measures 62.0% in
+     ios/001-player-home against 71.1% for our 900. */
   .ht-display {
     font-family: var(--font-russo);
-    font-weight: 900;
+    font-weight: 600;
     font-style: italic;
     text-transform: uppercase;
     letter-spacing: -0.005em;
   }
-  /* Bold condensed upright — panel headings, buttons, stat labels.
-     900, not 700: the pack's headings are noticeably heavier than a normal
-     bold, and Tungsten's 700-900 face is what gives them their weight. */
+  /* Condensed upright — panel headings, buttons, stat labels.
+     500, not 900. Ink coverage, measured on two independent samples, is the
+     reliable signal here (stroke medians quantise to half-pixels at 2x):
+     "QUICK ACCESS" measures 42.4% in the pack and "REQUESTS" 37.9%, against
+     63.4% and 53.2% for our 900. Rendering the same string down Tungsten's
+     weight ladder gives 42.3% at 500, 51.7% at 600 and 63.4% at 700-900, so
+     500 is the match — and the 700 and 900 steps are the same font file.
+     Tracking goes to 0.04em because the lighter cut is ~6% narrower and the
+     pack's headings hold their measured width. */
   .ht-heading {
     font-family: var(--font-russo);
-    font-weight: 900;
+    font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.04em;
   }
   /* Big counters — REQUESTS 3, 28 CLIPS, 65%. Upright, not italic: the pack
      reserves the oblique for the wordmark, page titles and the Start Capture
      hero, and sets every numeral bolt upright. */
+  /* 500, matching .ht-heading: the orange "1" in 001's OVERDUE column
+     measures 8.1% coverage and a 4.06css stem, against 12.0% and 6.00css for
+     our 900. */
   .ht-num {
     font-family: var(--font-russo);
-    font-weight: 900;
+    font-weight: 500;
     font-style: normal;
     letter-spacing: -0.01em;
   }

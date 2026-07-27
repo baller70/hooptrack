@@ -353,7 +353,10 @@ export function NavRow({
         !last && 'border-b border-ht-line-soft',
       )}
     >
-      <Icon className="size-6 shrink-0 text-ht-ink" strokeWidth={1.6} />
+      {/* 26px: the drawn glyph in 001's Quick Access rows measures
+          19.4 x 21.7css and ours measured 18.0 x 20.0 at size-6. The 1.6
+          stroke was already right — only the box was undersized. */}
+      <Icon className="size-[26px] shrink-0 text-ht-ink" strokeWidth={1.6} />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[15px] font-medium text-ht-ink">{label}</span>
         {description ? (
