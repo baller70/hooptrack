@@ -124,9 +124,11 @@ function SectionRow({
       <Icon className="size-9 shrink-0 text-ht-orange" strokeWidth={1.5} />
       <span className="min-w-0 flex-1">
         <span className="ht-heading block text-[21px] leading-tight text-ht-ink">{title}</span>
-        {/* One line per row in 003 — "Manage groups and sessions" is the
-            longest and it does not wrap there. */}
-        <span className="mt-1 block truncate text-[12px] text-ht-muted">{description}</span>
+        {/* 17px, measured: "Manage groups and sessions" is 13.54css tall and
+            142.6css wide in 003. It had been cut to 12px to stop it clipping
+            against the old, too-wide body face — with Boxed the row holds the
+            pack's size on one line. */}
+        <span className="mt-1 block truncate text-[17px] text-ht-muted">{description}</span>
       </span>
       {count ? (
         <span className="ht-heading rounded-md bg-ht-orange px-2 py-0.5 text-[13px] text-white">
