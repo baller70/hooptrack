@@ -23,10 +23,23 @@
   font-display: swap;
 }
 
+/* Weight map copied from the brand kit's own wilson-x-connect.css
+ * (baller70/hooper-brand-kit, assets/fonts/wilson-x-connect.css). The six .otf
+ * files here are byte-identical to the kit's, but this map was not: boxedmedium
+ * had no @font-face at all, so every element under .ht-ui — which sets
+ * font-weight 500 — silently rendered boxedregular instead of the medium cut
+ * the kit assigns to 500. */
 @font-face {
   font-family: "WilsonX Boxed";
   src: url("/wilson-x-fonts/boxedregular.otf") format("opentype");
-  font-weight: 400 500;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "WilsonX Boxed";
+  src: url("/wilson-x-fonts/boxedmedium.otf") format("opentype");
+  font-weight: 500;
   font-display: swap;
 }
 
