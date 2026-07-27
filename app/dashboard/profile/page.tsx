@@ -379,18 +379,20 @@ function PlayerMe({ user, onSignOut }: { user: UserInfo; onSignOut: () => void }
 
   const toggle = (key: string) => setPanel((current) => (current === key ? null : key))
 
-  /* 012 sets these three facts side by side, so the position shows as its
-     abbreviation ("SG"); the full "Shooting Guard" is a header-line value in
-     013 and overflows a third of a phone screen here. */
-  const abbreviatePosition = (value?: string | null) => {
+  /* 012 prints the position group — "Guard", not "SG" and not the full
+     "Shooting Guard", which overflows a third of a phone screen. The group is
+     the last word of the stored position; a bare abbreviation is passed
+     through as-is for rosters that only store one. */
+  const shortPosition = (value?: string | null) => {
     if (!value) return '—'
-    if (value.length <= 3) return value.toUpperCase()
-    const initials = value.split(/\s+/).filter(Boolean).map((w) => w[0]?.toUpperCase() ?? '')
-    return initials.join('') || value
+    const words = value.trim().split(/\s+/).filter(Boolean)
+    if (!words.length) return '—'
+    const last = words[words.length - 1]
+    return last.length <= 3 ? last.toUpperCase() : last
   }
 
   const facts: Array<[string, string]> = [
-    ['Position', abbreviatePosition(profile?.position)],
+    ['Position', shortPosition(profile?.position)],
     ['Height', profile?.height || '—'],
     ['Jersey', profile?.jersey_number == null ? '—' : String(profile.jersey_number)],
   ]
