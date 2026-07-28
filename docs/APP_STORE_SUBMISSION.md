@@ -17,7 +17,45 @@ virtualizing macOS only on Apple hardware. Swift compiles on Linux, but without
 the iOS SDK, the asset-catalog compiler, or code signing you cannot produce a
 signed IPA.
 
-That leaves two paths, and neither requires a local Mac to be the bottleneck:
+## The automatic path (Kevin's Mac runner)
+
+The shortest route is the self-hosted macOS runner already wired into
+`baller70/kcloud-xcode-runner`. Pushing one branch there releases both apps:
+
+```
+release/hooptrack-both-6
+```
+
+That resolves to `mode=release`, clones this repository's `main`, and for each
+app runs archive → export → validate → upload → attach → submit for review.
+Nothing else needs touching.
+
+**Required once — three repository secrets on `kcloud-xcode-runner`:**
+
+| Secret | Where it comes from |
+| --- | --- |
+| `ASC_KEY_ID` | App Store Connect → Users and Access → Integrations → App Store Connect API |
+| `ASC_ISSUER_ID` | same page, above the key table |
+| `ASC_KEY_P8_BASE64` | `base64 -i AuthKey_<KEY_ID>.p8` |
+
+One key covers everything. `xcodebuild -allowProvisioningUpdates` uses it to
+create the Apple Distribution certificate and App Store provisioning profile —
+that Mac has neither, only an Apple Development identity — and `altool` uses it
+to upload. No certificate has to be exported by hand.
+
+The runner has no login session, so its login keychain is locked and `codesign`
+fails with `errSecInternalComponent`. The job works around that by creating a
+throwaway keychain, unlocking it, and putting it ahead of the login keychain,
+restoring the search path on exit. That is also where a newly minted
+distribution private key lands.
+
+The `.p8` is written from the secret at job start and deleted in an `always()`
+step, so it never persists on the machine.
+
+---
+
+The remaining sections cover the fallbacks. Neither requires a local Mac to be
+the bottleneck:
 
 - **A GitHub-hosted macOS runner** (`.github/workflows/ios-appstore.yml`).
   Xcode is preinstalled. This is the path to use from a cloud agent or any
