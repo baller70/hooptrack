@@ -159,17 +159,42 @@ run_preflight() {
   fi
 }
 
+asc_key_path=""
+
+# altool searches these directories by name; xcodebuild wants an explicit path.
+locate_asc_key() {
+  asc_key_path=""
+  [ -n "${ASC_KEY_ID:-}" ] || return 1
+  local dir
+  for dir in "./private_keys" "${HOME}/private_keys" "${HOME}/.private_keys" "${HOME}/.appstoreconnect/private_keys"; do
+    if [ -f "${dir}/AuthKey_${ASC_KEY_ID}.p8" ]; then
+      asc_key_path="${dir}/AuthKey_${ASC_KEY_ID}.p8"
+      return 0
+    fi
+  done
+  return 1
+}
+
 require_asc_credentials() {
   [ -n "${ASC_KEY_ID:-}" ]    || die "ASC_KEY_ID is not set"
   [ -n "${ASC_ISSUER_ID:-}" ] || die "ASC_ISSUER_ID is not set"
-  local found=0 dir
-  for dir in "./private_keys" "${HOME}/private_keys" "${HOME}/.private_keys" "${HOME}/.appstoreconnect/private_keys"; do
-    if [ -f "${dir}/AuthKey_${ASC_KEY_ID}.p8" ]; then
-      found=1
-      break
-    fi
-  done
-  [ "$found" -eq 1 ] || die "AuthKey_${ASC_KEY_ID}.p8 not found in ~/.appstoreconnect/private_keys/ (or ./private_keys, ~/private_keys, ~/.private_keys)"
+  locate_asc_key || die "AuthKey_${ASC_KEY_ID}.p8 not found in ~/.appstoreconnect/private_keys/ (or ./private_keys, ~/private_keys, ~/.private_keys)"
+}
+
+# With these flags xcodebuild can create and download provisioning profiles on
+# its own, which is what makes -allowProvisioningUpdates work on a CI runner
+# where nobody can answer an interactive Apple ID prompt.
+asc_auth_args=()
+set_asc_auth_args() {
+  asc_auth_args=()
+  if [ -n "${ASC_ISSUER_ID:-}" ] && locate_asc_key; then
+    asc_auth_args=(
+      -authenticationKeyID "$ASC_KEY_ID"
+      -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+      -authenticationKeyPath "$(cd "$(dirname "$asc_key_path")" && pwd)/$(basename "$asc_key_path")"
+    )
+    note "Signing non-interactively with App Store Connect key ${ASC_KEY_ID}"
+  fi
 }
 
 # ------------------------------------------------------------------ archive --
@@ -223,6 +248,7 @@ run_archive() {
 
   rm -rf "$archive_path"
   mkdir -p "$build_dir"
+  set_asc_auth_args
 
   xcodebuild archive \
     -project "$project" \
@@ -232,6 +258,7 @@ run_archive() {
     -archivePath "$archive_path" \
     -derivedDataPath "$derived_data" \
     -allowProvisioningUpdates \
+    "${asc_auth_args[@]+"${asc_auth_args[@]}"}" \
     "${overrides[@]}"
 
   [ -d "$archive_path" ] || die "archive was not produced at ${archive_path}"
@@ -243,12 +270,14 @@ run_export() {
   [ -d "$archive_path" ] || die "no archive at ${archive_path} — run the archive stage first"
   write_export_options
   rm -rf "$export_dir"
+  set_asc_auth_args
 
   xcodebuild -exportArchive \
     -archivePath "$archive_path" \
     -exportPath "$export_dir" \
     -exportOptionsPlist "$export_options" \
-    -allowProvisioningUpdates
+    -allowProvisioningUpdates \
+    "${asc_auth_args[@]+"${asc_auth_args[@]}"}"
 
   [ -f "$ipa_path" ] || die "no IPA at ${ipa_path}"
   note "IPA: ${ipa_path} ($(du -h "$ipa_path" | cut -f1))"

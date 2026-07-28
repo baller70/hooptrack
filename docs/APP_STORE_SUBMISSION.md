@@ -9,13 +9,72 @@ Two iOS apps ship from this repo:
 
 Both target iOS 17.0, iPhone only, portrait only, Team `DD9G8RP575`, automatic signing.
 
-Archiving and uploading requires macOS with Xcode. It cannot be done from a
-Linux CI container or a cloud agent — those have no `xcodebuild` and no
-signing identities.
+Archiving and uploading requires macOS with Xcode. Xcode does not run on Linux
+and there is no compatibility layer for it — Wine is Windows-only, and Darling
+does not support Xcode. Virtualizing macOS is also not an option in a Linux
+container: it needs KVM plus nested virtualization, and Apple's license permits
+virtualizing macOS only on Apple hardware. Swift compiles on Linux, but without
+the iOS SDK, the asset-catalog compiler, or code signing you cannot produce a
+signed IPA.
+
+That leaves two paths, and neither requires a local Mac to be the bottleneck:
+
+- **A GitHub-hosted macOS runner** (`.github/workflows/ios-appstore.yml`).
+  Xcode is preinstalled. This is the path to use from a cloud agent or any
+  machine that is not a Mac. See "Releasing without a Mac" below.
+- **Your own Mac**, running `scripts/appstore-release.sh` directly. See
+  "One-command release".
+
+Both drive the same script, so behavior does not diverge between them.
+
+## Releasing without a Mac
+
+`.github/workflows/ios-appstore.yml` runs the release on `macos-15`. Trigger it
+from the repo's Actions tab (or `gh workflow run ios-appstore.yml`) with:
+
+| Input          | Meaning                                                     |
+| -------------- | ----------------------------------------------------------- |
+| `app`          | `coach`, `player`, or `both`                                 |
+| `build_number` | `CFBundleVersion` — must exceed the last upload              |
+| `stage`        | `archive`, `validate`, or `upload`                           |
+| `xcode_version`| Optional; blank uses the runner default                      |
+
+`stage` defaults to `validate`, which archives, exports, and runs Apple's
+validation without shipping anything. Choose `upload` only when you mean to
+send the build to App Store Connect. The IPA is attached to the run as an
+artifact either way.
+
+### Required repository secrets
+
+| Secret                         | What it is                                        |
+| ------------------------------ | ------------------------------------------------- |
+| `APPLE_DIST_CERT_P12_BASE64`   | Apple Distribution certificate + private key, exported as `.p12` from Keychain Access, then `base64 -i cert.p12 \| pbcopy` |
+| `APPLE_DIST_CERT_PASSWORD`     | The password set during that `.p12` export         |
+| `ASC_KEY_ID`                   | App Store Connect API key ID                       |
+| `ASC_ISSUER_ID`                | App Store Connect issuer ID                        |
+| `ASC_KEY_P8_BASE64`            | The `AuthKey_<KEY_ID>.p8`, base64-encoded          |
+
+The workflow imports the certificate into a throwaway keychain and deletes both
+it and the `.p8` in an `always()` step. Provisioning profiles do not need to be
+stored: `xcodebuild` creates and downloads them itself using the API key.
+
+A note on cost: GitHub bills macOS minutes at 10× the Linux rate on private
+repos, so a ~10-minute archive consumes roughly 100 minutes of quota. Prefer
+`validate` while iterating on the release setup and `upload` once it is green.
+
+### Other rented-Mac options
+
+If GitHub Actions is not the right fit: Xcode Cloud (Apple's own, 25 free
+compute hours/month, integrates directly with App Store Connect), MacStadium,
+AWS EC2 Mac, Codemagic, or Bitrise. The repo also has
+`scripts/kcloud-xcode-submit.sh`, which dispatches `doctor`/`build`/`test` jobs
+to a separate macOS runner repo — that broker predates this workflow and does
+not cover archive or upload.
 
 ## One-command release
 
-From the repo on your Mac (external drive is fine — see below):
+If you do have a Mac, run it directly. From the repo on that Mac (an external
+drive is fine — see below):
 
 ```bash
 # Check the machine, the drive, signing config, and the backend first.
