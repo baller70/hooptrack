@@ -25,7 +25,7 @@ on:
         required: true
         default: validate
         type: choice
-        options: [archive, validate, upload]
+        options: [archive, validate, upload, upload-and-submit]
       xcode_version:
         description: Xcode version to select (blank = runner default)
         required: false
@@ -112,10 +112,36 @@ jobs:
               ./scripts/appstore-release.sh "${{ matrix.app }}" export
               ./scripts/appstore-release.sh "${{ matrix.app }}" validate
               ;;
-            upload)
+            upload|upload-and-submit)
               ./scripts/appstore-release.sh "${{ matrix.app }}" all --build "${{ inputs.build_number }}"
               ;;
           esac
+
+      # Uploading only puts the binary in App Store Connect. Apple still has to
+      # finish processing it before it can be attached to a version, so this
+      # waits rather than failing on a build that simply is not ready yet.
+      - name: Submit ${{ matrix.app }} for review
+        if: inputs.stage == 'upload-and-submit'
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          # Only jose is needed here; a full install would compile
+          # better-sqlite3 natively for nothing.
+          npm install --no-save --no-audit --no-fund jose
+          export ASC_KEY_PATH="${HOME}/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+
+          for attempt in $(seq 1 20); do
+            if node scripts/appstore-submit-for-review.mjs "${{ matrix.app }}" \
+                 --build "${{ inputs.build_number }}" --submit; then
+              exit 0
+            fi
+            echo "Build not ready yet (attempt ${attempt}/20); waiting 90s..."
+            sleep 90
+          done
+          echo "::error::Build ${{ inputs.build_number }} did not finish processing within 30 minutes." >&2
+          exit 1
 
       - name: Upload IPA artifact
         if: always()
