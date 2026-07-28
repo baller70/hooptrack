@@ -1,0 +1,81 @@
+name: iOS Release Preflight
+
+# Reports whether this repository can actually cut an App Store release:
+# which release secrets are configured, and — when the App Store Connect key
+# is present — whether the app records and versions exist on Apple's side.
+#
+# Runs on ubuntu (cheap) and never prints a secret value, only whether one is
+# set. Push-triggered so it re-checks whenever the release tooling changes.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ios-*.yml'
+      - 'scripts/appstore-*'
+  workflow_dispatch:
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Report configured secrets
+        env:
+          HAS_CERT: ${{ secrets.APPLE_DIST_CERT_P12_BASE64 != '' }}
+          HAS_CERT_PW: ${{ secrets.APPLE_DIST_CERT_PASSWORD != '' }}
+          HAS_KEY_ID: ${{ secrets.ASC_KEY_ID != '' }}
+          HAS_ISSUER: ${{ secrets.ASC_ISSUER_ID != '' }}
+          HAS_P8: ${{ secrets.ASC_KEY_P8_BASE64 != '' }}
+        run: |
+          set -euo pipefail
+          mark() { [ "$1" = "true" ] && echo "  SET      $2" || echo "  MISSING  $2"; }
+          echo "Release secrets:"
+          mark "$HAS_CERT"    "APPLE_DIST_CERT_P12_BASE64"
+          mark "$HAS_CERT_PW" "APPLE_DIST_CERT_PASSWORD"
+          mark "$HAS_KEY_ID"  "ASC_KEY_ID"
+          mark "$HAS_ISSUER"  "ASC_ISSUER_ID"
+          mark "$HAS_P8"      "ASC_KEY_P8_BASE64"
+
+          {
+            echo "## iOS release readiness"
+            echo
+            echo "| Secret | State |"
+            echo "| --- | --- |"
+            echo "| APPLE_DIST_CERT_P12_BASE64 | $([ "$HAS_CERT" = true ] && echo set || echo **missing**) |"
+            echo "| APPLE_DIST_CERT_PASSWORD | $([ "$HAS_CERT_PW" = true ] && echo set || echo **missing**) |"
+            echo "| ASC_KEY_ID | $([ "$HAS_KEY_ID" = true ] && echo set || echo **missing**) |"
+            echo "| ASC_ISSUER_ID | $([ "$HAS_ISSUER" = true ] && echo set || echo **missing**) |"
+            echo "| ASC_KEY_P8_BASE64 | $([ "$HAS_P8" = true ] && echo set || echo **missing**) |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$HAS_CERT" = true ] && [ "$HAS_KEY_ID" = true ] && [ "$HAS_ISSUER" = true ] && [ "$HAS_P8" = true ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+        id: secrets
+
+      - name: Query App Store Connect
+        if: steps.secrets.outputs.ready == 'true'
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+        run: |
+          set -euo pipefail
+          npm install --no-save --no-audit --no-fund jose
+          mkdir -p ~/.appstoreconnect/private_keys
+          printf '%s' "${ASC_KEY_P8_BASE64}" | base64 --decode > ~/.appstoreconnect/private_keys/"AuthKey_${ASC_KEY_ID}.p8"
+          export ASC_KEY_PATH=~/.appstoreconnect/private_keys/"AuthKey_${ASC_KEY_ID}.p8"
+          node scripts/appstore-check-readiness.mjs | tee -a "$GITHUB_STEP_SUMMARY"
+          rm -f ~/.appstoreconnect/private_keys/*.p8
+
+      - name: Explain what is missing
+        if: steps.secrets.outputs.ready != 'true'
+        run: |
+          echo "::warning::Release secrets are not configured, so no build can be cut yet."
+          echo "Add them under Settings -> Secrets and variables -> Actions."
