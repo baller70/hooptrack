@@ -17,6 +17,16 @@ die() {
 note() { printf '  %s\n' "$*"; }
 step() { printf '\n==> %s\n' "$*"; }
 
+# Cached because every `xcodebuild -version` call is a process launch, and
+# because piping it anywhere that closes early aborts it on Xcode 26.
+xcodebuild_version_cache=""
+xcodebuild_version_line() {
+  if [ -z "$xcodebuild_version_cache" ]; then
+    xcodebuild_version_cache="$(xcodebuild -version)"
+  fi
+  printf '%s' "${xcodebuild_version_cache%%$'\n'*}"
+}
+
 usage() {
   cat <<'USAGE'
 Usage: scripts/appstore-release.sh <app> <stage> [options]
@@ -93,9 +103,10 @@ run_preflight() {
   [ "$(uname -s)" = "Darwin" ] || die "this script requires macOS; Xcode does not run on $(uname -s)"
 
   command -v xcodebuild >/dev/null 2>&1 || die "xcodebuild not found — install Xcode and run: sudo xcode-select --switch /Applications/Xcode.app"
-  local xcode_version
-  xcode_version="$(xcodebuild -version | head -1)"
-  note "$xcode_version"
+  # Never pipe xcodebuild into head: it writes a second line, and on Xcode 26
+  # the resulting SIGPIPE surfaces as an uncaught NSFileHandleOperationException
+  # that aborts with exit 134. Capture the whole thing and slice it here.
+  note "$(xcodebuild_version_line)"
 
   # Xcode refuses to build from a case-insensitive/permission-less volume, and
   # code signing silently corrupts on exFAT. This is the usual external-drive trap.
@@ -144,8 +155,11 @@ run_preflight() {
     note "Push entitlement: production"
   fi
 
+  # awk rather than `grep | head`, which under pipefail turns a SIGPIPE into a
+  # failed preflight.
   local backend
-  backend="$(grep -oE 'https://[^"]+' "${scheme}/Networking/HoopTrackAPI.swift" | head -1)"
+  backend="$(awk 'match($0, /https:\/\/[^"]+/) { print substr($0, RSTART, RLENGTH); exit }' \
+    "${scheme}/Networking/HoopTrackAPI.swift")"
   note "Backend: ${backend}"
   if curl -fsS -o /dev/null --max-time 15 "$backend" 2>/dev/null; then
     note "Backend reachable."
@@ -201,10 +215,14 @@ set_asc_auth_args() {
 
 write_export_options() {
   # Xcode 15.3 renamed the App Store method; older Xcode rejects the new name.
-  local method="app-store-connect" major minor
-  major="$(xcodebuild -version | awk 'NR==1 {print $2}' | cut -d. -f1)"
-  minor="$(xcodebuild -version | awk 'NR==1 {print $2}' | cut -d. -f2)"
-  minor="${minor:-0}"
+  local method="app-store-connect" version major minor
+  version="$(xcodebuild_version_line)"   # e.g. "Xcode 26.2"
+  version="${version##* }"
+  major="${version%%.*}"
+  minor="${version#*.}"
+  minor="${minor%%.*}"
+  [[ "$major" =~ ^[0-9]+$ ]] || major=99
+  [[ "$minor" =~ ^[0-9]+$ ]] || minor=0
   if [ "$major" -lt 15 ] || { [ "$major" -eq 15 ] && [ "$minor" -lt 3 ]; }; then
     method="app-store"
   fi
