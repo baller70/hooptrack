@@ -158,9 +158,30 @@ Verified in this repo:
    Contabo IP. App Review exercises the live backend; if it is down, or the TLS
    cert lapses mid-review, the result is a Guideline 2.1 rejection. A real
    domain with a monitored cert is strongly preferable before submitting.
-2. **Demo account.** Both apps open on a login screen. Review notes must carry
-   working demo credentials for a coach and a player, or the reviewer cannot get
-   past `AuthView`. This is the single most common first-submission rejection.
+2. **Demo account — confirmed missing on production.** Both apps open on a
+   login screen, so review notes must carry working coach and player
+   credentials or the reviewer cannot get past `AuthView`. This is the single
+   most common first-submission rejection.
+
+   The accounts in `scripts/seed-design-data.mjs` do **not** exist on the
+   production backend — logging in with `marcus@hooptrack.test` / `hooptrack`
+   against `https://hooptrack.194-146-12-139.sslip.io/api/auth/login` returns
+   401. That seed is also unusable here: it refuses to run on a database that
+   already has users, and its `--force` path deletes every table.
+
+   Run `scripts/provision-review-account.mjs` on the production host instead.
+   It only ever touches the two designated review accounts, never deletes, and
+   is safe to re-run:
+
+   ```bash
+   HOOPTRACK_REVIEW_CONFIRM=yes node scripts/provision-review-account.mjs
+   ```
+
+   It creates a coach and a player, puts the player on the coach's roster, adds
+   one workout so the reviewer does not land on empty screens, and prints the
+   block to paste into App Store Connect → App Review Information. Override
+   `REVIEW_COACH_EMAIL`, `REVIEW_PLAYER_EMAIL`, and `REVIEW_PASSWORD` to change
+   the defaults. Verify with the `curl` it prints before submitting.
 3. **App Store Connect records.** Both bundle IDs must be registered in the
    Developer portal and have app records created with screenshots, description,
    keywords, support URL, privacy policy URL, and the privacy questionnaire
