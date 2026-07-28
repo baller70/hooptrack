@@ -69,5 +69,10 @@ build/
 xcuserdata/
 *.xcuserstate
 
+# App Store Connect API signing keys — must never be committed
+*.p8
+private_keys/
+ExportOptions.plist
+
 # Design source pack (80MB of reference PNGs) — kept locally, not in git
 design/

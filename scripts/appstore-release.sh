@@ -1,0 +1,291 @@
+#!/usr/bin/env bash
+# Archive, export, validate, and upload the HoopTrack iOS apps to App Store Connect.
+#
+# Runs on macOS with Xcode installed. Safe to run with the repo living on an
+# external drive — the preflight checks the conditions that break Xcode there.
+#
+#   ./scripts/appstore-release.sh coach preflight
+#   ./scripts/appstore-release.sh coach archive --build 6
+#   ./scripts/appstore-release.sh player all --build 6
+set -Eeuo pipefail
+
+die() {
+  printf 'APPSTORE_RELEASE_ERROR: %s\n' "$*" >&2
+  exit 1
+}
+
+note() { printf '  %s\n' "$*"; }
+step() { printf '\n==> %s\n' "$*"; }
+
+usage() {
+  cat <<'USAGE'
+Usage: scripts/appstore-release.sh <app> <stage> [options]
+
+  app     coach | player
+  stage   preflight | archive | export | validate | upload | all
+
+Options:
+  --build <n>        Build number (CFBundleVersion). Must be higher than the
+                     last build uploaded for this marketing version.
+  --version <x.y.z>  Marketing version (CFBundleShortVersionString) override.
+  --fix-quarantine   Strip com.apple.quarantine from the working tree first.
+  --derived <path>   DerivedData location. Defaults to the internal drive.
+
+App Store Connect credentials (for validate/upload) come from the environment:
+  ASC_KEY_ID     App Store Connect API key ID
+  ASC_ISSUER_ID  App Store Connect issuer ID
+The matching AuthKey_<ASC_KEY_ID>.p8 must live in one of the locations altool
+searches, e.g. ~/.appstoreconnect/private_keys/
+USAGE
+}
+
+[ $# -ge 1 ] || { usage; exit 2; }
+
+app="${1:-}"; shift || true
+stage="${1:-preflight}"; shift || true
+
+case "$app" in
+  coach)  scheme="HooptrackCoach";  project="HooptrackCoach.xcodeproj";  bundle_id="com.kevinhouston.hooptrackcoach" ;;
+  player) scheme="HooptrackPlayer"; project="HooptrackPlayer.xcodeproj"; bundle_id="com.kevinhouston.hooptrackplayer" ;;
+  -h|--help) usage; exit 0 ;;
+  *) die "app must be 'coach' or 'player' (got '${app:-}')" ;;
+esac
+
+case "$stage" in
+  preflight|archive|export|validate|upload|all) ;;
+  *) die "stage must be preflight, archive, export, validate, upload, or all" ;;
+esac
+
+build_number=""
+marketing_version=""
+fix_quarantine=0
+derived_data="${HOME}/Library/Developer/Xcode/DerivedData/hooptrack-release"
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --build)          build_number="${2:-}"; shift 2 ;;
+    --version)        marketing_version="${2:-}"; shift 2 ;;
+    --derived)        derived_data="${2:-}"; shift 2 ;;
+    --fix-quarantine) fix_quarantine=1; shift ;;
+    -h|--help)        usage; exit 0 ;;
+    *) die "unknown option '$1'" ;;
+  esac
+done
+
+[ -z "$build_number" ] || [[ "$build_number" =~ ^[0-9]+$ ]] || die "--build must be an integer"
+[ -z "$marketing_version" ] || [[ "$marketing_version" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]] || die "--version must look like 1.2.3"
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+team_id="DD9G8RP575"
+build_dir="${repo_root}/build/appstore/${app}"
+archive_path="${build_dir}/${scheme}.xcarchive"
+export_dir="${build_dir}/export"
+ipa_path="${export_dir}/${scheme}.ipa"
+export_options="${build_dir}/ExportOptions.plist"
+
+# ---------------------------------------------------------------- preflight --
+
+run_preflight() {
+  step "Preflight — ${scheme} (${bundle_id})"
+
+  [ "$(uname -s)" = "Darwin" ] || die "this script requires macOS; Xcode does not run on $(uname -s)"
+
+  command -v xcodebuild >/dev/null 2>&1 || die "xcodebuild not found — install Xcode and run: sudo xcode-select --switch /Applications/Xcode.app"
+  local xcode_version
+  xcode_version="$(xcodebuild -version | head -1)"
+  note "$xcode_version"
+
+  # Xcode refuses to build from a case-insensitive/permission-less volume, and
+  # code signing silently corrupts on exFAT. This is the usual external-drive trap.
+  local device fs
+  device="$(df -P "$repo_root" | awk 'NR==2 {print $1}')"
+  fs="$(diskutil info "$device" 2>/dev/null | awk -F': *' '/File System Personality/ {print $2}' | xargs || true)"
+  if [ -n "$fs" ]; then
+    note "Volume: ${device} (${fs})"
+    case "$fs" in
+      *ExFAT*|*exFAT*|*MS-DOS*|*FAT32*)
+        die "repo is on ${fs}. Xcode code signing requires POSIX permissions and symlinks.
+    Reformat the drive as APFS (or Mac OS Extended, Journaled), or clone the repo
+    to the internal drive and build there." ;;
+      *APFS*|*Journaled*|*HFS*) note "Filesystem supports code signing." ;;
+      *) note "WARNING: unrecognized filesystem '${fs}' — if signing fails, this is the first suspect." ;;
+    esac
+  fi
+
+  case "$repo_root" in
+    /Volumes/*) note "Building from external volume: ${repo_root}"
+                note "DerivedData is redirected to the internal drive: ${derived_data}" ;;
+  esac
+
+  # Files copied onto an external drive from another Mac arrive quarantined,
+  # which makes build phases fail with opaque permission errors.
+  local quarantined=0
+  quarantined="$(xattr -r -p com.apple.quarantine "$project" "$scheme" 2>/dev/null | wc -l | xargs || echo 0)"
+  if [ "${quarantined:-0}" -gt 0 ]; then
+    if [ "$fix_quarantine" -eq 1 ]; then
+      note "Stripping com.apple.quarantine from ${quarantined} paths"
+      xattr -dr com.apple.quarantine "$project" "$scheme"
+    else
+      note "WARNING: ${quarantined} quarantined paths. Re-run with --fix-quarantine if the build fails."
+    fi
+  fi
+
+  [ -d "$project" ] || die "missing ${project}"
+  [ -f "${project}/xcshareddata/xcschemes/${scheme}.xcscheme" ] || die "scheme '${scheme}' is not shared; share it in Xcode > Product > Scheme > Manage Schemes"
+  note "Shared scheme present: ${scheme}"
+
+  # A Release build that still points at the development APS environment gets
+  # rejected, and silently breaks push for real users.
+  if [ "$app" = "coach" ]; then
+    grep -q 'APS_ENVIRONMENT = production;' "${project}/project.pbxproj" \
+      || die "Release config must set APS_ENVIRONMENT = production"
+    note "Push entitlement: production"
+  fi
+
+  local backend
+  backend="$(grep -oE 'https://[^"]+' "${scheme}/Networking/HoopTrackAPI.swift" | head -1)"
+  note "Backend: ${backend}"
+  if curl -fsS -o /dev/null --max-time 15 "$backend" 2>/dev/null; then
+    note "Backend reachable."
+  else
+    note "WARNING: backend did not respond. App Review will exercise this host —"
+    note "         it must be up and serving valid TLS for the whole review."
+  fi
+
+  if [ "$stage" = "preflight" ]; then
+    note "Preflight complete. Next: $0 ${app} all --build <n>"
+  fi
+}
+
+require_asc_credentials() {
+  [ -n "${ASC_KEY_ID:-}" ]    || die "ASC_KEY_ID is not set"
+  [ -n "${ASC_ISSUER_ID:-}" ] || die "ASC_ISSUER_ID is not set"
+  local found=0 dir
+  for dir in "./private_keys" "${HOME}/private_keys" "${HOME}/.private_keys" "${HOME}/.appstoreconnect/private_keys"; do
+    if [ -f "${dir}/AuthKey_${ASC_KEY_ID}.p8" ]; then
+      found=1
+      break
+    fi
+  done
+  [ "$found" -eq 1 ] || die "AuthKey_${ASC_KEY_ID}.p8 not found in ~/.appstoreconnect/private_keys/ (or ./private_keys, ~/private_keys, ~/.private_keys)"
+}
+
+# ------------------------------------------------------------------ archive --
+
+write_export_options() {
+  # Xcode 15.3 renamed the App Store method; older Xcode rejects the new name.
+  local method="app-store-connect" major minor
+  major="$(xcodebuild -version | awk 'NR==1 {print $2}' | cut -d. -f1)"
+  minor="$(xcodebuild -version | awk 'NR==1 {print $2}' | cut -d. -f2)"
+  minor="${minor:-0}"
+  if [ "$major" -lt 15 ] || { [ "$major" -eq 15 ] && [ "$minor" -lt 3 ]; }; then
+    method="app-store"
+  fi
+
+  mkdir -p "$build_dir"
+  cat >"$export_options" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>method</key>
+	<string>${method}</string>
+	<key>destination</key>
+	<string>export</string>
+	<key>teamID</key>
+	<string>${team_id}</string>
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<key>uploadSymbols</key>
+	<true/>
+	<key>stripSwiftSymbols</key>
+	<true/>
+	<key>manageAppVersionAndBuildNumber</key>
+	<false/>
+</dict>
+</plist>
+PLIST
+  note "Export method: ${method}"
+}
+
+run_archive() {
+  step "Archive — ${scheme}"
+  local overrides=("DEVELOPMENT_TEAM=${team_id}")
+  if [ -n "$build_number" ]; then
+    overrides+=("CURRENT_PROJECT_VERSION=${build_number}")
+  fi
+  if [ -n "$marketing_version" ]; then
+    overrides+=("MARKETING_VERSION=${marketing_version}")
+  fi
+  note "Build settings: ${overrides[*]}"
+
+  rm -rf "$archive_path"
+  mkdir -p "$build_dir"
+
+  xcodebuild archive \
+    -project "$project" \
+    -scheme "$scheme" \
+    -configuration Release \
+    -destination 'generic/platform=iOS' \
+    -archivePath "$archive_path" \
+    -derivedDataPath "$derived_data" \
+    -allowProvisioningUpdates \
+    "${overrides[@]}"
+
+  [ -d "$archive_path" ] || die "archive was not produced at ${archive_path}"
+  note "Archive: ${archive_path}"
+}
+
+run_export() {
+  step "Export IPA — ${scheme}"
+  [ -d "$archive_path" ] || die "no archive at ${archive_path} — run the archive stage first"
+  write_export_options
+  rm -rf "$export_dir"
+
+  xcodebuild -exportArchive \
+    -archivePath "$archive_path" \
+    -exportPath "$export_dir" \
+    -exportOptionsPlist "$export_options" \
+    -allowProvisioningUpdates
+
+  [ -f "$ipa_path" ] || die "no IPA at ${ipa_path}"
+  note "IPA: ${ipa_path} ($(du -h "$ipa_path" | cut -f1))"
+}
+
+run_validate() {
+  step "Validate with App Store Connect — ${scheme}"
+  [ -f "$ipa_path" ] || die "no IPA at ${ipa_path} — run the export stage first"
+  require_asc_credentials
+  xcrun altool --validate-app \
+    --type ios \
+    --file "$ipa_path" \
+    --apiKey "$ASC_KEY_ID" \
+    --apiIssuer "$ASC_ISSUER_ID"
+  note "Validation passed."
+}
+
+run_upload() {
+  step "Upload to App Store Connect — ${scheme}"
+  [ -f "$ipa_path" ] || die "no IPA at ${ipa_path} — run the export stage first"
+  require_asc_credentials
+  xcrun altool --upload-app \
+    --type ios \
+    --file "$ipa_path" \
+    --apiKey "$ASC_KEY_ID" \
+    --apiIssuer "$ASC_ISSUER_ID"
+  note "Uploaded. Processing takes 5-30 minutes before the build appears in TestFlight."
+}
+
+run_preflight
+case "$stage" in
+  preflight) ;;
+  archive)   run_archive ;;
+  export)    run_export ;;
+  validate)  run_validate ;;
+  upload)    run_upload ;;
+  all)       run_archive; run_export; run_validate; run_upload ;;
+esac
+
+step "Done — ${app} / ${stage}"
