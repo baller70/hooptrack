@@ -157,6 +157,26 @@ run_preflight() {
 
   # awk rather than `grep | head`, which under pipefail turns a SIGPIPE into a
   # failed preflight.
+  # Signing is checked here rather than discovered a minute into an archive.
+  # A CI runner started as a daemon has no GUI session, so codesign cannot
+  # reach the private key and fails with errSecInternalComponent after the
+  # whole app has already compiled.
+  local identities
+  identities="$(security find-identity -v -p codesigning 2>/dev/null || true)"
+  if printf '%s' "$identities" | grep -q 'Apple Distribution'; then
+    note "Signing: Apple Distribution identity present"
+  elif printf '%s' "$identities" | grep -q 'Apple Development'; then
+    note "WARNING: only an Apple Development identity is in this keychain."
+    note "         App Store archives need 'Apple Distribution'. Create one at"
+    note "         developer.apple.com > Certificates, then import it here."
+  else
+    note "WARNING: no code-signing identity is visible to this process."
+    note "         If this is a CI runner, the login keychain is probably locked:"
+    note "           security unlock-keychain ~/Library/Keychains/login.keychain-db"
+    note "           security set-key-partition-list -S apple-tool:,apple: -s \\"
+    note "             -k <password> ~/Library/Keychains/login.keychain-db"
+  fi
+
   local backend
   backend="$(awk 'match($0, /https:\/\/[^"]+/) { print substr($0, RSTART, RLENGTH); exit }' \
     "${scheme}/Networking/HoopTrackAPI.swift")"
