@@ -25,10 +25,14 @@ function loadEnv(filePath) {
 const envPath = argument("--env");
 const outputRoot = path.resolve(argument("--output", ".factory/approved-real-screenshots"));
 const baseUrl = argument("--base-url", "https://hooptrack.194-146-12-139.sslip.io").replace(/\/$/, "");
-const chromePath = argument("--chrome", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome");
+// Falls back to Playwright's bundled Chromium when the macOS Chrome is absent,
+// so this runs on a Linux box as well as Kevin's Mac.
+const chromeDefault = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const chromeArgument = argument("--chrome");
+const chromePath = chromeArgument || (fs.existsSync(chromeDefault) ? chromeDefault : "");
 const productFilter = argument("--product");
 if (!envPath || !fs.existsSync(envPath)) throw new Error("A valid --env file is required.");
-if (!fs.existsSync(chromePath)) throw new Error("A valid --chrome executable is required.");
+if (chromePath && !fs.existsSync(chromePath)) throw new Error(`--chrome is not an executable: ${chromePath}`);
 loadEnv(envPath);
 
 const accounts = JSON.parse(process.env.APP_REVIEW_DEMO_ACCOUNTS_JSON || "{}");
@@ -60,7 +64,10 @@ const products = [
 ].filter((product) => !productFilter || product.name === productFilter);
 if (!products.length) throw new Error("--product must be player or coach when provided.");
 
-const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+const browser = await chromium.launch({
+  ...(chromePath ? { executablePath: chromePath } : {}),
+  headless: true,
+});
 const manifest = { capturedAt: new Date().toISOString(), baseUrl, products: [] };
 
 try {
