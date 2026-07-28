@@ -158,7 +158,7 @@ function StatQuad({ tiles }: { tiles: { label: string; value: React.ReactNode; c
             <div className="ht-heading text-[10px] leading-[1.2] tracking-[0.04em] text-ht-muted lg:text-[13px]">
               {tile.label}
             </div>
-            <div className="ht-display mt-1.5 text-[32px] leading-none text-ht-orange lg:text-[40px]">
+            <div className="ht-num mt-1.5 text-[32px] leading-none text-ht-orange lg:text-[40px]">
               {tile.value}
             </div>
             <div className="mt-1 text-[11px] leading-[1.2] text-ht-muted lg:text-[13px]">
@@ -232,7 +232,7 @@ function LevelUpPlanDropdown({
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
-          <span className="ht-display text-[26px] leading-none text-ht-orange">
+          <span className="ht-num text-[26px] leading-none text-ht-orange">
             {plan.currentLetter}
           </span>
           <ChevronDown

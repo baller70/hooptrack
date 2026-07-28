@@ -344,8 +344,13 @@ function QuizList({
               <ClipboardList className="size-5 text-ht-orange" strokeWidth={1.7} />
             </span>
             <Link href={appPath(app, `/classroom/${quiz.id}`)} className="min-w-0 flex-1">
-              <span className="ht-heading block truncate text-[15px] text-ht-ink">{quiz.title}</span>
-              <span className="mt-0.5 block text-[13px] text-ht-muted capitalize">
+              {/* 010 measures the quiz title at an 18.96css cap — 26px in this
+                  face — over a 12.64css meta line (16px). Ours sat at 15/13,
+                  which read as a list row rather than the pack's card heading.
+                  24px, not 26: the coach route carries longer seeded titles and
+                  "Spacing And Reads" clipped at 26. */}
+              <span className="ht-heading block truncate text-[24px] text-ht-ink">{quiz.title}</span>
+              <span className="mt-0.5 block text-[16px] text-ht-muted capitalize">
                 {quiz.question_count} question{quiz.question_count === 1 ? '' : 's'}
                 <span className="px-1.5">•</span>
                 {typeLabel(quiz.type)}

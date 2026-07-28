@@ -152,8 +152,14 @@ function EmblemGlyph({ icon: Icon, size }: { icon: LucideIcon; size: number }) {
  * off by the card's right edge. */
 const MEMBER_COLS =
   '[&_table]:table-fixed [&_th:nth-child(1)]:w-[35%] [&_th:nth-child(2)]:w-[22%] [&_th:nth-child(3)]:w-[21%]'
+/* The pack prints every invite address in full (bryson.smith@email.com and
+ * friends), so this table is weighted toward the address: at the old 38% even
+ * the pack's own emails ellipsised, and a real 25-character address lost half
+ * its domain. Group/Requested give up the width; both hold their longest
+ * seeded value ("Rising Stars 15U", "Jul 24, 2026") at 13px. */
 const REQUEST_COLS =
-  '[&_table]:table-fixed [&_th:nth-child(1)]:w-[38%] [&_th:nth-child(2)]:w-[24%] [&_th:nth-child(3)]:w-[20%]'
+  '[&_table]:table-fixed [&_th:nth-child(1)]:w-[44%] [&_th:nth-child(2)]:w-[25%] [&_th:nth-child(3)]:w-[16%] ' +
+  '[&_td]:text-[13px]'
 
 const FIELD =
   'w-full rounded-lg border border-ht-line bg-ht-surface px-3.5 py-2.5 text-[14px] text-ht-ink ' +
@@ -197,10 +203,15 @@ function MobileSummaryRow({
       aria-expanded={open}
       className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-ht-orange-tint/60"
     >
-      <Icon className="size-6 shrink-0 text-ht-orange" strokeWidth={1.8} />
-      <span className="min-w-0 flex-1">
-        <span className="ht-heading block text-[17px] text-ht-ink">{title}</span>
-        <span className="mt-0.5 block truncate text-[13px] text-ht-muted">{hint}</span>
+      <Icon className="size-5 shrink-0 text-ht-orange" strokeWidth={1.8} />
+      {/* 004 sets the count and its hint on one line — "MEMBERS (12)  Accepted
+          members in your groups" — rather than stacking them. Both are sized
+          to fit that pairing at 390pt without either one clipping. */}
+      <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
+        <span className="ht-heading shrink-0 text-[15px] text-ht-ink">{title}</span>
+        {/* The hint measures 12.64css tall in 004; 10.5px was compensation for
+            the old body face and read far smaller than the pack. */}
+        <span className="min-w-0 truncate text-[11px] leading-tight text-ht-muted">{hint}</span>
       </span>
       <ChevronRight
         className={cn('size-5 shrink-0 text-ht-ink transition-transform', open && 'rotate-90')}
@@ -250,8 +261,10 @@ function MobileEntryRow({
     <div className="flex items-center gap-3 border-b border-ht-line-soft py-3 last:border-b-0">
       {initials}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[15px] font-semibold text-ht-ink">{title}</span>
-        <span className="mt-0.5 block truncate text-[13px] text-ht-muted">{meta}</span>
+        {/* Group and member names carry the row; the phone column is narrow
+            enough that "Skills Academy" clipped, so they wrap instead. */}
+        <span className="block text-[14.5px] leading-snug font-semibold text-ht-ink">{title}</span>
+        <span className="mt-0.5 block truncate text-[12.5px] text-ht-muted">{meta}</span>
       </span>
       {pill}
     </div>
@@ -654,24 +667,28 @@ export default function CoachGroupsClient() {
                     type="button"
                     onClick={() => setInvite((current) => ({ ...current, groupId: String(group.id) }))}
                     className={cn(
-                      'flex w-full items-center gap-2 px-5 py-3.5 text-left transition-colors hover:bg-ht-orange-tint/60',
+                      'flex w-full items-center gap-1 px-4 py-3.5 text-left transition-colors hover:bg-ht-orange-tint/60',
                       index > 0 && 'border-t border-ht-line-soft',
                     )}
                   >
-                    <GroupEmblem group={group} />
-                    <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-ht-ink">
+                    <GroupEmblem group={group} size={34} />
+                    {/* The pack shows each group's full name next to its type
+                        chip; "Skills Academy" + "Training session" is the
+                        tightest pair, so the chip is set smaller than a default
+                        Pill to leave the name whole. */}
+                    <span className="mr-0.5 min-w-0 flex-1 text-[15px] leading-snug font-semibold text-ht-ink">
                       {group.name}
                     </span>
                     <Pill
                       tone={group.group_type === 'team' ? 'orange' : 'neutral'}
-                      className="px-2"
+                      className="px-1.5 py-0.5 text-[11px]"
                     >
                       {typeLabel(group.group_type)}
                     </Pill>
-                    <span className="shrink-0 text-[13px] tabular-nums text-ht-ink">
+                    <span className="shrink-0 text-[12px] tabular-nums text-ht-ink">
                       {rosterLabel(group)}
                     </span>
-                    <ChevronRight className="size-5 shrink-0 text-ht-ink" strokeWidth={2} />
+                    <ChevronRight className="size-4 shrink-0 text-ht-ink" strokeWidth={2} />
                   </button>
                 )
               })}
@@ -990,8 +1007,11 @@ export default function CoachGroupsClient() {
                     {visibleRequests.map((row) => (
                       <tr key={row.id} className="border-b border-ht-line-soft">
                         <Td>
-                          <span className="flex items-center gap-3">
-                            <Initials name={row.name} className="bg-ht-chip text-ht-muted" />
+                          <span className="flex items-center gap-2.5">
+                            <Initials
+                              name={row.name}
+                              className="size-8 bg-ht-chip text-[12px] text-ht-muted"
+                            />
                             <span className="truncate">{row.email}</span>
                           </span>
                         </Td>

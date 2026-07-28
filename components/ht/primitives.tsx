@@ -21,14 +21,25 @@ import { cn } from '@/lib/utils'
 export function PageTitle({
   children,
   className,
+  upright = false,
 }: {
   children: React.ReactNode
   className?: string
+  /**
+   * Sets the title bolt upright instead of oblique. The pack does not apply one
+   * rule here: ROSTER (009), MOVE LIBRARY (007), LIVE ACTIVITY (014), FILM
+   * REVIEW (015), TEAM PROGRESS (016) and COACH SETTINGS (017) are upright,
+   * while TEAM REQUESTS (002), CAPTURE SETUP (005), ASSIGNED WORKOUTS (006),
+   * LIVE RECORDING (008), CLASSROOM (010), PROGRESS REPORT (011) and ME (012)
+   * slant. Oblique stays the default because it is the larger set.
+   */
+  upright?: boolean
 }) {
   return (
     <h1
       className={cn(
-        'ht-display text-[40px] leading-[0.98] text-ht-ink lg:text-[76px] lg:leading-[0.95]',
+        upright ? 'ht-heading' : 'ht-display',
+        'text-[40px] leading-[0.98] text-ht-ink lg:text-[76px] lg:leading-[0.95]',
         className,
       )}
     >
@@ -54,7 +65,9 @@ export function SectionTitle({
   return (
     <h2
       className={cn(
-        'ht-heading text-[22px] tracking-[0.01em] text-ht-ink lg:text-[28px]',
+        /* 20px: "QUICK ACCESS" measures 16.25css tall in 001; ours measured
+           17.50css at 22px. */
+        'ht-heading text-[20px] tracking-[0.01em] text-ht-ink lg:text-[28px]',
         className,
       )}
     >
@@ -151,21 +164,39 @@ function StatCell({
     >
       <div
         className={cn(
+          /* 16px, not 12: the label cap height in 001 measures 13.1css and
+             ours measured 9.5css at 12px. Five-across (003) keeps a smaller
+             step so the row still fits. */
           'ht-heading text-ht-ink lg:text-[13px] lg:tracking-[0.06em]',
-          dense ? 'text-[10px] tracking-[0.02em]' : 'text-[12px] tracking-[0.05em]',
+          dense ? 'text-[11px] tracking-[0.02em]' : 'text-[16px] tracking-[0.04em]',
         )}
       >
         {stat.label}
       </div>
+      {/* Upright, not oblique: the pack slants only the wordmark, the page
+          titles and the Start Capture hero — every counter is set bolt
+          upright, so these use .ht-num rather than .ht-display. */}
       <div
         className={cn(
-          'ht-display mt-1.5 text-[34px] leading-none lg:text-[40px]',
+          /* 43px: the counters in 001 measure 30.7css tall, ours measured
+             24.0css at 34px. */
+          'ht-num mt-1.5 text-[43px] leading-none lg:text-[40px]',
           stat.alert ? 'text-ht-orange' : 'text-ht-ink',
         )}
       >
         {stat.value}
       </div>
-      <div className="mt-1.5 text-[12px] text-ht-muted lg:text-[13px]">{stat.caption}</div>
+      {/* 003 runs five counters across a phone with every caption on one line
+          ("This Week", "7-Day Clips"). At the shared 12px the four- and
+          five-across layouts wrapped, so the dense variant steps down. */}
+      <div
+        className={cn(
+          'mt-1.5 whitespace-nowrap text-ht-muted lg:text-[13px]',
+          dense ? 'text-[10px]' : 'text-[12px]',
+        )}
+      >
+        {stat.caption}
+      </div>
     </div>
   )
 }
@@ -333,7 +364,10 @@ export function NavRow({
         !last && 'border-b border-ht-line-soft',
       )}
     >
-      <Icon className="size-6 shrink-0 text-ht-ink" strokeWidth={1.6} />
+      {/* 26px: the drawn glyph in 001's Quick Access rows measures
+          19.4 x 21.7css and ours measured 18.0 x 20.0 at size-6. The 1.6
+          stroke was already right — only the box was undersized. */}
+      <Icon className="size-[26px] shrink-0 text-ht-ink" strokeWidth={1.6} />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[15px] font-medium text-ht-ink">{label}</span>
         {description ? (
@@ -429,6 +463,41 @@ export function Avatar({
       className={cn('shrink-0 rounded-full object-cover', className)}
       style={{ width: size, height: size }}
     />
+  )
+}
+
+/**
+ * Solid orange disc carrying a player's jersey number, as 009-coach-roster and
+ * 013-coach-player-profile draw it. Falls back to {@link Avatar} when the
+ * player has no number on file, so a roster never renders blank discs.
+ */
+export function JerseyAvatar({
+  name,
+  jerseyNumber,
+  src,
+  size = 48,
+  className,
+}: {
+  name: string
+  jerseyNumber?: number | null
+  src?: string | null
+  size?: number
+  className?: string
+}) {
+  if (jerseyNumber == null) {
+    return <Avatar name={name} src={src} size={size} className={className} />
+  }
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        'ht-num inline-flex shrink-0 items-center justify-center rounded-full bg-ht-orange text-white',
+        className,
+      )}
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.42) }}
+    >
+      {jerseyNumber}
+    </span>
   )
 }
 

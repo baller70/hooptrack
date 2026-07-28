@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { getSession } from '@/lib/session'
 import { db } from '@/lib/db'
+import { cn } from '@/lib/utils'
 import {
   Card,
   CardHeader,
@@ -157,7 +158,7 @@ export default async function PlayerHomePage() {
         className="mt-5 flex h-[65px] items-center justify-center gap-6 rounded-lg bg-ht-orange transition-colors hover:bg-ht-orange-hover lg:hidden"
       >
         <Camera className="size-12 shrink-0 text-white" strokeWidth={1.2} />
-        <span className="ht-heading text-[32px] leading-none text-white">Start Capture</span>
+        <span className="ht-display text-[32px] leading-none text-white">Start Capture</span>
       </Link>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1fr)_minmax(0,1.16fr)]">
@@ -167,9 +168,10 @@ export default async function PlayerHomePage() {
           className="hidden flex-col items-center justify-center gap-4 rounded-xl bg-ht-orange px-8 py-16 text-center transition-colors hover:bg-ht-orange-hover lg:flex"
         >
           <Camera className="size-32 text-white" strokeWidth={1.3} />
-          {/* Upright in the pack — the italic display face is page titles only.
-              Stays on one line, as the design does. */}
-          <span className="ht-heading whitespace-nowrap text-[50px] leading-none text-white">
+          {/* The hero is one of the three places the pack slants type — the
+              wordmark, the page titles and this. Stays on one line, as the
+              design does. */}
+          <span className="ht-display whitespace-nowrap text-[50px] leading-none text-white">
             Start Capture
           </span>
           <span className="max-w-[250px] text-[19px] leading-[1.45] text-white/90">
@@ -251,15 +253,20 @@ export default async function PlayerHomePage() {
               {snapshot.map((item, index) => (
                 <div
                   key={item.label}
-                  className={index > 0 ? 'min-w-0 border-l border-ht-line-soft pl-2' : 'min-w-0 pr-2'}
+                  className={cn(
+                    'min-w-0 px-1.5 text-center',
+                    index > 0 && 'border-l border-ht-line-soft',
+                  )}
                 >
-                  {/* Sized to fill the column like the pack does rather than to
-                      the pack's px: this face is wider, and "Workouts
-                      Completed" has to stay on one line. */}
-                  <div className="truncate text-[12.5px] leading-5 text-ht-muted">{item.label}</div>
+                  {/* 12px, not 12.5: "Workouts Completed" is the widest label
+                      in the pack and it sits on one line there, so it must not
+                      ellipsis here either. */}
+                  <div className="text-[12px] leading-5 whitespace-nowrap text-ht-muted">
+                    {item.label}
+                  </div>
                   {/* The pack sets these counters upright, not in the italic
                       display face. */}
-                  <div className="ht-heading mt-2.5 text-[44px] leading-none text-ht-ink">
+                  <div className="ht-num mt-2.5 text-[44px] leading-none text-ht-ink">
                     {item.value}
                   </div>
                   <div

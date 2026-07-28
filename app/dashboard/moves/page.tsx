@@ -192,7 +192,7 @@ export default function MovesPage() {
 
   return (
     <div className="pt-2 sm:pt-6">
-      <PageTitle>Move Library</PageTitle>
+      <PageTitle upright>Move Library</PageTitle>
       {/* The phone design goes straight from the title to the search box; the
           strip belongs to the desktop workspace layout. */}
       <TrainingWorkspaceTabs active="moves" app={app} className="mt-3 hidden lg:flex" />
@@ -543,8 +543,12 @@ function MoveRow({ move, onSelect }: { move: Move; onSelect: () => void }) {
           <ClipPoster title={move.title} className="scale-[1.6] rounded-none" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="ht-heading block truncate text-[16px] text-ht-ink">{move.title}</span>
-          <span className="mt-0.5 block truncate text-[14px] text-ht-muted">{byline(move)}</span>
+          {/* Measured off 007: the row title's cap height is 13.54css (18.5px in
+              this face) and the byline's is 8.58css (12px). Ours had the title
+              at 16px and the byline at 14px, which flattened the pack's
+              hierarchy — the title reads as the row, the byline as a footnote. */}
+          <span className="ht-heading block truncate text-[18.5px] text-ht-ink">{move.title}</span>
+          <span className="mt-0.5 block truncate text-[12px] text-ht-muted">{byline(move)}</span>
           <span className="mt-1.5 block">
             <Pill tone="orange" className="bg-transparent">
               {move.category}

@@ -317,7 +317,9 @@ export default function ActivityFeedClient() {
             {item.player_name}
           </span>
           <span className="block text-[12px] text-ht-muted">{feedVerb(item.kind)}</span>
-          <span className="block truncate text-[14px] font-semibold text-ht-ink">{label}</span>
+          {/* 014 sets the clip/assignment name as the card's headline and never
+              cuts it — a two-line wrap keeps that true for longer real titles. */}
+          <span className="line-clamp-2 block text-[14px] font-semibold text-ht-ink">{label}</span>
           <span className="mt-0.5 flex items-center gap-1 text-[11px] text-ht-muted">
             <Clock className="size-3" strokeWidth={2} />
             {feedTimeLong(item.at)}
@@ -432,17 +434,22 @@ export default function ActivityFeedClient() {
                         )}
                       >
                         <FeedIcon kind={item.kind} />
-                        <Avatar name={item.player_name} src={item.avatar_path} size={40} />
+                        <Avatar name={item.player_name} src={item.avatar_path} size={32} />
                         <span className="min-w-0 flex-1">
-                          <span className="flex items-baseline justify-between gap-2">
-                            <span className="truncate text-[15px] font-semibold text-ht-ink">
+                          <span className="flex items-baseline justify-between gap-1.5">
+                            {/* Name, timestamp and the verb line all read in
+                                full in the pack. This column is narrow, so both
+                                sides are sized to hold their longest real value
+                                ("Marcus Williams" against "Yesterday") rather
+                                than one ellipsising into the other. */}
+                            <span className="whitespace-nowrap text-[14.5px] font-semibold text-ht-ink">
                               {item.player_name}
                             </span>
-                            <span className="shrink-0 text-[12.5px] text-ht-muted">
+                            <span className="whitespace-nowrap text-right text-[11.5px] text-ht-muted">
                               {feedTime(item.at)}
                             </span>
                           </span>
-                          <span className="mt-0.5 block truncate text-[14px] text-ht-muted">
+                          <span className="mt-0.5 block truncate text-[13px] text-ht-muted">
                             {feedVerb(item.kind)} <span className="text-ht-orange">{label}</span>
                           </span>
                         </span>

@@ -14,7 +14,7 @@ export default async function FilmPage() {
 
   return (
     <div className="pt-2">
-      <PageTitle>Film Review</PageTitle>
+      <PageTitle upright>Film Review</PageTitle>
       {/* useSearchParams needs a boundary during prerender. */}
       <Suspense fallback={null}>
         <FilmReviewClient />

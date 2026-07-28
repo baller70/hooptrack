@@ -23,10 +23,23 @@
   font-display: swap;
 }
 
+/* Weight map copied from the brand kit's own wilson-x-connect.css
+ * (baller70/hooper-brand-kit, assets/fonts/wilson-x-connect.css). The six .otf
+ * files here are byte-identical to the kit's, but this map was not: boxedmedium
+ * had no @font-face at all, so every element under .ht-ui — which sets
+ * font-weight 500 — silently rendered boxedregular instead of the medium cut
+ * the kit assigns to 500. */
 @font-face {
   font-family: "WilsonX Boxed";
   src: url("/wilson-x-fonts/boxedregular.otf") format("opentype");
-  font-weight: 400 500;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "WilsonX Boxed";
+  src: url("/wilson-x-fonts/boxedmedium.otf") format("opentype");
+  font-weight: 500;
   font-display: swap;
 }
 
@@ -197,38 +210,57 @@
      `.ht-heading` (0,1,0), which silently stripped the condensed face from
      every button rendered as a real <button> while the <Link> variants kept
      it. Same for the other element selectors. */
+  /* Body copy is WilsonX Boxed — the brand kit's text face — not a system
+     sans. Measured off the pack rather than assumed: rendering "Team Requests"
+     and comparing the ink box's width-to-height ratio against
+     ios/001-player-home gives 6.54 for the design, against 7.69 for
+     ui-sans-serif (18% too wide), 4.88 for Tungsten (25% too narrow) and 6.91
+     for Boxed. Every row that used to need a font-size cut to stop clipping was
+     really paying for the wrong face. Tungsten stays on display/headings via
+     .ht-display / .ht-heading below. */
   .ht-ui,
   .ht-ui input:not(.ht-heading),
   .ht-ui textarea:not(.ht-heading),
   .ht-ui select:not(.ht-heading),
   .ht-ui button:not(.ht-heading) {
-    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-      "Helvetica Neue", Arial, sans-serif;
+    font-family: "WilsonX Boxed", ui-sans-serif, system-ui, -apple-system,
+      "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
 
-  /* Heavy condensed italic — HOOPTRACK wordmark and page titles. */
+  /* Condensed italic — HOOPTRACK wordmark and page titles.
+     600, not 900: the wordmark's ink coverage measures 62.0% in
+     ios/001-player-home against 71.1% for our 900. */
   .ht-display {
     font-family: var(--font-russo);
-    font-weight: 900;
+    font-weight: 600;
     font-style: italic;
     text-transform: uppercase;
     letter-spacing: -0.005em;
   }
-  /* Bold condensed upright — panel headings, buttons, stat labels.
-     900, not 700: the pack's headings are noticeably heavier than a normal
-     bold, and Tungsten's 700-900 face is what gives them their weight. */
+  /* Condensed upright — panel headings, buttons, stat labels.
+     500, not 900. Ink coverage, measured on two independent samples, is the
+     reliable signal here (stroke medians quantise to half-pixels at 2x):
+     "QUICK ACCESS" measures 42.4% in the pack and "REQUESTS" 37.9%, against
+     63.4% and 53.2% for our 900. Rendering the same string down Tungsten's
+     weight ladder gives 42.3% at 500, 51.7% at 600 and 63.4% at 700-900, so
+     500 is the match — and the 700 and 900 steps are the same font file.
+     Tracking goes to 0.04em because the lighter cut is ~6% narrower and the
+     pack's headings hold their measured width. */
   .ht-heading {
     font-family: var(--font-russo);
-    font-weight: 900;
+    font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.04em;
   }
   /* Big counters — REQUESTS 3, 28 CLIPS, 65%. Upright, not italic: the pack
      reserves the oblique for the wordmark, page titles and the Start Capture
      hero, and sets every numeral bolt upright. */
+  /* 500, matching .ht-heading: the orange "1" in 001's OVERDUE column
+     measures 8.1% coverage and a 4.06css stem, against 12.0% and 6.00css for
+     our 900. */
   .ht-num {
     font-family: var(--font-russo);
-    font-weight: 900;
+    font-weight: 500;
     font-style: normal;
     letter-spacing: -0.01em;
   }

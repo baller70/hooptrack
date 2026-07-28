@@ -155,16 +155,18 @@ function SettingsRow({
     <>
       <Icon className="size-7 shrink-0 text-ht-ink" strokeWidth={1.6} />
       <span className="min-w-0 flex-1">
+        {/* 017 lists every settings row's label and hint in full; these are
+            short, fixed strings, so they wrap rather than clip. */}
         <span
           className={cn(
-            'block truncate text-ht-ink',
+            'block text-ht-ink',
             condensed ? 'ht-heading text-[18px] tracking-[0.01em]' : 'text-[17px] font-semibold',
           )}
         >
           {label}
         </span>
         {description ? (
-          <span className="mt-0.5 block truncate text-[13.5px] font-normal text-ht-muted">
+          <span className="mt-0.5 block text-[13px] leading-snug font-normal text-ht-muted">
             {description}
           </span>
         ) : null}
@@ -198,7 +200,7 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
   return (
     <div className="flex items-baseline justify-between gap-4 border-b border-ht-line-soft py-2 last:border-b-0">
       <span className="ht-heading shrink-0 text-[12px] tracking-[0.06em] text-ht-muted">{label}</span>
-      <span className="min-w-0 truncate text-right text-[14px] text-ht-ink">{value}</span>
+      <span className="min-w-0 text-right text-[13px] leading-snug text-ht-ink">{value}</span>
     </div>
   )
 }
@@ -377,8 +379,20 @@ function PlayerMe({ user, onSignOut }: { user: UserInfo; onSignOut: () => void }
 
   const toggle = (key: string) => setPanel((current) => (current === key ? null : key))
 
+  /* 012 prints the position group — "Guard", not "SG" and not the full
+     "Shooting Guard", which overflows a third of a phone screen. The group is
+     the last word of the stored position; a bare abbreviation is passed
+     through as-is for rosters that only store one. */
+  const shortPosition = (value?: string | null) => {
+    if (!value) return '—'
+    const words = value.trim().split(/\s+/).filter(Boolean)
+    if (!words.length) return '—'
+    const last = words[words.length - 1]
+    return last.length <= 3 ? last.toUpperCase() : last
+  }
+
   const facts: Array<[string, string]> = [
-    ['Position', profile?.position || '—'],
+    ['Position', shortPosition(profile?.position)],
     ['Height', profile?.height || '—'],
     ['Jersey', profile?.jersey_number == null ? '—' : String(profile.jersey_number)],
   ]
@@ -397,7 +411,9 @@ function PlayerMe({ user, onSignOut }: { user: UserInfo; onSignOut: () => void }
         <div className="flex items-center gap-4 px-5 pt-5">
           <Avatar name={user.name} src={user.avatar_path} size={68} />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[26px] font-bold leading-tight text-ht-ink">{user.name}</p>
+            {/* The account name is the one thing this card exists to state, so
+                it wraps rather than ellipsising on a phone. */}
+            <p className="text-[23px] font-bold leading-tight text-ht-ink">{user.name}</p>
             <p className="mt-1 truncate text-[15px] text-ht-muted">{user.email}</p>
             <p className="mt-1.5 text-[15px] text-ht-ink">
               {profile?.class_year ? `Class of ${profile.class_year}` : 'Class year not set'}
@@ -613,7 +629,7 @@ function CoachSettings({ user, onSignOut }: { user: UserInfo; onSignOut: () => v
 
   return (
     <>
-      <PageTitle>Coach Settings</PageTitle>
+      <PageTitle upright>Coach Settings</PageTitle>
 
       <Card padded={false} className="mt-5">
         <button
@@ -624,7 +640,8 @@ function CoachSettings({ user, onSignOut }: { user: UserInfo; onSignOut: () => v
         >
           <Avatar name={user.name} src={user.avatar_path} size={68} />
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[26px] font-bold leading-tight text-ht-ink">
+            {/* Wraps rather than clips: 017 shows the coach's full name. */}
+            <span className="block text-[23px] font-bold leading-tight text-ht-ink">
               {user.name}
             </span>
             <span className="mt-1 block truncate text-[15px] text-ht-muted">{user.email}</span>
@@ -657,7 +674,7 @@ function CoachSettings({ user, onSignOut }: { user: UserInfo; onSignOut: () => v
             <span className="ht-heading block truncate text-[18px] tracking-[0.01em] text-ht-ink">
               View as player
             </span>
-            <span className="mt-0.5 block truncate text-[13.5px] text-ht-muted">
+            <span className="mt-0.5 block text-[13px] leading-snug text-ht-muted">
               {isImpersonating ? `Previewing as ${user.name}` : 'Preview the player experience'}
             </span>
           </span>

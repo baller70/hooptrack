@@ -26,7 +26,9 @@ const TARGETS = {
   'coach-progress': ['/coach/progress', COACH, 'web-desktop/005-coach-progress-calendar-raw.png'],
   'coach-roster': ['/coach', COACH, null],
   'coach-players': ['/coach/players', COACH, 'ios/009-coach-roster-raw.png'],
-  'coach-player-detail': ['/coach/players/19', COACH, 'ios/013-coach-player-profile-review-raw.png'],
+  // :playerId is resolved against the live roster — a hardcoded id 404s after
+  // every reseed, because ids climb rather than reset.
+  'coach-player-detail': ['/coach/players/:playerId', COACH, 'ios/013-coach-player-profile-review-raw.png'],
   'player-requests': ['/player/requests', PLAYER, null],
   'player-progress': ['/player/progress', PLAYER, null],
   'player-me': ['/player/me', PLAYER, null],
@@ -53,7 +55,12 @@ const keys = wanted.length ? wanted : Object.keys(TARGETS)
 
 fs.mkdirSync(OUT, { recursive: true })
 
-const browser = await chromium.launch()
+/* Cloud runners ship a pinned Chromium that rarely matches the build Playwright
+ * wants, and re-downloading is often blocked. HOOPTRACK_CHROMIUM points the
+ * launcher at whatever binary the environment already has. */
+const browser = await chromium.launch(
+  process.env.HOOPTRACK_CHROMIUM ? { executablePath: process.env.HOOPTRACK_CHROMIUM } : {},
+)
 const results = []
 
 // One context per persona, reused across every route. /api/auth/login is rate
@@ -118,13 +125,24 @@ for (const key of keys) {
     console.error(`unknown route key: ${key}`)
     continue
   }
-  const [route, who] = target
+  let [route] = target
+  const who = target[1]
   let context
   try {
     context = await contextFor(who)
   } catch (error) {
     console.error(`${key}: ${error.message}`)
     continue
+  }
+
+  if (route.includes(':playerId')) {
+    const res = await context.request.get(`${BASE}/api/players`)
+    const id = res.ok() ? ((await res.json()).players ?? [])[0]?.id : null
+    if (!id) {
+      console.error(`${key}: no players on the roster to shoot`)
+      continue
+    }
+    route = route.replace(':playerId', String(id))
   }
   const page = await context.newPage()
   const errors = []

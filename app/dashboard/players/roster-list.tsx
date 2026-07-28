@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react'
 import { ChevronRight, Search, UserRound, UsersRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { Avatar, Card, EmptyState, GhostButton, Pill } from '@/components/ht/primitives'
+import { Card, EmptyState, GhostButton, JerseyAvatar, Pill } from '@/components/ht/primitives'
 
 export type RosterPlayer = {
   id: number
@@ -140,7 +140,12 @@ export default function RosterList({ players }: { players: RosterPlayer[] }) {
               <Card key={player.id} padded={false} className="px-3 py-3">
                 <div className="flex items-center gap-3">
                   {/* The placeholder avatar carries the jersey number the design shows. */}
-                  <Avatar name={player.name} src={player.avatarPath} size={48} />
+                  <JerseyAvatar
+                    name={player.name}
+                    jerseyNumber={player.jerseyNumber}
+                    src={player.avatarPath}
+                    size={48}
+                  />
 
                   <div className="min-w-0 flex-1">
                     <Link

@@ -14,10 +14,13 @@ export default async function ActivityPage() {
 
   return (
     <div className="pt-2">
-      <PageTitle>
-        <span className="lg:hidden">Live Activity</span>
-        <span className="max-lg:hidden">Activity and Film Review</span>
+      {/* Two titles, not one: 014 sets LIVE ACTIVITY upright on the phone while
+          the desktop 004 slants ACTIVITY AND FILM REVIEW, and a single h1
+          cannot carry both. */}
+      <PageTitle upright className="lg:hidden">
+        Live Activity
       </PageTitle>
+      <PageTitle className="max-lg:hidden">Activity and Film Review</PageTitle>
       <ActivityFeedClient />
     </div>
   )

@@ -508,9 +508,10 @@ function PhoneWorkoutRow({ entry, app }: { entry: WorkoutEntry; app: HoopApp }) 
         <span className="ht-heading block truncate text-[15px] leading-[1.2] text-ht-ink">
           {entry.title}
         </span>
-        <span className="mt-0.5 block truncate text-[13px] leading-[1.25] text-ht-ink">
-          {entry.caption} &nbsp;•&nbsp; {entry.drillCount} Drills &nbsp;•&nbsp;{' '}
-          {minutes(entry.durationSeconds)} min
+        {/* Padded bullets cost ~20px here and pushed the minute count off the
+            row on a 390pt phone; 006 shows the whole meta line. */}
+        <span className="mt-0.5 block truncate text-[12px] leading-[1.25] text-ht-ink">
+          {entry.caption} • {entry.drillCount} Drills • {minutes(entry.durationSeconds)} min
         </span>
       </span>
       <ChevronRight className="size-5 shrink-0 text-ht-ink" strokeWidth={2} />
@@ -564,26 +565,26 @@ function AssignedList({
                 <span
                   className={
                     selected
-                      ? 'grid size-13 shrink-0 place-items-center rounded-xl bg-ht-orange text-white'
-                      : 'grid size-13 shrink-0 place-items-center rounded-full bg-ht-chip text-ht-ink'
+                      ? 'grid size-11 shrink-0 place-items-center rounded-xl bg-ht-orange text-white'
+                      : 'grid size-11 shrink-0 place-items-center rounded-full bg-ht-chip text-ht-ink'
                   }
                 >
-                  <Icon className="size-6" strokeWidth={1.8} />
+                  <Icon className="size-[22px]" strokeWidth={1.8} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  {/* This column is as narrow as the design's, so longer real
-                      titles clip — the tooltip keeps the full name reachable. */}
-                  <span
-                    title={entry.title}
-                    className="block truncate text-[19px] font-semibold leading-tight text-ht-ink"
-                  >
+                  {/* Every assignment name is legible in full in the pack, so
+                      this must never ellipsis. The column is narrow, so a long
+                      real title wraps onto a second line instead of clipping —
+                      the smaller icon and chevron buy back the width that keeps
+                      pack-length names ("Finishing Focus") on one line. */}
+                  <span className="block text-[17px] font-semibold leading-tight text-ht-ink">
                     {entry.title}
                   </span>
-                  <span className="mt-1 block truncate text-[17px] text-ht-muted">
+                  <span className="mt-1 block text-[14px] leading-tight text-ht-muted">
                     {entry.caption}
                   </span>
                 </span>
-                <ChevronRight className="size-6 shrink-0 text-ht-muted" strokeWidth={2} />
+                <ChevronRight className="size-5 shrink-0 text-ht-muted" strokeWidth={2} />
               </Link>
             )
           })}
@@ -677,13 +678,18 @@ function WorkoutDetail({
               <Link
                 key={drill.id}
                 href={`${appPath(app, '/record')}?drillId=${drill.id}&workoutId=${entry.workoutId}`}
-                className="flex items-center gap-4 border-b border-ht-line-soft px-4 py-3.5 transition-colors last:border-b-0 hover:bg-ht-orange-tint/50"
+                className="flex items-center gap-3 border-b border-ht-line-soft px-4 py-3.5 transition-colors last:border-b-0 hover:bg-ht-orange-tint/50"
               >
-                <span className="w-4 shrink-0 text-[19px] font-semibold text-ht-ink">
+                <span className="w-4 shrink-0 text-[16px] font-semibold text-ht-ink">
                   {index + 1}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-[19px] text-ht-ink">{drill.name}</span>
-                <span className="flex shrink-0 items-center gap-1.5 text-[17px] text-ht-muted">
+                {/* The whole row steps down — index, name and duration — rather
+                    than the name alone: at 19/19/17 the coach library's longer
+                    drill names ("Cone Snatchbacks") ran past the card on a
+                    phone by up to 14px, and shrinking only the name recovered
+                    2px of it. The pack shows every drill name in full. */}
+                <span className="min-w-0 flex-1 truncate text-[16px] text-ht-ink">{drill.name}</span>
+                <span className="flex shrink-0 items-center gap-1.5 text-[14px] text-ht-muted">
                   {drill.timer_mode === 'reps' ? (
                     <>
                       <Target className="size-4" strokeWidth={1.8} />
@@ -1098,10 +1104,14 @@ function RecentActivityCard({
                   <Icon className="size-5" strokeWidth={1.8} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[17px] leading-tight text-ht-ink">
+                  {/* The pack shows the whole entry — "Captured workout:
+                      Shooting Session" — so a long title wraps rather than
+                      ellipsising. Two lines is the ceiling; the card holds
+                      three rows either way. */}
+                  <span className="line-clamp-2 block text-[15px] leading-tight text-ht-ink">
                     {item.title}
                   </span>
-                  <span className="mt-1 block truncate text-[14px] leading-tight text-ht-muted">
+                  <span className="mt-1 block truncate text-[13px] leading-tight text-ht-muted">
                     {longDate(item.at)} • {item.detail}
                   </span>
                 </span>

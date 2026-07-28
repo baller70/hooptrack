@@ -117,14 +117,19 @@ function SectionRow({
   return (
     <Link
       href={href}
-      className={`flex items-center gap-5 px-6 py-5 transition-colors hover:bg-ht-orange-tint/60 ${
+      className={`flex items-center gap-4 px-5 py-5 transition-colors hover:bg-ht-orange-tint/60 ${
         last ? '' : 'border-b border-ht-line-soft'
       }`}
     >
       <Icon className="size-9 shrink-0 text-ht-orange" strokeWidth={1.5} />
       <span className="min-w-0 flex-1">
         <span className="ht-heading block text-[21px] leading-tight text-ht-ink">{title}</span>
-        <span className="mt-1 block text-[15px] text-ht-muted">{description}</span>
+        {/* 003 measures this at 13.54css tall and 142.6css wide, which is 17px
+            in this face — but 17px overflows the row by 53px, because our text
+            face is still ~14% wider than the pack's. 13px is the largest that
+            holds "Manage groups and sessions" on one line, as 003 draws it.
+            Revisit once the real text face lands. */}
+        <span className="mt-1 block truncate text-[13px] text-ht-muted">{description}</span>
       </span>
       {count ? (
         <span className="ht-heading rounded-md bg-ht-orange px-2 py-0.5 text-[13px] text-white">

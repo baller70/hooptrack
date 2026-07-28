@@ -1016,12 +1016,13 @@ export default function VideoRecorder({
           {/* REPS / SET counters */}
           <div className="mt-6 grid grid-cols-2">
             <div className="px-3 text-center">
-              <div className="ht-heading text-[13px] tracking-[0.06em] text-ht-ink">Reps</div>
-              <div className="ht-display mt-2 text-[44px] leading-none text-ht-orange">{reps}</div>
+              {/* 17px: 008 measures the REPS/SET labels at a 12.20css cap. */}
+              <div className="ht-heading text-[17px] tracking-[0.06em] text-ht-ink">Reps</div>
+              <div className="ht-num mt-2 text-[44px] leading-none text-ht-orange">{reps}</div>
             </div>
             <div className="border-l border-ht-line-soft px-3 text-center">
-              <div className="ht-heading text-[13px] tracking-[0.06em] text-ht-ink">{goal.label}</div>
-              <div className="ht-display mt-2 text-[44px] leading-none text-ht-ink">
+              <div className="ht-heading text-[17px] tracking-[0.06em] text-ht-ink">{goal.label}</div>
+              <div className="ht-num mt-2 text-[44px] leading-none text-ht-ink">
                 {goal.value}
                 {goal.suffix ? (
                   <span className="ml-2 font-sans text-[20px] font-normal not-italic text-ht-muted">
@@ -1149,7 +1150,7 @@ export default function VideoRecorder({
           <Card padded={false}>
             <div className="px-5 py-6 text-center">
               <Check className="mx-auto size-8 text-ht-green" strokeWidth={2.4} />
-              <p className="ht-display mt-2 text-[24px] leading-none text-ht-ink">Recording Saved</p>
+              <p className="ht-heading mt-2 text-[24px] leading-none text-ht-ink">Recording Saved</p>
               <p className="mt-1.5 text-[14px] text-ht-muted">
                 {mode === 'reps' ? `${reps} reps` : formatTime(elapsedSeconds)}
               </p>
@@ -1227,7 +1228,7 @@ function PrCell({ label, value, best = false }: { label: string; value: string; 
         {best ? <Trophy className="size-3.5 text-ht-orange" strokeWidth={2} /> : null}
         {label}
       </p>
-      <p className="ht-display mt-1 text-[24px] leading-none text-ht-ink">{value}</p>
+      <p className="ht-num mt-1 text-[24px] leading-none text-ht-ink">{value}</p>
     </div>
   )
 }
@@ -1283,7 +1284,11 @@ function DrillSummary({
         <Volleyball className="size-7 text-ht-orange" strokeWidth={1.6} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="ht-display block truncate text-[22px] leading-none text-ht-ink">{name}</span>
+        {/* Oblique here, unlike the player name in 013: 008 slants the drill
+            name on the recording card, alongside its page title. Reverting a
+            blanket upright conversion that was right for the counters and
+            grades but wrong for this one. */}
+        <span className="ht-display block truncate text-[29.5px] leading-none text-ht-ink">{name}</span>
         {coach ? <span className="mt-1.5 block truncate text-[15px] text-ht-muted">{coach}</span> : null}
         {onOpenOptions ? (
           <span className="mt-1.5 block text-[13px] text-ht-orange">Tap to change session options</span>
@@ -1292,7 +1297,7 @@ function DrillSummary({
       {target ? (
         <span className="shrink-0 border-l border-ht-line-soft pl-4 text-center">
           <span className="ht-heading block text-[12px] tracking-[0.06em] text-ht-muted">Target</span>
-          <span className="ht-display mt-1 block text-[30px] leading-none text-ht-ink">{target.value}</span>
+          <span className="ht-num mt-1 block text-[30px] leading-none text-ht-ink">{target.value}</span>
           <span className="ht-heading block text-[11px] tracking-[0.06em] text-ht-muted">{target.unit}</span>
         </span>
       ) : null}
