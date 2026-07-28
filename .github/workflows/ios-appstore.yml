@@ -4,10 +4,14 @@ name: iOS App Store
 # Xcode preinstalled. This is how the apps reach App Store Connect without a
 # local Mac — Linux agents and containers cannot run Xcode at all.
 #
-# Manual trigger only. "upload" is not the default, so a stray click cannot
-# push a build to App Store Connect.
+# Two ways in. workflow_dispatch, where "upload" is not the default so a stray
+# click cannot ship a build. And a release tag, for callers that cannot reach
+# the dispatch API — pushing `release-both-6` releases both apps at build 6 and
+# submits them. Creating that tag is deliberate enough to be the consent.
 
 on:
+  push:
+    tags: ['release-*']
   workflow_dispatch:
     inputs:
       app:
@@ -36,22 +40,63 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Normalises the two entry points into one set of values, so the release job
+  # does not care which one fired it.
+  config:
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.resolve.outputs.app }}
+      build_number: ${{ steps.resolve.outputs.build_number }}
+      stage: ${{ steps.resolve.outputs.stage }}
+    steps:
+      - name: Resolve release parameters
+        id: resolve
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "push" ]; then
+            tag="${GITHUB_REF#refs/tags/}"
+            # release-<coach|player|both>-<build number>
+            if [[ ! "$tag" =~ ^release-(coach|player|both)-([0-9]+)$ ]]; then
+              echo "::error::Tag '$tag' must look like release-both-6 (app: coach, player, or both)." >&2
+              exit 1
+            fi
+            echo "app=${BASH_REMATCH[1]}"          >> "$GITHUB_OUTPUT"
+            echo "build_number=${BASH_REMATCH[2]}" >> "$GITHUB_OUTPUT"
+            echo "stage=upload-and-submit"         >> "$GITHUB_OUTPUT"
+            echo "Tag release: ${BASH_REMATCH[1]} build ${BASH_REMATCH[2]} -> upload-and-submit"
+          else
+            echo "app=${{ inputs.app }}"                   >> "$GITHUB_OUTPUT"
+            echo "build_number=${{ inputs.build_number }}" >> "$GITHUB_OUTPUT"
+            echo "stage=${{ inputs.stage }}"               >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify release secrets are configured
+        env:
+          HAS_CERT: ${{ secrets.APPLE_DIST_CERT_P12_BASE64 != '' }}
+          HAS_P8: ${{ secrets.ASC_KEY_P8_BASE64 != '' }}
+        run: |
+          if [ "$HAS_CERT" != "true" ] || [ "$HAS_P8" != "true" ]; then
+            echo "::error::Release secrets are missing. Run the iOS Release Preflight workflow to see which." >&2
+            exit 1
+          fi
+
   release:
+    needs: config
     runs-on: macos-15
     timeout-minutes: 60
 
     strategy:
       fail-fast: false
       matrix:
-        app: ${{ inputs.app == 'both' && fromJSON('["coach","player"]') || fromJSON(format('["{0}"]', inputs.app)) }}
+        app: ${{ needs.config.outputs.app == 'both' && fromJSON('["coach","player"]') || fromJSON(format('["{0}"]', needs.config.outputs.app)) }}
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Select Xcode
         run: |
-          if [ -n "${{ inputs.xcode_version }}" ]; then
-            sudo xcode-select -s "/Applications/Xcode_${{ inputs.xcode_version }}.app"
+          if [ -n "${{ github.event.inputs.xcode_version }}" ]; then
+            sudo xcode-select -s "/Applications/Xcode_${{ github.event.inputs.xcode_version }}.app"
           fi
           xcodebuild -version
 
@@ -102,18 +147,18 @@ jobs:
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
         run: |
           set -euo pipefail
-          case "${{ inputs.stage }}" in
+          case "${{ needs.config.outputs.stage }}" in
             archive)
-              ./scripts/appstore-release.sh "${{ matrix.app }}" archive --build "${{ inputs.build_number }}"
+              ./scripts/appstore-release.sh "${{ matrix.app }}" archive --build "${{ needs.config.outputs.build_number }}"
               ./scripts/appstore-release.sh "${{ matrix.app }}" export
               ;;
             validate)
-              ./scripts/appstore-release.sh "${{ matrix.app }}" archive --build "${{ inputs.build_number }}"
+              ./scripts/appstore-release.sh "${{ matrix.app }}" archive --build "${{ needs.config.outputs.build_number }}"
               ./scripts/appstore-release.sh "${{ matrix.app }}" export
               ./scripts/appstore-release.sh "${{ matrix.app }}" validate
               ;;
             upload|upload-and-submit)
-              ./scripts/appstore-release.sh "${{ matrix.app }}" all --build "${{ inputs.build_number }}"
+              ./scripts/appstore-release.sh "${{ matrix.app }}" all --build "${{ needs.config.outputs.build_number }}"
               ;;
           esac
 
@@ -121,7 +166,7 @@ jobs:
       # finish processing it before it can be attached to a version, so this
       # waits rather than failing on a build that simply is not ready yet.
       - name: Submit ${{ matrix.app }} for review
-        if: inputs.stage == 'upload-and-submit'
+        if: needs.config.outputs.stage == 'upload-and-submit'
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
@@ -134,20 +179,20 @@ jobs:
 
           for attempt in $(seq 1 20); do
             if node scripts/appstore-submit-for-review.mjs "${{ matrix.app }}" \
-                 --build "${{ inputs.build_number }}" --submit; then
+                 --build "${{ needs.config.outputs.build_number }}" --submit; then
               exit 0
             fi
             echo "Build not ready yet (attempt ${attempt}/20); waiting 90s..."
             sleep 90
           done
-          echo "::error::Build ${{ inputs.build_number }} did not finish processing within 30 minutes." >&2
+          echo "::error::Build ${{ needs.config.outputs.build_number }} did not finish processing within 30 minutes." >&2
           exit 1
 
       - name: Upload IPA artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.app }}-ipa-build-${{ inputs.build_number }}
+          name: ${{ matrix.app }}-ipa-build-${{ needs.config.outputs.build_number }}
           path: build/appstore/${{ matrix.app }}/export/*.ipa
           if-no-files-found: warn
           retention-days: 14
