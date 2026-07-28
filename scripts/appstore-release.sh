@@ -163,6 +163,27 @@ run_preflight() {
   # whole app has already compiled.
   local identities
   identities="$(security find-identity -v -p codesigning 2>/dev/null || true)"
+
+  # Print the whole signing environment. Which keychains are on the search
+  # path, and whether they are locked, is the difference between a process in
+  # a login session and one started by launchd — and it is invisible from
+  # anywhere but this machine.
+  note "Keychain search path:"
+  security list-keychains -d user 2>/dev/null | sed 's/^/    /' || true
+  note "login.keychain state:"
+  security show-keychain-info ~/Library/Keychains/login.keychain-db 2>&1 | sed 's/^/    /' || true
+  note "Code-signing identities visible to this process:"
+  if [ -n "$identities" ]; then
+    printf '%s\n' "$identities" | sed 's/^/    /'
+  else
+    note "    (none)"
+  fi
+  local profile_dir="${HOME}/Library/MobileDevice/Provisioning Profiles"
+  if [ -d "$profile_dir" ]; then
+    note "Provisioning profiles installed: $(find "$profile_dir" -name '*.mobileprovision' | wc -l | tr -d ' ')"
+  else
+    note "Provisioning profiles installed: 0 (no directory)"
+  fi
   if printf '%s' "$identities" | grep -q 'Apple Distribution'; then
     note "Signing: Apple Distribution identity present"
   elif printf '%s' "$identities" | grep -q 'Apple Development'; then
