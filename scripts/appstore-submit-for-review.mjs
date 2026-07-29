@@ -22,8 +22,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
+import crypto from 'node:crypto'
 import { execFileSync } from 'node:child_process'
-import { SignJWT, importPKCS8 } from 'jose'
 
 const APPS = {
   coach: { bundleId: 'com.kevinhouston.hooptrackcoach', name: 'HoopTrack Coach' },
@@ -94,13 +94,30 @@ if (!keyId || !issuerId || !keyPath || !fs.existsSync(keyPath)) {
 
 const BASE = 'https://api.appstoreconnect.apple.com'
 
-const token = await new SignJWT({})
-  .setProtectedHeader({ alg: 'ES256', kid: keyId, typ: 'JWT' })
-  .setIssuer(issuerId)
-  .setIssuedAt()
-  .setExpirationTime('15m')
-  .setAudience('appstoreconnect-v1')
-  .sign(await importPKCS8(fs.readFileSync(keyPath, 'utf8'), 'ES256'))
+// Signed with node:crypto rather than a library. The Mac runner has no npm, so
+// `npm install jose` aborted the whole release job after Coach had already
+// uploaded — and took the Player build with it. An ES256 JWT is small enough
+// that a dependency is not worth that. `ieee-p1363` is the concatenated (r||s)
+// encoding JWS requires; the default DER encoding is rejected by Apple.
+const base64url = (input) =>
+  Buffer.from(input).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+
+const issuedAt = Math.floor(Date.now() / 1000)
+const signingInput = [
+  base64url(JSON.stringify({ alg: 'ES256', kid: keyId, typ: 'JWT' })),
+  base64url(JSON.stringify({
+    iss: issuerId,
+    iat: issuedAt,
+    exp: issuedAt + 15 * 60,
+    aud: 'appstoreconnect-v1',
+  })),
+].join('.')
+
+const signature = crypto.sign('sha256', Buffer.from(signingInput), {
+  key: fs.readFileSync(keyPath, 'utf8'),
+  dsaEncoding: 'ieee-p1363',
+})
+const token = `${signingInput}.${base64url(signature)}`
 
 async function api(method, endpoint, body) {
   const response = await fetch(endpoint.startsWith('http') ? endpoint : `${BASE}${endpoint}`, {
