@@ -19,8 +19,10 @@
  * are missing the submit call fails and says which.
  */
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
+import { execFileSync } from 'node:child_process'
 import { SignJWT, importPKCS8 } from 'jose'
 
 const APPS = {
@@ -49,11 +51,41 @@ if (!buildNumber) {
   process.exit(2)
 }
 
-const keyId = process.env.ASC_KEY_ID
-const issuerId = process.env.ASC_ISSUER_ID
-const keyPath =
+// On Kevin's Mac the key App Factory uses is the one to use here too. Ask the
+// same discovery helper appstore-release.sh uses, so the two never disagree
+// about which account is submitting.
+function discoverCredentials() {
+  const helper = path.join(path.dirname(new URL(import.meta.url).pathname), 'appfactory-credentials.sh')
+  if (!fs.existsSync(helper)) return {}
+  const out = path.join(os.tmpdir(), `asc-creds-${process.pid}`)
+  try {
+    execFileSync('bash', [helper, out], { stdio: ['ignore', 'inherit', 'inherit'] })
+    const found = {}
+    for (const line of fs.readFileSync(out, 'utf8').split('\n')) {
+      // `export NAME=value`, with value shell-quoted by printf %q.
+      const m = /^export ([A-Z_]+)=(.*)$/.exec(line)
+      if (m) found[m[1]] = m[2].replace(/^'(.*)'$/s, '$1').replace(/'\\''/g, "'")
+    }
+    return found
+  } catch {
+    return {}
+  } finally {
+    fs.rmSync(out, { force: true })
+  }
+}
+
+let keyId = process.env.ASC_KEY_ID
+let issuerId = process.env.ASC_ISSUER_ID
+let keyPath =
   process.env.ASC_KEY_PATH ||
   (keyId ? path.join(process.env.HOME ?? '', '.appstoreconnect', 'private_keys', `AuthKey_${keyId}.p8`) : '')
+
+if (!keyId || !issuerId || !keyPath || !fs.existsSync(keyPath)) {
+  const found = discoverCredentials()
+  keyId = keyId || found.ASC_KEY_ID
+  issuerId = issuerId || found.ASC_ISSUER_ID
+  if (!keyPath || !fs.existsSync(keyPath)) keyPath = found.ASC_KEY_PATH ?? keyPath
+}
 
 if (!keyId || !issuerId || !keyPath || !fs.existsSync(keyPath)) {
   console.error('Set ASC_KEY_ID, ASC_ISSUER_ID, and ASC_KEY_PATH (or place AuthKey_<ID>.p8 in ~/.appstoreconnect/private_keys/).')
