@@ -153,22 +153,56 @@ const appId = apps.data[0].id
 console.log(`    app id ${appId}`)
 
 // ---- Locate the build -----------------------------------------------------
+// altool returns as soon as the bytes land, but Apple then processes the build
+// for 5-30 minutes before it exists in the API. Running this immediately after
+// an upload always missed it, so wait rather than making the caller re-run.
+const waitMinutes = Number(flag('--wait-minutes', '30'))
+const deadline = Date.now() + waitMinutes * 60 * 1000
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
 step(`Finding build ${buildNumber}`)
-const builds = await api(
-  'GET',
-  `/v1/builds?filter[app]=${appId}&filter[version]=${encodeURIComponent(buildNumber)}&limit=1`,
-)
-if (!builds.data?.length) {
-  throw new Error(
-    `Build ${buildNumber} is not in App Store Connect yet.\n` +
-      'Uploading finishes before processing does — a build takes 5-30 minutes to appear. Wait, then re-run.',
+let build = null
+let processingState = null
+let announced = false
+
+for (;;) {
+  const builds = await api(
+    'GET',
+    `/v1/builds?filter[app]=${appId}&filter[version]=${encodeURIComponent(buildNumber)}&limit=1`,
   )
-}
-const build = builds.data[0]
-const processingState = build.attributes?.processingState
-console.log(`    build id ${build.id} (${processingState})`)
-if (processingState !== 'VALID') {
-  throw new Error(`Build ${buildNumber} is ${processingState}, not VALID. Wait for processing, or check email for an ITMS rejection.`)
+  build = builds.data?.[0] ?? null
+  processingState = build?.attributes?.processingState ?? null
+
+  if (build && processingState === 'VALID') {
+    console.log(`    build id ${build.id} (VALID)`)
+    break
+  }
+
+  // PROCESSING resolves on its own; INVALID and FAILED never will.
+  if (processingState && processingState !== 'PROCESSING') {
+    throw new Error(
+      `Build ${buildNumber} is ${processingState}, not VALID. ` +
+        'Check email for an ITMS rejection notice.',
+    )
+  }
+
+  if (Date.now() >= deadline) {
+    throw new Error(
+      build
+        ? `Build ${buildNumber} was still PROCESSING after ${waitMinutes} minutes. The upload is fine; re-run this script to submit.`
+        : `Build ${buildNumber} never appeared in App Store Connect within ${waitMinutes} minutes. The upload is fine; re-run this script to submit.`,
+    )
+  }
+
+  if (!announced) {
+    console.log(
+      build
+        ? '    build is PROCESSING; waiting for Apple to finish (checking every 30s)'
+        : `    not visible yet; waiting up to ${waitMinutes} minutes (checking every 30s)`,
+    )
+    announced = true
+  }
+  await sleep(30_000)
 }
 
 // ---- Locate or create the version ----------------------------------------
