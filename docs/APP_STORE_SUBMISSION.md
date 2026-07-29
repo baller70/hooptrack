@@ -217,16 +217,36 @@ Verified in this repo:
    Contabo IP. App Review exercises the live backend; if it is down, or the TLS
    cert lapses mid-review, the result is a Guideline 2.1 rejection. A real
    domain with a monitored cert is strongly preferable before submitting.
-2. **Demo account — confirmed missing on production.** Both apps open on a
+2. **Demo accounts — player done, coach still missing.** Both apps open on a
    login screen, so review notes must carry working coach and player
    credentials or the reviewer cannot get past `AuthView`. This is the single
    most common first-submission rejection.
 
+   **Player: live.** `appreview.player@hooptrack.app` / `AppReview2026!` was
+   created through the public `POST /api/auth/register` endpoint and verified
+   against production — login returns 200 and `/api/auth/me` returns the
+   session. Nothing else on the host was touched.
+
+   **Coach: blocked.** `registerSchema` pins `role` to `player`, and no route
+   promotes a user to coach, so the coach account cannot be created over HTTP.
+   It needs database access on the production host:
+
+   ```bash
+   ssh root@194.146.12.139
+   cd <hooptrack deploy dir>
+   HOOPTRACK_REVIEW_CONFIRM=yes node scripts/provision-review-account.mjs
+   ```
+
+   That script is additive only — it never deletes, is safe to re-run, puts the
+   player on the coach's roster, adds one workout so the reviewer does not land
+   on empty screens, and prints the block to paste into App Store Connect →
+   App Review Information. Until it runs, **HoopTrack Coach cannot be
+   submitted**; HoopTrack Player can.
+
    The accounts in `scripts/seed-design-data.mjs` do **not** exist on the
    production backend — logging in with `marcus@hooptrack.test` / `hooptrack`
-   against `https://hooptrack.194-146-12-139.sslip.io/api/auth/login` returns
-   401. That seed is also unusable here: it refuses to run on a database that
-   already has users, and its `--force` path deletes every table.
+   returns 401. That seed is also unusable here: it refuses to run on a
+   database that already has users, and its `--force` path deletes every table.
 
    Run `scripts/provision-review-account.mjs` on the production host instead.
    It only ever touches the two designated review accounts, never deletes, and
