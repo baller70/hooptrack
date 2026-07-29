@@ -469,6 +469,76 @@ run_upload() {
   note "Uploaded. Processing takes 5-30 minutes before the build appears in TestFlight."
 }
 
+# ------------------------------------------------------------------- submit --
+
+# The Mac runner's PATH carries neither node nor npm, so `command -v node`
+# alone reports it unavailable and the upload never gets submitted for review.
+# Node is on that machine regardless: Homebrew has one, and the Actions runner
+# ships its own under <runner root>/externals. Look before concluding.
+find_node() {
+  local candidate workspace runner_root
+  if command -v node >/dev/null 2>&1; then
+    command -v node
+    return 0
+  fi
+
+  # GITHUB_WORKSPACE is <runner root>/_work/<repo>/<repo>.
+  workspace="${GITHUB_WORKSPACE:-}"
+  if [ -n "$workspace" ]; then
+    runner_root="$(cd "${workspace}/../../.." 2>/dev/null && pwd || true)"
+  fi
+
+  for candidate in \
+    /opt/homebrew/bin/node \
+    /usr/local/bin/node \
+    /opt/homebrew/opt/node/bin/node \
+    "${runner_root:+${runner_root}/externals/node24/bin/node}" \
+    "${runner_root:+${runner_root}/externals/node20/bin/node}" \
+    "${HOME}/.volta/bin/node"
+  do
+    if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+      printf '%s' "$candidate"
+      return 0
+    fi
+  done
+
+  # nvm keeps versions in their own directories; take the newest.
+  candidate="$(ls -1d "${HOME}"/.nvm/versions/node/*/bin/node 2>/dev/null | sort -V | tail -1)"
+  if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+    printf '%s' "$candidate"
+    return 0
+  fi
+
+  return 1
+}
+
+# Uploading is not submitting. This attaches the build to its App Store version
+# and puts it in review; failure here never invalidates a successful upload.
+run_submit() {
+  local submitter="${repo_root}/scripts/appstore-submit-for-review.mjs"
+  [ -f "$submitter" ] || return 0
+
+  step "Submit for review — ${scheme}"
+
+  local node_bin
+  if ! node_bin="$(find_node)"; then
+    note "WARNING: no node on this machine; ${app} build ${build_number:-?} is"
+    note "         uploaded but NOT submitted. Submit it in App Store Connect,"
+    note "         or run: node scripts/appstore-submit-for-review.mjs ${app} \\"
+    note "                   --build ${build_number:-<n>} --submit"
+    return 0
+  fi
+  note "Using node at ${node_bin}"
+
+  if "$node_bin" "$submitter" "$app" --build "${build_number}" --submit; then
+    note "Submitted for review."
+  else
+    note "WARNING: submit did not complete. The binary is uploaded and safe;"
+    note "         this is metadata. See the message above for what App Store"
+    note "         Connect is still waiting on."
+  fi
+}
+
 run_preflight
 case "$stage" in
   preflight) ;;
@@ -484,6 +554,7 @@ case "$stage" in
     if have_asc_credentials; then
       run_validate
       run_upload
+      run_submit
     else
       note "Skipping altool validate/upload — Xcode already uploaded the build."
     fi
