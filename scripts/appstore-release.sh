@@ -46,6 +46,9 @@ App Store Connect credentials (for validate/upload) come from the environment:
   ASC_ISSUER_ID  App Store Connect issuer ID
 The matching AuthKey_<ASC_KEY_ID>.p8 must live in one of the locations altool
 searches, e.g. ~/.appstoreconnect/private_keys/
+
+Without those, the export falls back to destination=upload and Xcode's own
+signed-in Apple ID delivers the build — the same path Organizer takes.
 USAGE
 }
 
@@ -155,8 +158,6 @@ run_preflight() {
     note "Push entitlement: production"
   fi
 
-  # awk rather than `grep | head`, which under pipefail turns a SIGPIPE into a
-  # failed preflight.
   # Signing is checked here rather than discovered a minute into an archive.
   # A CI runner started as a daemon has no GUI session, so codesign cannot
   # reach the private key and fails with errSecInternalComponent after the
@@ -198,8 +199,10 @@ run_preflight() {
     note "             -k <password> ~/Library/Keychains/login.keychain-db"
   fi
 
+  # awk rather than `grep | head`, which under pipefail turns a SIGPIPE into a
+  # failed preflight.
   local backend
-  backend="$(awk 'match($0, /https:\/\/[^"]+/) { print substr($0, RSTART, RLENGTH); exit }' \
+  backend="$(awk 'match($0, /https:\/\/[^\"]+/) { print substr($0, RSTART, RLENGTH); exit }' \
     "${scheme}/Networking/HoopTrackAPI.swift")"
   note "Backend: ${backend}"
   if curl -fsS -o /dev/null --max-time 15 "$backend" 2>/dev/null; then
@@ -236,13 +239,19 @@ require_asc_credentials() {
   locate_asc_key || die "AuthKey_${ASC_KEY_ID}.p8 not found in ~/.appstoreconnect/private_keys/ (or ./private_keys, ~/private_keys, ~/.private_keys)"
 }
 
+# Is there a usable App Store Connect API key? Both the key file and the issuer
+# id are needed; a .p8 on its own cannot authenticate.
+have_asc_credentials() {
+  [ -n "${ASC_ISSUER_ID:-}" ] && locate_asc_key
+}
+
 # With these flags xcodebuild can create and download provisioning profiles on
 # its own, which is what makes -allowProvisioningUpdates work on a CI runner
 # where nobody can answer an interactive Apple ID prompt.
 asc_auth_args=()
 set_asc_auth_args() {
   asc_auth_args=()
-  if [ -n "${ASC_ISSUER_ID:-}" ] && locate_asc_key; then
+  if have_asc_credentials; then
     asc_auth_args=(
       -authenticationKeyID "$ASC_KEY_ID"
       -authenticationKeyIssuerID "$ASC_ISSUER_ID"
@@ -268,6 +277,17 @@ write_export_options() {
     method="app-store"
   fi
 
+  # Without an API key, hand the upload to Xcode itself. `destination: upload`
+  # authenticates with the Apple ID signed into Xcode on this machine, which is
+  # the same path Organizer's "Distribute App" takes — and it needs no issuer
+  # id, because the account session already carries the team identity.
+  local destination="export"
+  if ! have_asc_credentials; then
+    destination="upload"
+    note "No App Store Connect key; exporting with destination=upload so Xcode's"
+    note "  own signed-in account performs the upload."
+  fi
+
   mkdir -p "$build_dir"
   cat >"$export_options" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -277,7 +297,7 @@ write_export_options() {
 	<key>method</key>
 	<string>${method}</string>
 	<key>destination</key>
-	<string>export</string>
+	<string>${destination}</string>
 	<key>teamID</key>
 	<string>${team_id}</string>
 	<key>signingStyle</key>
@@ -291,7 +311,7 @@ write_export_options() {
 </dict>
 </plist>
 PLIST
-  note "Export method: ${method}"
+  note "Export method: ${method}, destination: ${destination}"
 }
 
 run_archive() {
@@ -325,7 +345,7 @@ run_archive() {
 }
 
 run_export() {
-  step "Export IPA — ${scheme}"
+  step "Export — ${scheme}"
   [ -d "$archive_path" ] || die "no archive at ${archive_path} — run the archive stage first"
   write_export_options
   rm -rf "$export_dir"
@@ -338,8 +358,16 @@ run_export() {
     -allowProvisioningUpdates \
     "${asc_auth_args[@]+"${asc_auth_args[@]}"}"
 
-  [ -f "$ipa_path" ] || die "no IPA at ${ipa_path}"
-  note "IPA: ${ipa_path} ($(du -h "$ipa_path" | cut -f1))"
+  # destination=upload hands the build straight to App Store Connect and leaves
+  # no .ipa behind, so its absence there is success rather than failure.
+  if [ -f "$ipa_path" ]; then
+    note "IPA: ${ipa_path} ($(du -h "$ipa_path" | cut -f1))"
+  elif have_asc_credentials; then
+    die "no IPA at ${ipa_path}"
+  else
+    note "Uploaded to App Store Connect by Xcode; no local IPA is produced."
+    note "Processing takes 5-30 minutes before the build appears in TestFlight."
+  fi
 }
 
 run_validate() {
@@ -373,7 +401,18 @@ case "$stage" in
   export)    run_export ;;
   validate)  run_validate ;;
   upload)    run_upload ;;
-  all)       run_archive; run_export; run_validate; run_upload ;;
+  all)
+    run_archive
+    run_export
+    # With no API key the export already uploaded; altool has nothing to add
+    # and could not authenticate anyway.
+    if have_asc_credentials; then
+      run_validate
+      run_upload
+    else
+      note "Skipping altool validate/upload — Xcode already uploaded the build."
+    fi
+    ;;
 esac
 
 step "Done — ${app} / ${stage}"
