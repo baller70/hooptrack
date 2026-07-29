@@ -377,6 +377,27 @@ run_archive() {
   if [ -n "$marketing_version" ]; then
     overrides+=("MARKETING_VERSION=${marketing_version}")
   fi
+  # Xcode signs an archive with a *development* identity and only re-signs for
+  # distribution at export. On this runner that is fatal: the sole Apple
+  # Development identity lives in login.keychain, which a launchd process with
+  # no GUI session cannot unlock, so codesign fails with errSecInternalComponent
+  # after the whole app has compiled — even though the App Store Connect key
+  # authenticated fine.
+  #
+  # When no usable identity is present, archive without signing and let
+  # -exportArchive do the only signing that matters. Export creates the Apple
+  # Distribution certificate through the API key and lands its private key in
+  # the default keychain, which the broker has pointed at an unlocked one.
+  if ! security find-identity -v -p codesigning 2>/dev/null | grep -q 'Apple Distribution'; then
+    note "No Apple Distribution identity; archiving unsigned and signing at export."
+    overrides+=(
+      CODE_SIGNING_ALLOWED=NO
+      CODE_SIGNING_REQUIRED=NO
+      CODE_SIGN_IDENTITY=
+      CODE_SIGN_ENTITLEMENTS=
+    )
+  fi
+
   note "Build settings: ${overrides[*]}"
 
   rm -rf "$archive_path"
