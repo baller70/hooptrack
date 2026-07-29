@@ -17,18 +17,53 @@ virtualizing macOS only on Apple hardware. Swift compiles on Linux, but without
 the iOS SDK, the asset-catalog compiler, or code signing you cannot produce a
 signed IPA.
 
-## The automatic path (Kevin's Mac runner)
+## The automatic path (Kevin's Mac runner) — proven
 
-The shortest route is the self-hosted macOS runner already wired into
-`baller70/kcloud-xcode-runner`. Pushing one branch there releases both apps:
+Build 25 went from a git push to both apps in App Review with no manual step.
+Push one branch to `baller70/kcloud-xcode-runner`:
 
 ```
-release/hooptrack-both-6
+release/hooptrack-both-26
+release/hooptrack-both-26--on--some/branch   # optional: build a branch, not main
 ```
 
-That resolves to `mode=release`, clones this repository's `main`, and for each
-app runs archive → export → validate → upload → attach → submit for review.
-Nothing else needs touching.
+That resolves to `mode=release`, clones this repository, and for each app runs
+archive → export → validate → upload → wait for processing → attach → submit.
+
+What it produced on 2026-07-29 (build 25):
+
+| App | App ID | Submission |
+| --- | --- | --- |
+| HoopTrack Coach | `6792369330` | `de150532-6197-4df2-b810-477be28af8bc` |
+| HoopTrack Player | `6792320961` | `5538fa21-5962-46ea-9dc4-4db42d94fd6f` |
+
+Four things had to be true, and each cost a failed run to learn:
+
+1. **Archive unsigned.** Xcode signs an archive with a *development* identity
+   and only re-signs for distribution at export. This Mac's one Apple
+   Development identity is in `login.keychain`, which a launchd runner with no
+   GUI session cannot unlock — so every archive compiled fully and then died at
+   `CodeSign` with `errSecInternalComponent`. `run_archive` now passes
+   `CODE_SIGNING_ALLOWED=NO` when no distribution identity is visible and lets
+   `-exportArchive` do the only signing that matters.
+2. **The job keychain must be the *default*, not merely first in the search
+   path.** `-allowProvisioningUpdates` puts a newly created certificate's
+   private key in the default keychain; if that is the locked login keychain,
+   the certificate is unusable the instant it exists.
+3. **Discovery must not touch the filesystem.** An early version of
+   `appfactory-credentials.sh` ran `find -maxdepth 6` over
+   `/Volumes/APPLICATIONS` and `$HOME` and spent 89 minutes in the first `find`
+   before the job timeout killed it. It now checks an explicit path list and
+   returns in ~20ms.
+4. **Uploading is not submitting.** `altool` returns when the bytes land, but
+   Apple processes the build for 5–30 minutes before the API can see it.
+   `appstore-submit-for-review.mjs` polls for `VALID` rather than failing.
+
+The submitter signs its ES256 JWT with `node:crypto`, not `jose` — the runner
+has no npm, and an `npm install` there once aborted the run *after* Coach had
+uploaded, taking the Player build with it. It also finds `node` by looking in
+Homebrew and `<runner root>/externals/node24/bin` rather than trusting `PATH`,
+which on that runner contains neither node nor npm.
 
 **Credentials: nothing to supply.** That Mac already holds an App Store Connect
 API key — App Factory ships with it. Its worker reads three values out of
@@ -242,6 +277,14 @@ Verified in this repo:
    on empty screens, and prints the block to paste into App Store Connect →
    App Review Information. Until it runs, **HoopTrack Coach cannot be
    submitted**; HoopTrack Player can.
+
+   Note the role is `trainer`, not `coach` — `lib/db.ts` constrains
+   `role IN ('trainer','player')`, and `POST /api/auth/register` pins new
+   accounts to `player`, so no coach can be created over HTTP by design.
+
+   **This is the open risk on the current submission.** Both apps are in review
+   against build 25; if the credentials in App Review Information do not work,
+   Coach draws a Guideline 2.1 rejection however good the binary is.
 
    The accounts in `scripts/seed-design-data.mjs` do **not** exist on the
    production backend — logging in with `marcus@hooptrack.test` / `hooptrack`
