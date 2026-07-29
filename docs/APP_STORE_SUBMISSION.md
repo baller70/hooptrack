@@ -30,18 +30,39 @@ That resolves to `mode=release`, clones this repository's `main`, and for each
 app runs archive → export → validate → upload → attach → submit for review.
 Nothing else needs touching.
 
-**Required once — three repository secrets on `kcloud-xcode-runner`:**
+**Credentials: nothing to supply.** That Mac already holds an App Store Connect
+API key — App Factory ships with it. Its worker reads three values out of
+`app-factory-standalone/worker/worker.env`:
 
-| Secret | Where it comes from |
-| --- | --- |
-| `ASC_KEY_ID` | App Store Connect → Users and Access → Integrations → App Store Connect API |
-| `ASC_ISSUER_ID` | same page, above the key table |
-| `ASC_KEY_P8_BASE64` | `base64 -i AuthKey_<KEY_ID>.p8` |
+```
+ASC_KEY_ID
+ASC_ISSUER_ID
+ASC_KEY_PATH      # the AuthKey_<KEY_ID>.p8 on disk
+```
 
-One key covers everything. `xcodebuild -allowProvisioningUpdates` uses it to
-create the Apple Distribution certificate and App Store provisioning profile —
-that Mac has neither, only an Apple Development identity — and `altool` uses it
-to upload. No certificate has to be exported by hand.
+and drives Xcode with exactly them:
+
+```
+xcodebuild -allowProvisioningUpdates \
+  -authenticationKeyPath     "$ASC_KEY_PATH" \
+  -authenticationKeyID       "$ASC_KEY_ID" \
+  -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+```
+
+`scripts/appfactory-credentials.sh` finds that env file and hands the same three
+values to `appstore-release.sh` during preflight, so the release lane
+authenticates the way App Factory already does. It reads the file without
+sourcing it (those files hold unrelated secrets), prints no key material, and
+registers the ids with `::add-mask::` on GitHub Actions.
+
+Set `ASC_KEY_ID` / `ASC_ISSUER_ID` / `ASC_KEY_PATH` in the environment — or
+supply them as repository secrets — to override the discovered key. Discovery
+is skipped whenever the environment already carries a usable one.
+
+One key covers everything. `-allowProvisioningUpdates` uses it to create the
+Apple Distribution certificate and App Store provisioning profile — that Mac
+has neither, only an Apple Development identity — and `altool` uses it to
+upload. No certificate has to be exported by hand.
 
 The runner has no login session, so its login keychain is locked and `codesign`
 fails with `errSecInternalComponent`. The job works around that by creating a
