@@ -20,6 +20,13 @@
 #
 # Exit 0 with an empty output file when nothing is found — the caller decides
 # whether that is fatal.
+#
+# This checks an explicit list of paths and never searches the filesystem. An
+# earlier version ran `find -maxdepth 6` across /Volumes/APPLICATIONS and $HOME;
+# those are multi-terabyte external drives holding backup archives, and it spent
+# 89 minutes inside the first `find` before the job's 90-minute timeout killed
+# it. Discovery has to be instant or it is worse than useless. To teach it a new
+# location, add the path to app_factory_roots below.
 
 set -uo pipefail
 
@@ -29,33 +36,31 @@ chmod 600 "$out"
 
 mask() { [ -n "${1:-}" ] && printf '::add-mask::%s\n' "$1"; }
 
-search_roots=()
-for root in \
-  "/Volumes/APPLICATIONS/00_APPS_I_CREATED/00_ACTIVE_WORKSPACE" \
-  "/Volumes/APPLICATIONS/02_STORAGE_AND_RUNTIME/CodexStorage/projects" \
-  "/Volumes/APPLICATIONS/03_BACKUPS_ARCHIVES_OFFLOAD/Offload" \
-  "$HOME"
-do
-  [ -d "$root" ] && search_roots+=("$root")
-done
+# Every App Factory checkout seen on this Mac. `[ -f ]` on a miss costs
+# nothing, so listing generously is free.
+app_factory_roots=(
+  "/Volumes/APPLICATIONS/00_APPS_I_CREATED/00_ACTIVE_WORKSPACE/External File Configuration/ACTIVE APPS TO COMPLETE/app-factory-standalone"
+  "/Volumes/APPLICATIONS/02_STORAGE_AND_RUNTIME/CodexStorage/projects/app-factory-standalone"
+  "/Volumes/APPLICATIONS/02_STORAGE_AND_RUNTIME/CodexStorage/projects/codex-cloud-apps/app-factory-standalone"
+  "/Volumes/APPLICATIONS/02_STORAGE_AND_RUNTIME/CodexStorage/projects/app-factory-standalone-qa"
+  "/Volumes/APPLICATIONS/00_APPS_I_CREATED/00_ACTIVE_WORKSPACE/ACTIVE APPS TO COMPLETE.partial-20260716-143209/app-factory-standalone"
+  "/Volumes/APPLICATIONS/03_BACKUPS_ARCHIVES_OFFLOAD/Offload/internal-project-originals/ACTIVE APPS TO COMPLETE.original-20260716-143500/app-factory-standalone"
+  "${HOME}/app-factory-standalone-edit"
+  "${HOME}/app-factory-page"
+  "${HOME}/OpenDesignAppFactoryiOS"
+)
 
 echo "--- App Store Connect key discovery ---"
-if [ "${#search_roots[@]}" -eq 0 ]; then
-  echo "  none of the known roots exist on this machine"
-  exit 0
-fi
 
 candidates=()
-for root in "${search_roots[@]}"; do
-  while IFS= read -r f; do
-    [ -n "$f" ] && candidates+=("$f")
-  done < <(find "$root" -maxdepth 6 -type f \
-             \( -name 'worker.env' -o -name '.env.local' -o -name '.env' \) \
-             -path '*app-factory*' 2>/dev/null)
+for root in "${app_factory_roots[@]}"; do
+  for rel in worker/worker.env worker/.env.local .env.local .env; do
+    [ -f "${root}/${rel}" ] && candidates+=("${root}/${rel}")
+  done
 done
 
 if [ "${#candidates[@]}" -eq 0 ]; then
-  echo "  no App Factory env file found"
+  echo "  no App Factory env file at any known path"
   exit 0
 fi
 
@@ -79,16 +84,20 @@ for f in "${candidates[@]}"; do
   i="$(read_var "$f" ASC_ISSUER_ID)"
   p="$(read_var "$f" ASC_KEY_PATH)"
 
+  d="$(dirname "$f")"
+
   # ASC_KEY_PATH may be relative to the App Factory checkout.
   if [ -n "$p" ] && [ ! -f "$p" ]; then
-    base="$(cd "$(dirname "$f")/.." 2>/dev/null && pwd)"
-    for guess in "${base}/${p}" "${base}/worker/${p}" "$(dirname "$f")/${p}"; do
+    for guess in "${d}/${p}" "${d}/../${p}" "${d}/../../${p}"; do
       if [ -f "$guess" ]; then p="$guess"; break; fi
     done
   fi
   # Or it may be absent, with the key sitting under the conventional name.
   if [ -z "$p" ] && [ -n "$k" ]; then
-    for guess in "$(dirname "$f")/AuthKey_${k}.p8" \
+    for guess in "${d}/AuthKey_${k}.p8" \
+                 "${d}/../AuthKey_${k}.p8" \
+                 "${d}/private_keys/AuthKey_${k}.p8" \
+                 "${d}/../private_keys/AuthKey_${k}.p8" \
                  "${HOME}/.appstoreconnect/private_keys/AuthKey_${k}.p8"; do
       if [ -f "$guess" ]; then p="$guess"; break; fi
     done
@@ -105,13 +114,21 @@ for f in "${candidates[@]}"; do
   fi
 done
 
-# An env file may hold the ids while the .p8 lives somewhere else entirely.
+# An env file may hold the ids while the .p8 sits under one of the App Factory
+# roots rather than beside the env file. Only those roots are checked, one
+# directory level each — never a recursive sweep of the volume.
 if [ -z "$chosen" ]; then
   for f in "${candidates[@]}"; do
     k="$(read_var "$f" ASC_KEY_ID)"
     i="$(read_var "$f" ASC_ISSUER_ID)"
     if [ -z "$k" ] || [ -z "$i" ]; then continue; fi
-    found="$(find "${search_roots[@]}" -maxdepth 8 -type f -name "AuthKey_${k}.p8" 2>/dev/null | awk 'NR==1')"
+    found=""
+    for root in "${app_factory_roots[@]}"; do
+      for rel in "AuthKey_${k}.p8" "worker/AuthKey_${k}.p8" \
+                 "private_keys/AuthKey_${k}.p8" "worker/private_keys/AuthKey_${k}.p8"; do
+        if [ -f "${root}/${rel}" ]; then found="${root}/${rel}"; break 2; fi
+      done
+    done
     if [ -n "$found" ]; then
       echo "  matched a stray key file to the ids in ${f}"
       chosen="$f"; key_id="$k"; issuer_id="$i"; key_path="$found"
