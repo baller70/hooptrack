@@ -92,14 +92,20 @@ for f in "${candidates[@]}"; do
       if [ -f "$guess" ]; then p="$guess"; break; fi
     done
   fi
-  # Or it may be absent, with the key sitting under the conventional name.
-  if [ -z "$p" ] && [ -n "$k" ]; then
-    for guess in "${d}/AuthKey_${k}.p8" \
-                 "${d}/../AuthKey_${k}.p8" \
-                 "${d}/private_keys/AuthKey_${k}.p8" \
-                 "${d}/../private_keys/AuthKey_${k}.p8" \
-                 "${HOME}/.appstoreconnect/private_keys/AuthKey_${k}.p8"; do
-      if [ -f "$guess" ]; then p="$guess"; break; fi
+  # The env file names the key id, so the filename is known exactly. Every
+  # candidate below is a constant-time [ -f ]; the list can be long for free.
+  if { [ -z "$p" ] || [ ! -f "$p" ]; } && [ -n "$k" ]; then
+    p=""
+    for dir in "$d" "${d}/.." "${d}/../.." \
+               "${d}/private_keys" "${d}/../private_keys" "${d}/../../private_keys" \
+               "${d}/keys" "${d}/../keys" "${d}/secrets" "${d}/../secrets" \
+               "${HOME}/.appstoreconnect/private_keys" \
+               "${HOME}/private_keys" "${HOME}/.private_keys" \
+               "${HOME}/.fastlane" "${HOME}/Downloads" "${HOME}/Desktop" \
+               "${HOME}/Documents" "${HOME}/.ssh" "${HOME}/keys" \
+               "/Volumes/APPLICATIONS/02_STORAGE_AND_RUNTIME/CodexStorage/secrets" \
+               "/Volumes/APPLICATIONS/02_STORAGE_AND_RUNTIME/CodexStorage/keys"; do
+      if [ -f "${dir}/AuthKey_${k}.p8" ]; then p="${dir}/AuthKey_${k}.p8"; break; fi
     done
   fi
 
@@ -107,6 +113,20 @@ for f in "${candidates[@]}"; do
   if [ -n "$k" ] && [ -n "$i" ]; then status="ids-only"; fi
   if [ -n "$k" ] && [ -n "$i" ] && [ -n "$p" ] && [ -f "$p" ]; then status="COMPLETE"; fi
   printf '  %-10s %s\n' "$status" "$f"
+
+  # When the ids are present but the key is not, the configured path is the
+  # single most useful thing to see. A filesystem path is not a credential, and
+  # without it the next run is another blind guess.
+  if [ "$status" = "ids-only" ]; then
+    raw_p="$(read_var "$f" ASC_KEY_PATH)"
+    if [ -z "$raw_p" ]; then
+      printf '             ASC_KEY_PATH is not set in this file\n'
+    else
+      printf '             ASC_KEY_PATH=%s (%s)\n' "$raw_p" \
+        "$([ -f "$raw_p" ] && echo exists || echo missing)"
+    fi
+    printf '             looking for a file named AuthKey_%s.p8\n' "$k"
+  fi
 
   if [ "$status" = "COMPLETE" ] && [ -z "$chosen" ]; then
     chosen="$f"; key_id="$k"; issuer_id="$i"; key_path="$p"
