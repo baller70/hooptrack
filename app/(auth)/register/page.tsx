@@ -11,6 +11,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { appHomeForRole } from '@/lib/app-routes'
+import { brandWordmark } from '@/lib/app-brand'
+import { useAppBrand } from '@/components/app-brand-provider'
 
 const registerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -23,6 +25,7 @@ type RegisterForm = z.infer<typeof registerSchema>
 
 export default function RegisterPage() {
   const router = useRouter()
+  const brand = useAppBrand()
   const [loading, setLoading] = useState(false)
   const { register, handleSubmit, formState: { errors } } = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
@@ -39,7 +42,13 @@ export default function RegisterPage() {
       })
       const json = await res.json()
       if (!res.ok) {
-        toast.error(json.error || 'Registration failed')
+        // "Email already registered" on its own leaves people retyping the
+        // same address. Say what to do about it.
+        toast.error(
+          res.status === 409
+            ? 'That email already has an account. Use a different address — an email can only belong to one account.'
+            : json.error || 'Registration failed',
+        )
         return
       }
       toast.success('Account created!')
@@ -55,7 +64,7 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
       <div className="w-full max-w-md bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_#0A0A0A] p-8">
         <h1 className="font-[family-name:var(--font-russo)] text-3xl text-center mb-2">
-          HoopTrack
+          {brandWordmark(brand)}
         </h1>
         <p className="text-center text-muted-foreground mb-8">Create your player account</p>
 
@@ -70,6 +79,13 @@ export default function RegisterPage() {
             <Label htmlFor="email">Email</Label>
             <Input id="email" type="email" {...register('email')} />
             {errors.email && <p className="text-sm text-destructive mt-1">{errors.email.message}</p>}
+            {/* The unique-email rule is invisible until it rejects you, and the
+             * likeliest person to hit it is a coach who already has an account
+             * and is reaching for the same address again. */}
+            <p className="text-sm text-muted-foreground mt-1">
+              Use an address that isn&apos;t already registered. Each email belongs to one account,
+              so a coach&apos;s email can&apos;t also be a player.
+            </p>
           </div>
 
           <div>

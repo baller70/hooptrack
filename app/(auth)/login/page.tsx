@@ -11,6 +11,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { appHomeForRole } from '@/lib/app-routes'
+import { brandWordmark } from '@/lib/app-brand'
+import { useAppBrand } from '@/components/app-brand-provider'
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -21,6 +23,7 @@ type LoginForm = z.infer<typeof loginSchema>
 
 export default function LoginPage() {
   const router = useRouter()
+  const brand = useAppBrand()
   const [loading, setLoading] = useState(false)
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -51,9 +54,15 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
       <div className="w-full max-w-md bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_#0A0A0A] p-8">
         <h1 className="font-[family-name:var(--font-russo)] text-3xl text-center mb-2">
-          HoopTrack
+          {brandWordmark(brand)}
         </h1>
-        <p className="text-center text-muted-foreground mb-8">Sign in to your account</p>
+        <p className="text-center text-muted-foreground mb-8">
+          {brand === 'coach'
+            ? 'Sign in with your coach account'
+            : brand === 'player'
+              ? 'Sign in with your player account'
+              : 'Sign in to your account'}
+        </p>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
