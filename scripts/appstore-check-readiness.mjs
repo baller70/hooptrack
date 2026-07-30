@@ -176,16 +176,6 @@ for (const app of APPS) {
       )
       lines.push(`- Demo account name in review notes: ${attrs.demoAccountName ? `\`${attrs.demoAccountName}\`` : '**empty**'}`)
       lines.push(`- Demo password set: ${attrs.demoAccountPassword ? 'yes' : '**no**'}`)
-      // Off by default. Kevin asked for this explicitly: the production
-      // database and App Store Connect disagree about the coach demo password,
-      // and printing the value Apple already stores lets the database be
-      // pointed back at it. That way Apple's copy is never edited and the
-      // queued submission is not disturbed. Only ever set this for a single
-      // run on a private repository.
-      if (process.env.HOOPTRACK_SHOW_DEMO_LOGIN === '1' && attrs.demoAccountPassword) {
-        lines.push(`- demoAccountName: ${attrs.demoAccountName}`)
-        lines.push(`- demoAccountPassword: ${attrs.demoAccountPassword}`)
-      }
       void detail
     }
   } catch (err) {
