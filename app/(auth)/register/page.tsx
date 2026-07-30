@@ -57,7 +57,7 @@ export default function RegisterPage() {
         <h1 className="font-[family-name:var(--font-russo)] text-3xl text-center mb-2">
           HoopTrack
         </h1>
-        <p className="text-center text-muted-foreground mb-8">Create your account</p>
+        <p className="text-center text-muted-foreground mb-8">Create your player account</p>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
@@ -80,7 +80,14 @@ export default function RegisterPage() {
 
           <div>
             <input type="hidden" value="player" {...register('role')} />
-            <p className="text-sm text-muted-foreground">Trainer accounts are created by an administrator.</p>
+            {/* Say what this form *does* create, not only what it can't. The
+             * old copy read as "register as a trainer/administrator" and sent
+             * people looking for a player sign-up that was already in front
+             * of them. */}
+            <p className="text-sm text-muted-foreground">
+              This signs you up as a <span className="font-semibold">player</span>. Trainer accounts
+              are created by an administrator.
+            </p>
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
