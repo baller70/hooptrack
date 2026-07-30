@@ -56,7 +56,9 @@ def state_of(d):
 
 # An iPhone that is merely paired is not installable; it has to be connected.
 def usable(d):
-    return state_of(d) not in ('unavailable', 'disconnected', '?')
+    # "available (paired)" is installable. Only treat an explicit unavailable
+    # or disconnected as unusable, and even then only for ranking.
+    return not state_of(d).startswith(('unavailable', 'disconnected'))
 
 candidates = [d for d in devices if not wanted or udid_of(d) == wanted]
 usable_ones = [d for d in candidates if usable(d)]
@@ -119,6 +121,13 @@ for app in "${apps[@]}"; do
     coach)  scheme=HooptrackCoach;  project=HooptrackCoach.xcodeproj ;;
     player) scheme=HooptrackPlayer; project=HooptrackPlayer.xcodeproj ;;
   esac
+
+  step "Destinations this project can actually target"
+  # Ask the real project. An earlier version asked xcodebuild about /dev/null,
+  # which errors out and lists nothing — that is not evidence of a missing
+  # device, and it wasted a round of debugging.
+  xcodebuild -showdestinations -project "$project" -scheme "$scheme" 2>&1 \
+    | sed -n '/Available destinations/,/^$/p' | head -12 || true
 
   step "Building ${scheme} for the device"
   # Debug, and signed with a development identity xcodebuild is allowed to
