@@ -198,6 +198,126 @@ Upload uses an API key, not an Apple ID password, so it never prompts for 2FA.
 
 Never commit the `.p8`, the key ID, or the issuer ID to this repo.
 
+### You almost certainly do not need to do any of that
+
+A key already exists on Kevin's Mac — the one App Factory uses — and every
+script in this pipeline finds it on its own. Nothing needs to be exported by
+hand, and nobody should be asked for it.
+
+`scripts/appfactory-credentials.sh` resolves it and emits `ASC_KEY_ID`,
+`ASC_ISSUER_ID` and `ASC_KEY_PATH`. It is called automatically by
+`appstore-release.sh` (during preflight), `appstore-check-readiness.mjs`,
+`appstore-submit-for-review.mjs` and `testflight-internal.mjs`. Set the
+variables yourself only to deliberately override it.
+
+How it finds the key, and the constraint that matters:
+
+- It checks an **explicit list of App Factory locations** and stops at the
+  first hit — about 20ms when the key is present, 4ms when it is not.
+- It **must never search the filesystem.** An earlier version ran `find
+  -maxdepth 6` across `/Volumes/APPLICATIONS` and `$HOME`, and spent 89
+  minutes inside the first `find` before a 90-minute job timeout killed it,
+  one line into its output. If the key moves, **add the new path to the
+  list** — do not reintroduce a search.
+- It reads the values with `awk` rather than sourcing the files, because those
+  files hold unrelated secrets, and it masks the ids in CI output.
+
+If it reports nothing, the key genuinely is not on that machine — which is the
+normal, expected answer in a Linux cloud container, where the whole Xcode
+pipeline is out of scope anyway.
+
+### Credential inventory
+
+Everything the pipeline authenticates with, where it lives, and who finds it.
+No values belong in this repo — only locations.
+
+| Credential | Lives | Found by | Needed for |
+| --- | --- | --- | --- |
+| App Store Connect `.p8` key | Kevin's Mac, App Factory paths, or `~/.appstoreconnect/private_keys/` | `appfactory-credentials.sh` | upload, submit, TestFlight, status |
+| `ASC_KEY_ID` / `ASC_ISSUER_ID` | alongside the key | same | signing the API JWT |
+| Apple Development identity | `login.keychain` on the Mac | `security find-identity` | device builds |
+| Apple Distribution identity | minted on demand via the API key | `xcodebuild -allowProvisioningUpdates` | store builds |
+| Contabo exec bridge | `KC_FULL_BRIDGE_URL`, `KC_FULL_BRIDGE_TOKEN` | environment | production host, database |
+| GitHub | `GITHUB_TOKEN` | environment | pushing branches, MCP tools |
+| Review demo logins | rows in the production `users` table, and stored with Apple | `appstore-check-readiness.mjs` | App Review sign-in |
+
+Run `bash scripts/env-preflight.sh` to see which of these the current machine
+actually has. Do not tell Kevin any of them is missing until that says so —
+see `docs/ENVIRONMENT-CONTRACT.md`.
+
+## TestFlight
+
+Internal testing needs **no beta review**, so a build is installable minutes
+after Apple finishes processing it. This is the fastest route onto a phone that
+does not involve Xcode.
+
+```bash
+node scripts/testflight-internal.mjs --build 25              # report only
+node scripts/testflight-internal.mjs --build 25 --confirm    # create/attach
+node scripts/testflight-internal.mjs --build 25 --confirm --tester you@example.com
+```
+
+Without `--confirm` it changes nothing and prints what it would do. It finds or
+creates the internal group (`App Factory Internal` by default), attaches the
+build, and optionally invites a tester. Credentials are discovered
+automatically.
+
+From a cloud container, push `testflight/hooptrack-<build>` to the broker repo
+instead.
+
+Things it reports because each one has been the reason a build "vanished" from
+somebody's phone:
+
+- **`expired`.** An expired build disappears from TestFlight while remaining
+  perfectly valid for the App Store. That is the difference between "gone from
+  my phone" and "gone from Apple".
+- **`usesNonExemptEncryption`.** Missing export compliance lets a build upload
+  fine and then refuse to be installable.
+- **`processingState`.** TestFlight cannot hand out a build that is not `VALID`
+  yet.
+- **Per-tester `state`.** `INVITED` means the invitation was sent and not
+  accepted, `ACCEPTED` means the Apple ID is linked, `INSTALLED` means it is on
+  a device. An invitation sitting at `INVITED` is the usual reason for "I don't
+  see it".
+
+## Installing straight onto the iPhone
+
+This is **not** the App Store path, and it has nothing to do with review status
+— an app-store-signed IPA cannot be installed on a device directly.
+
+```bash
+./scripts/install-on-device.sh              # both apps
+./scripts/install-on-device.sh player       # one
+DEVICE_UDID=00008030-... ./scripts/install-on-device.sh
+```
+
+It builds Debug against a development identity that `xcodebuild` mints through
+the API key, then hands the `.app` to `devicectl`. From a cloud container,
+drive it from the Mac runner; `devices/**` on the broker repo lists what is
+attached.
+
+Three things this script had to learn:
+
+1. **`errSecInternalComponent`.** codesign cannot unlock `login.keychain` from
+   a launchd process with no GUI session, so signing fails *after* the app has
+   compiled. It builds inside a throwaway unlocked keychain instead.
+2. **Default keychain ≠ visible keychain.** `security default-keychain` sets
+   where *new* keys are written; `security list-keychains -d user -s` sets which
+   existing identities are *visible*. Making the throwaway keychain default was
+   not enough — automatic signing kept choosing the unusable identity in
+   `login.keychain`, so that has to leave the search path entirely.
+3. **Put the user's keychain settings back.** Both settings are per-user and
+   shared with Kevin's GUI session. Leaving a throwaway keychain listed makes
+   macOS prompt him for a password that was generated inside a CI run and
+   discarded — which has already happened to him once, as a Control Center
+   prompt he could not answer. The script restores them in a single `trap
+   cleanup EXIT INT TERM`; keep it to one trap, since a second `trap ... EXIT`
+   silently replaces the first.
+
+`devicectl`'s `tunnelState` describes a network tunnel, not installability. A
+USB-attached phone can report `disconnected` and install fine, so the script
+warns and lets `devicectl` decide rather than refusing up front.
+
 ## Building from an external drive
 
 The preflight checks these, but the reasoning matters:

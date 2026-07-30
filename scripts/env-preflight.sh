@@ -145,6 +145,71 @@ else
   no 'appfactory-credentials.sh' 'missing' 'restore scripts/appfactory-credentials.sh'
 fi
 
+# ------------------------------------------------------- xcode / device (mac) --
+
+head_ 'Xcode toolchain and device'
+if [ "$(uname -s)" != 'Darwin' ]; then
+  na 'Xcode toolchain' 'not macOS — archive, signing and device installs run on the Mac runner'
+  na 'iPhone' 'not visible from here — use a devices/** branch on the broker repo'
+else
+  if command -v xcodebuild >/dev/null 2>&1; then
+    ok 'xcodebuild' "$(xcodebuild -version 2>/dev/null | head -1)"
+  else
+    no 'xcodebuild' 'not on PATH' 'install Xcode and run xcode-select --switch'
+  fi
+
+  # Counts only. Certificate common names carry the team identity, so they are
+  # not printed.
+  ident_total="$(security find-identity -v -p codesigning 2>/dev/null | grep -c ')' || echo 0)"
+  if [ "$ident_total" -gt 0 ] 2>/dev/null; then
+    if security find-identity -v -p codesigning 2>/dev/null | grep -q 'Apple Distribution'; then
+      ok 'signing identities' "${ident_total} visible, including Apple Distribution"
+    else
+      # Not a failure: appstore-release.sh archives unsigned and signs at
+      # export precisely because this is the normal state on the runner.
+      na 'signing identities' "${ident_total} visible, no Apple Distribution — archive unsigned, sign at export"
+    fi
+  else
+    na 'signing identities' 'none visible — xcodebuild will mint one via the API key'
+  fi
+
+  # The private keys the App Store scripts stage for altool.
+  key_count="$(find "${HOME}/.appstoreconnect/private_keys" -maxdepth 1 -name 'AuthKey_*.p8' 2>/dev/null | grep -c . || echo 0)"
+  if [ "$key_count" -gt 0 ] 2>/dev/null; then
+    ok 'staged ASC keys' "${key_count} in ~/.appstoreconnect/private_keys"
+  else
+    na 'staged ASC keys' 'none staged yet (appstore-release.sh stages one on demand)'
+  fi
+
+  if command -v xcrun >/dev/null 2>&1; then
+    dev_json="$(mktemp)"
+    if xcrun devicectl list devices --json-output "$dev_json" >/dev/null 2>&1; then
+      dev_summary="$(python3 -c '
+import json, sys
+devices = json.load(open(sys.argv[1])).get("result", {}).get("devices", [])
+if not devices:
+    print("none paired")
+else:
+    parts = []
+    for d in devices:
+        name = (d.get("deviceProperties") or {}).get("name", "?")
+        state = (d.get("connectionProperties") or {}).get("tunnelState", "?")
+        parts.append("%s (%s)" % (name, state))
+    print(", ".join(parts[:3]))
+' "$dev_json" 2>/dev/null)"
+      case "$dev_summary" in
+        ''|'none paired') na 'iPhone' 'none paired — pair it in Xcode, unlock, tap Trust' ;;
+        # tunnelState describes a network tunnel, not installability: a
+        # USB-attached phone can read "disconnected" and install fine.
+        *) ok 'iPhone' "$dev_summary" ;;
+      esac
+    else
+      no 'devicectl' 'could not list devices' 'check Xcode command line tools'
+    fi
+    rm -f "$dev_json"
+  fi
+fi
+
 # ------------------------------------------------------------------- summary --
 
 head_ 'Summary'

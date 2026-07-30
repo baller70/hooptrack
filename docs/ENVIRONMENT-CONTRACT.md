@@ -110,6 +110,9 @@ Scripts, all of which discover the key the same way:
 - `scripts/install-on-device.sh` — builds Debug and installs straight onto the
   iPhone with `devicectl`.
 
+Full runbook, credential inventory, TestFlight and device-install procedure:
+`docs/APP_STORE_SUBMISSION.md`.
+
 JWT details that are easy to get wrong: ES256, `aud: appstoreconnect-v1`, and
 signatures **must** use `dsaEncoding: 'ieee-p1363'` (64-byte r‖s). DER is
 rejected. Use `node:crypto` and not `jose` — the Mac runner has no npm, and a
