@@ -130,14 +130,42 @@ original_default=""
 # first, which would leak the temp file above.
 cleanup() {
   rm -f "$devices_json"
-  [ -n "$original_default" ] && security default-keychain -d user -s "$original_default" 2>/dev/null || true
+
+  # The keychain search path and default are *per-user* settings, shared with
+  # whatever GUI session that user has open. Leaving a throwaway keychain
+  # listed means macOS prompts a human for a password that was generated and
+  # discarded here and exists nowhere. Restoring is not best-effort tidying,
+  # it is required — so fall back to login.keychain rather than leave the
+  # machine pointed at something unopenable.
+  local login="${HOME}/Library/Keychains/login.keychain-db"
+
   if [ -n "$original_keychains" ]; then
     # shellcheck disable=SC2086
-    security list-keychains -d user -s $original_keychains 2>/dev/null || true
+    security list-keychains -d user -s $original_keychains 2>/dev/null \
+      || security list-keychains -d user -s "$login" 2>/dev/null || true
+  elif [ -n "$signing_keychain" ]; then
+    security list-keychains -d user -s "$login" 2>/dev/null || true
   fi
+
+  if [ -n "$original_default" ] && [ -e "$original_default" ]; then
+    security default-keychain -d user -s "$original_default" 2>/dev/null || true
+  elif [ -n "$signing_keychain" ]; then
+    security default-keychain -d user -s "$login" 2>/dev/null || true
+  fi
+
   [ -n "$signing_keychain" ] && security delete-keychain "$signing_keychain" 2>/dev/null || true
+
+  # Prove it, rather than assume the restore worked.
+  if [ -n "$signing_keychain" ]; then
+    if security list-keychains -d user | grep -q 'device-signing'; then
+      printf 'WARNING: the throwaway keychain is still on the search path.\n' >&2
+      printf '         Run: security list-keychains -d user -s %s\n' "$login" >&2
+    fi
+  fi
 }
-trap cleanup EXIT
+# INT and TERM as well as EXIT: a cancelled or timed-out job still has to put
+# the user's keychain settings back.
+trap cleanup EXIT INT TERM
 
 # Always. The previous version only did this when no identity was visible, but
 # an identity being *visible* is not the problem — the Apple Development one in
