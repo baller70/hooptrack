@@ -139,8 +139,11 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if ! security find-identity -v -p codesigning 2>/dev/null | grep -q 'valid identities found' \
-   || ! security show-keychain-info ~/Library/Keychains/login.keychain-db >/dev/null 2>&1; then
+# Always. The previous version only did this when no identity was visible, but
+# an identity being *visible* is not the problem — the Apple Development one in
+# login.keychain is perfectly visible and perfectly unusable, because its
+# private key cannot be unlocked without a GUI session.
+if true; then
   step 'Preparing a keychain codesign can actually use'
 
   signing_keychain="$(mktemp -d)/device-signing.keychain-db"
@@ -157,8 +160,12 @@ if ! security find-identity -v -p codesigning 2>/dev/null | grep -q 'valid ident
   security create-keychain -p "$signing_password" "$signing_keychain"
   security set-keychain-settings -lut 21600 "$signing_keychain"
   security unlock-keychain -p "$signing_password" "$signing_keychain"
-  # shellcheck disable=SC2086
-  security list-keychains -d user -s "$signing_keychain" $original_keychains
+  # The throwaway keychain must be the ONLY one on the search path. Leaving
+  # login.keychain listed lets automatic signing keep picking the Apple
+  # Development identity inside it — which is exactly what happened last run,
+  # and no amount of making this keychain "default" changed that. With nothing
+  # else visible, xcodebuild has to create a development certificate here.
+  security list-keychains -d user -s "$signing_keychain"
   security default-keychain -d user -s "$signing_keychain"
   security set-key-partition-list -S apple-tool:,apple:,codesign: \
     -k "$signing_password" "$signing_keychain" >/dev/null 2>&1 || true
