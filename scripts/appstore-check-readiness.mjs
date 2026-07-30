@@ -137,6 +137,51 @@ for (const app of APPS) {
     }
   }
 
+  // TestFlight: an internal group needs the build attached before it shows up
+  // in the TestFlight app on a device. Internal testing needs no beta review,
+  // so this is the fastest way onto a phone.
+  try {
+    const groups = await api(`/v1/apps/${appId}/betaGroups?limit=10`)
+    if (!groups.data?.length) {
+      lines.push('- TestFlight: no beta groups.')
+    } else {
+      for (const group of groups.data) {
+        const kind = group.attributes?.isInternalGroup ? 'internal' : 'external'
+        const groupBuilds = await api(`/v1/betaGroups/${group.id}/builds?limit=10`)
+        const versionsInGroup = (groupBuilds.data ?? [])
+          .map((b) => b.attributes?.version)
+          .filter(Boolean)
+        const testers = await api(`/v1/betaGroups/${group.id}/betaTesters?limit=10`)
+        lines.push(
+          `- TestFlight ${kind} group "${group.attributes?.name}" (\`${group.id}\`): ` +
+            `builds [${versionsInGroup.join(', ') || 'none'}], ${testers.data?.length ?? 0} tester(s)`,
+        )
+      }
+    }
+  } catch (err) {
+    lines.push(`- Could not read TestFlight groups: ${err.message}`)
+  }
+
+  // Whether App Review can actually log in. Wrong or missing demo credentials
+  // are the most common first-submission rejection.
+  try {
+    const versionForReview = versions.data?.[0]
+    if (versionForReview) {
+      const detail = await api(`/v1/appStoreVersions/${versionForReview.id}/appStoreVersionSubmission`)
+        .catch(() => null)
+      const review = await api(`/v1/appStoreVersions/${versionForReview.id}/appStoreReviewDetail`)
+      const attrs = review.data?.attributes ?? {}
+      lines.push(
+        `- Review sign-in required: ${attrs.demoAccountRequired === true ? 'yes' : attrs.demoAccountRequired === false ? 'NO (reviewer will not be given a login)' : 'unset'}`,
+      )
+      lines.push(`- Demo account name in review notes: ${attrs.demoAccountName ? `\`${attrs.demoAccountName}\`` : '**empty**'}`)
+      lines.push(`- Demo password set: ${attrs.demoAccountPassword ? 'yes' : '**no**'}`)
+      void detail
+    }
+  } catch (err) {
+    lines.push(`- Could not read App Review Information: ${err.message}`)
+  }
+
   // The version's appStoreState is what "is it still under review" actually
   // means. WAITING_FOR_REVIEW is queued, IN_REVIEW is being looked at, and
   // REJECTED / DEVELOPER_REJECTED mean it left review and needs action.
