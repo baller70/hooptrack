@@ -8,34 +8,78 @@
  *   ASC_KEY_ID=... ASC_ISSUER_ID=... ASC_KEY_PATH=AuthKey_XXX.p8 \
  *     node scripts/appstore-check-readiness.mjs
  */
+import crypto from 'node:crypto'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
-import { SignJWT, importPKCS8 } from 'jose'
+import { execFileSync } from 'node:child_process'
 
 const APPS = [
   { key: 'coach', bundleId: 'com.kevinhouston.hooptrackcoach', name: 'HoopTrack Coach' },
   { key: 'player', bundleId: 'com.kevinhouston.hooptrackplayer', name: 'HoopTrack Player' },
 ]
 
-const keyId = process.env.ASC_KEY_ID
-const issuerId = process.env.ASC_ISSUER_ID
-const keyPath =
+// Same key App Factory uses, found the same way appstore-release.sh finds it.
+function discoverCredentials() {
+  const helper = path.join(path.dirname(new URL(import.meta.url).pathname), 'appfactory-credentials.sh')
+  if (!fs.existsSync(helper)) return {}
+  const out = path.join(os.tmpdir(), `asc-readiness-${process.pid}`)
+  try {
+    execFileSync('bash', [helper, out], { stdio: ['ignore', 'inherit', 'inherit'] })
+    const found = {}
+    for (const line of fs.readFileSync(out, 'utf8').split('\n')) {
+      const m = /^export ([A-Z_]+)=(.*)$/.exec(line)
+      if (m) found[m[1]] = m[2].replace(/^'(.*)'$/s, '$1').replace(/'\\''/g, "'")
+    }
+    return found
+  } catch {
+    return {}
+  } finally {
+    fs.rmSync(out, { force: true })
+  }
+}
+
+let keyId = process.env.ASC_KEY_ID
+let issuerId = process.env.ASC_ISSUER_ID
+let keyPath =
   process.env.ASC_KEY_PATH ||
   (keyId ? path.join(process.env.HOME ?? '', '.appstoreconnect', 'private_keys', `AuthKey_${keyId}.p8`) : '')
+
+if (!keyId || !issuerId || !keyPath || !fs.existsSync(keyPath)) {
+  const found = discoverCredentials()
+  keyId = keyId || found.ASC_KEY_ID
+  issuerId = issuerId || found.ASC_ISSUER_ID
+  if (!keyPath || !fs.existsSync(keyPath)) keyPath = found.ASC_KEY_PATH ?? keyPath
+}
 
 if (!keyId || !issuerId || !keyPath || !fs.existsSync(keyPath)) {
   console.error('Set ASC_KEY_ID, ASC_ISSUER_ID, and ASC_KEY_PATH.')
   process.exit(2)
 }
 
-const token = await new SignJWT({})
-  .setProtectedHeader({ alg: 'ES256', kid: keyId, typ: 'JWT' })
-  .setIssuer(issuerId)
-  .setIssuedAt()
-  .setExpirationTime('15m')
-  .setAudience('appstoreconnect-v1')
-  .sign(await importPKCS8(fs.readFileSync(keyPath, 'utf8'), 'ES256'))
+// node:crypto rather than jose: the Mac runner has no npm. ieee-p1363 is the
+// concatenated (r||s) encoding JWS needs; DER is rejected by Apple.
+const base64url = (input) =>
+  Buffer.from(input).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+
+const issuedAt = Math.floor(Date.now() / 1000)
+const signingInput = [
+  base64url(JSON.stringify({ alg: 'ES256', kid: keyId, typ: 'JWT' })),
+  base64url(JSON.stringify({
+    iss: issuerId,
+    iat: issuedAt,
+    exp: issuedAt + 15 * 60,
+    aud: 'appstoreconnect-v1',
+  })),
+].join('.')
+
+const token = `${signingInput}.${base64url(
+  crypto.sign('sha256', Buffer.from(signingInput), {
+    key: fs.readFileSync(keyPath, 'utf8'),
+    dsaEncoding: 'ieee-p1363',
+  }),
+)}`
 
 const api = async (endpoint) => {
   const response = await fetch(`https://api.appstoreconnect.apple.com${endpoint}`, {
@@ -92,8 +136,26 @@ for (const app of APPS) {
       lines.push(`- Build ${build.attributes?.version}: ${build.attributes?.processingState}`)
     }
   }
+
+  // The version's appStoreState is what "is it still under review" actually
+  // means. WAITING_FOR_REVIEW is queued, IN_REVIEW is being looked at, and
+  // REJECTED / DEVELOPER_REJECTED mean it left review and needs action.
+  try {
+    const submissions = await api(`/v1/reviewSubmissions?filter[app]=${appId}&limit=5`)
+    if (!submissions.data?.length) {
+      lines.push('- No review submission on record.')
+    } else {
+      for (const submission of submissions.data) {
+        const state = submission.attributes?.state
+        const submitted = submission.attributes?.submittedDate ?? 'not submitted'
+        lines.push(`- Review submission \`${submission.id}\`: **${state}** (submitted ${submitted})`)
+      }
+    }
+  } catch (err) {
+    lines.push(`- Could not read review submissions: ${err.message}`)
+  }
   lines.push('')
 }
 
-lines.push(blocked ? '**Not ready to submit.**' : '**Ready to attach a build and submit.**', '')
+lines.push(blocked ? '**Not ready to submit.**' : '**App records, versions and builds are all present.**', '')
 console.log(lines.join('\n'))
