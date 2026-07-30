@@ -158,6 +158,16 @@ for (const app of APPS) {
 
   const testers = await api('GET', `/v1/betaGroups/${group.id}/betaTesters?limit=50`)
   console.log(`   testers in group: ${testers.data?.length ?? 0}`)
+  // state is the difference between "Apple sent it" and "he can install it":
+  // INVITED means the invitation is out and unaccepted, ACCEPTED means the
+  // Apple ID is linked, INSTALLED means it is on a device.
+  for (const tester of testers.data ?? []) {
+    const a = tester.attributes ?? {}
+    console.log(
+      `     - ${a.email ?? '(no email)'} — state ${a.state ?? 'unknown'}` +
+        `, invite ${a.inviteType ?? 'unknown'}`,
+    )
+  }
 
   if (testerEmail) {
     const existing = (testers.data ?? []).find(
