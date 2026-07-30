@@ -14,11 +14,37 @@ Environment label: `KCLOUD-BUILDOUT-20260720-SALES-02-hooptrack-main-PWA`
 
 This repo is part of Kevin Houston's sale/buildout push. Use a fresh Codex Cloud environment for install, build, test, PWA/offline/push review, and production-readiness work. Push setup changes directly to `main` unless Kevin gives different instructions.
 
+## Start Here — Before Claiming Anything Is Missing
+
+Run this first, in every new environment:
+
+```bash
+bash scripts/env-preflight.sh
+```
+
+It reports, in a few seconds and without printing any secret, what this
+environment can actually reach: the Contabo exec bridge (with a live
+round-trip), GitHub, the production site, the runtime, and whether the App
+Store Connect key is on this machine.
+
+**Never tell Kevin that a credential, host, device or capability does not exist
+until that preflight has run and the relevant line came back MISS.** He has
+already configured this environment. Every previous time an agent asserted
+something was missing, he was right and the agent was wrong — the access was
+there under a name or path the agent had not checked. "I looked and couldn't
+find it" is not evidence.
+
+`docs/ENVIRONMENT-CONTRACT.md` is the full capability map: what exists, how it
+is reached, which operations are blocked for a Cloud agent, and the specific
+traps that have cost hours here before. Read it before the App Store pipeline,
+the Contabo host, device installs, or the review accounts.
+
 ## Required Reading
 
 Before editing, read:
 
 - `AGENTS.md`
+- `docs/ENVIRONMENT-CONTRACT.md`
 - `README.md`
 - `package.json`
 - `.env.example`
