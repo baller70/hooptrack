@@ -34,7 +34,6 @@ esac
 
 step 'Finding the device'
 devices_json="$(mktemp)"
-trap 'rm -f "$devices_json"' EXIT
 xcrun devicectl list devices --json-output "$devices_json" >/dev/null 2>&1 \
   || die 'devicectl could not list devices'
 
@@ -112,6 +111,61 @@ if [ -n "${ASC_KEY_ID:-}" ] && [ -n "${ASC_ISSUER_ID:-}" ] && [ -n "${ASC_KEY_PA
     -authenticationKeyIssuerID "$ASC_ISSUER_ID"
     -authenticationKeyPath "$ASC_KEY_PATH"
   )
+fi
+
+# ------------------------------------------------------------- keychain --
+#
+# A device build signs with an Apple *Development* identity, and the only one
+# on this Mac sits in login.keychain — which a runner with no GUI session
+# cannot unlock, so codesign dies with errSecInternalComponent after the app
+# has already compiled. The App Store path solved this by building inside a
+# throwaway unlocked keychain; the device path needs the same treatment, or
+# -allowProvisioningUpdates mints a development certificate whose private key
+# lands somewhere unreadable.
+signing_keychain=""
+original_keychains=""
+original_default=""
+
+# One EXIT trap for everything: a second `trap ... EXIT` silently replaces the
+# first, which would leak the temp file above.
+cleanup() {
+  rm -f "$devices_json"
+  [ -n "$original_default" ] && security default-keychain -d user -s "$original_default" 2>/dev/null || true
+  if [ -n "$original_keychains" ]; then
+    # shellcheck disable=SC2086
+    security list-keychains -d user -s $original_keychains 2>/dev/null || true
+  fi
+  [ -n "$signing_keychain" ] && security delete-keychain "$signing_keychain" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+if ! security find-identity -v -p codesigning 2>/dev/null | grep -q 'valid identities found' \
+   || ! security show-keychain-info ~/Library/Keychains/login.keychain-db >/dev/null 2>&1; then
+  step 'Preparing a keychain codesign can actually use'
+
+  signing_keychain="$(mktemp -d)/device-signing.keychain-db"
+  signing_password="$(openssl rand -base64 24)"
+
+  original_keychains=""
+  while IFS= read -r kc; do
+    kc="${kc#"${kc%%[![:space:]]*}"}"; kc="${kc%\"}"; kc="${kc#\"}"
+    [ -n "$kc" ] && [ -e "$kc" ] && original_keychains="${original_keychains}${kc} "
+  done < <(security list-keychains -d user)
+  original_default="$(security default-keychain -d user | sed -e 's/^[[:space:]]*//' -e 's/"//g')"
+  [ -e "$original_default" ] || original_default="${HOME}/Library/Keychains/login.keychain-db"
+
+  security create-keychain -p "$signing_password" "$signing_keychain"
+  security set-keychain-settings -lut 21600 "$signing_keychain"
+  security unlock-keychain -p "$signing_password" "$signing_keychain"
+  # shellcheck disable=SC2086
+  security list-keychains -d user -s "$signing_keychain" $original_keychains
+  security default-keychain -d user -s "$signing_keychain"
+  security set-key-partition-list -S apple-tool:,apple:,codesign: \
+    -k "$signing_password" "$signing_keychain" >/dev/null 2>&1 || true
+  unset signing_password
+
+  note "Signing into ${signing_keychain}"
+  note 'xcodebuild will create a development certificate here through the API key.'
 fi
 
 # ------------------------------------------------------------------ install --
