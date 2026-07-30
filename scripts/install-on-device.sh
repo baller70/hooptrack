@@ -78,12 +78,16 @@ PY
 note "Device: ${device_name//_/ } (${device_udid})"
 note "Connection state: ${device_state}"
 
+# Do not refuse on the reported state. devicectl's tunnelState says whether a
+# network tunnel is up, which is not the same question as "can this be
+# installed" — a USB-attached phone can read as disconnected and install fine.
+# An earlier version treated that as fatal and skipped an install that might
+# have worked. Warn, then let devicectl be the judge.
 case "$device_state" in
   unavailable|disconnected|'?')
-    die "the phone is paired but not reachable (state: ${device_state}).
-    Plug it into this Mac over USB, unlock it, and tap Trust if asked — or put it
-    on the same Wi-Fi with the screen on. Nothing can be pushed to a sleeping or
-    disconnected device." ;;
+    note "WARNING: reported state is '${device_state}'. Trying anyway —"
+    note "         if this fails, plug the phone into this Mac, unlock it, and"
+    note "         tap Trust." ;;
 esac
 
 # ------------------------------------------------------------- credentials --
