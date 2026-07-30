@@ -115,6 +115,24 @@ for (const app of APPS) {
   }
   const state = build.attributes?.processingState
   console.log(`   build ${build.attributes?.version} (${state})`)
+  // A build that has expired disappears from TestFlight even though it is
+  // still attached to the group and still valid for the App Store. That is the
+  // difference between "gone from my phone" and "gone from Apple".
+  console.log(
+    `     expired: ${build.attributes?.expired}` +
+      `, uploaded ${build.attributes?.uploadedDate}` +
+      `, expires ${build.attributes?.expirationDate ?? 'n/a'}`,
+  )
+  const compliance = build.attributes?.usesNonExemptEncryption
+  console.log(`     usesNonExemptEncryption: ${compliance}`)
+  // Missing export compliance is the classic reason a build uploads fine and
+  // then refuses to be installable from TestFlight.
+  try {
+    const detail = await api('GET', `/v1/builds/${build.id}/betaAppReviewSubmission`)
+    console.log(`     betaAppReviewSubmission: ${detail.data?.attributes?.betaReviewState ?? 'none'}`)
+  } catch {
+    console.log('     betaAppReviewSubmission: none (internal testing needs none)')
+  }
   if (state !== 'VALID') {
     console.log('   not VALID yet; TestFlight cannot hand out a build still processing')
     continue
