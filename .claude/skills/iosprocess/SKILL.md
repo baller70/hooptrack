@@ -1,5 +1,5 @@
 ---
-name: ship-ios-app
+name: iosprocess
 description: Ship an iOS app from an Xcode project through code signing, App Store Connect upload, TestFlight and App Review, or install it directly onto a physical iPhone. Use when asked to submit, release, archive, upload, notarize, TestFlight, or "put the app on my phone", and when debugging a signing, provisioning, upload or review-submission failure. Covers the App Store Connect API, self-hosted Mac runners, and the failure modes that cost the most time.
 ---
 
