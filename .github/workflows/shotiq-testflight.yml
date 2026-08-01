@@ -1,0 +1,166 @@
+name: ShotIQ TestFlight
+
+# Builds the ShotIQ iOS app (from baller70/BasketballAnalysisAssessmentApp,
+# a public repo) and uploads it to TestFlight using THIS repo's Apple
+# secrets — the five release secrets already live here from the HoopTrack
+# releases and are team-level credentials (team DD9G8RP575), so they sign
+# any app on the team. This avoids copying secrets between repos.
+#
+# stage=check runs a cheap ubuntu job that lists the App Store Connect app
+# records visible to the key and verifies com.kevinhouston.shotiq exists.
+# stage=upload archives, signs, validates, and uploads — the build then
+# appears in TestFlight 5-30 minutes later. Nothing here submits for review.
+
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: How far to go
+        required: true
+        default: check
+        type: choice
+        options: [check, upload]
+      build_number:
+        description: Build number (CFBundleVersion) — required for upload
+        required: false
+        default: "1"
+        type: string
+
+concurrency:
+  group: shotiq-testflight
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verify secrets are configured
+        env:
+          HAS_CERT: ${{ secrets.APPLE_DIST_CERT_P12_BASE64 != '' }}
+          HAS_KEY_ID: ${{ secrets.ASC_KEY_ID != '' }}
+          HAS_ISSUER: ${{ secrets.ASC_ISSUER_ID != '' }}
+          HAS_P8: ${{ secrets.ASC_KEY_P8_BASE64 != '' }}
+        run: |
+          set -euo pipefail
+          ok=true
+          for pair in "APPLE_DIST_CERT_P12_BASE64:$HAS_CERT" "ASC_KEY_ID:$HAS_KEY_ID" "ASC_ISSUER_ID:$HAS_ISSUER" "ASC_KEY_P8_BASE64:$HAS_P8"; do
+            name="${pair%%:*}"; val="${pair##*:}"
+            [ "$val" = "true" ] && echo "  SET      $name" || { echo "  MISSING  $name"; ok=false; }
+          done
+          [ "$ok" = "true" ] || { echo "::error::Secrets missing in this repo." >&2; exit 1; }
+
+      - name: List App Store Connect app records
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+        run: |
+          set -euo pipefail
+          npm install --no-save --no-audit --no-fund jose
+          printf '%s' "${ASC_KEY_P8_BASE64}" | base64 --decode > "${RUNNER_TEMP}/AuthKey.p8"
+          cat > "${RUNNER_TEMP}/list-apps.mjs" <<'EOF'
+          import fs from 'node:fs'
+          import { SignJWT, importPKCS8 } from 'jose'
+          const token = await new SignJWT({})
+            .setProtectedHeader({ alg: 'ES256', kid: process.env.ASC_KEY_ID, typ: 'JWT' })
+            .setIssuer(process.env.ASC_ISSUER_ID)
+            .setIssuedAt()
+            .setExpirationTime('15m')
+            .setAudience('appstoreconnect-v1')
+            .sign(await importPKCS8(fs.readFileSync(process.env.ASC_KEY_PATH, 'utf8'), 'ES256'))
+          const res = await fetch('https://api.appstoreconnect.apple.com/v1/apps?limit=50', {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`)
+          const { data } = await res.json()
+          console.log('App records visible to this key:')
+          for (const app of data ?? []) {
+            console.log(`  ${app.attributes?.name}  ->  ${app.attributes?.bundleId}`)
+          }
+          const target = 'com.kevinhouston.shotiq'
+          const hit = (data ?? []).find((a) => a.attributes?.bundleId === target)
+          console.log(hit
+            ? `\nSHOTIQ_RECORD_FOUND: ${target} (app id ${hit.id})`
+            : `\nSHOTIQ_RECORD_MISSING: no app record for ${target} — create it in App Store Connect (New App), or rename the bundle id to match an existing record.`)
+          EOF
+          ASC_KEY_PATH="${RUNNER_TEMP}/AuthKey.p8" node "${RUNNER_TEMP}/list-apps.mjs" | tee -a "$GITHUB_STEP_SUMMARY"
+          rm -f "${RUNNER_TEMP}/AuthKey.p8"
+
+  release:
+    if: inputs.stage == 'upload'
+    needs: check
+    runs-on: macos-15
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: shotiq/basketball-analysis/ios-native
+    steps:
+      - name: Check out ShotIQ (public repo)
+        uses: actions/checkout@v4
+        with:
+          repository: baller70/BasketballAnalysisAssessmentApp
+          ref: main
+          path: shotiq
+
+      - name: Show Xcode
+        run: xcodebuild -version
+
+      - name: Generate Xcode project (XcodeGen)
+        run: |
+          brew install xcodegen
+          xcodegen generate
+          ls ShotIQ.xcodeproj/xcshareddata/xcschemes/
+
+      - name: Import signing certificate
+        env:
+          CERT_P12_BASE64: ${{ secrets.APPLE_DIST_CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.APPLE_DIST_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          keychain="${RUNNER_TEMP}/signing.keychain-db"
+          keychain_password="$(openssl rand -base64 24)"
+          cert_path="${RUNNER_TEMP}/dist.p12"
+
+          printf '%s' "${CERT_P12_BASE64}" | base64 --decode > "${cert_path}"
+
+          security create-keychain -p "${keychain_password}" "${keychain}"
+          security set-keychain-settings -lut 21600 "${keychain}"
+          security unlock-keychain -p "${keychain_password}" "${keychain}"
+          security import "${cert_path}" -P "${CERT_PASSWORD}" -A -t cert -f pkcs12 -k "${keychain}"
+          security set-key-partition-list -S apple-tool:,apple: -k "${keychain_password}" "${keychain}" >/dev/null
+          security list-keychain -d user -s "${keychain}" login.keychain-db
+
+          rm -f "${cert_path}"
+          security find-identity -v -p codesigning "${keychain}"
+
+      - name: Install App Store Connect API key
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.appstoreconnect/private_keys
+          printf '%s' "${ASC_KEY_P8_BASE64}" | base64 --decode > ~/.appstoreconnect/private_keys/"AuthKey_${ASC_KEY_ID}.p8"
+          chmod 600 ~/.appstoreconnect/private_keys/"AuthKey_${ASC_KEY_ID}.p8"
+
+      - name: Archive, validate, and upload to TestFlight
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: ./release/appstore-release.sh all --build "${{ inputs.build_number }}"
+
+      - name: Upload IPA artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shotiq-ipa-build-${{ inputs.build_number }}
+          path: shotiq/basketball-analysis/ios-native/build/appstore/export/*.ipa
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Remove signing keychain
+        if: always()
+        run: |
+          security delete-keychain "${RUNNER_TEMP}/signing.keychain-db" 2>/dev/null || true
+          rm -f ~/.appstoreconnect/private_keys/*.p8 2>/dev/null || true
