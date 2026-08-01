@@ -12,6 +12,11 @@ name: ShotIQ TestFlight
 # appears in TestFlight 5-30 minutes later. Nothing here submits for review.
 
 on:
+  # Tag path for callers that cannot reach the dispatch API:
+  #   shotiq-check           -> check only
+  #   shotiq-upload-<build>  -> check + upload build <build> to TestFlight
+  push:
+    tags: ['shotiq-*']
   workflow_dispatch:
     inputs:
       stage:
@@ -31,7 +36,35 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  config:
+    runs-on: ubuntu-latest
+    outputs:
+      stage: ${{ steps.resolve.outputs.stage }}
+      build_number: ${{ steps.resolve.outputs.build_number }}
+    steps:
+      - name: Resolve parameters
+        id: resolve
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "push" ]; then
+            tag="${GITHUB_REF#refs/tags/}"
+            if [ "$tag" = "shotiq-check" ]; then
+              echo "stage=check"        >> "$GITHUB_OUTPUT"
+              echo "build_number=1"     >> "$GITHUB_OUTPUT"
+            elif [[ "$tag" =~ ^shotiq-upload-([0-9]+)$ ]]; then
+              echo "stage=upload"                    >> "$GITHUB_OUTPUT"
+              echo "build_number=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+            else
+              echo "::error::Tag '$tag' must be shotiq-check or shotiq-upload-<build>." >&2
+              exit 1
+            fi
+          else
+            echo "stage=${{ inputs.stage }}"               >> "$GITHUB_OUTPUT"
+            echo "build_number=${{ inputs.build_number }}" >> "$GITHUB_OUTPUT"
+          fi
+
   check:
+    needs: config
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -88,8 +121,8 @@ jobs:
           rm -f "${RUNNER_TEMP}/AuthKey.p8"
 
   release:
-    if: inputs.stage == 'upload'
-    needs: check
+    if: needs.config.outputs.stage == 'upload'
+    needs: [config, check]
     runs-on: macos-15
     timeout-minutes: 60
     defaults:
@@ -148,13 +181,13 @@ jobs:
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-        run: ./release/appstore-release.sh all --build "${{ inputs.build_number }}"
+        run: ./release/appstore-release.sh all --build "${{ needs.config.outputs.build_number }}"
 
       - name: Upload IPA artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: shotiq-ipa-build-${{ inputs.build_number }}
+          name: shotiq-ipa-build-${{ needs.config.outputs.build_number }}
           path: shotiq/basketball-analysis/ios-native/build/appstore/export/*.ipa
           if-no-files-found: warn
           retention-days: 14
