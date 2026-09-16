@@ -1,0 +1,29 @@
+{
+  "issueId": "ISSUE-00012",
+  "bundleId": "com.kevinhouston.hooptrackcoach",
+  "marketingVersion": "1.0",
+  "buildNumber": "7",
+  "capturedAt": "2026-09-16T15:55:38Z",
+  "localRepositoryPreflight": {
+    "nativeShellCorrection": "present",
+    "retiredWebShellSymbolsInHooptrackCoach": [],
+    "currentProjectVersion": "7",
+    "bundleIdentifier": "com.kevinhouston.hooptrackcoach",
+    "marketingVersion": "1.0",
+    "productionApiHost": "https://hooptrack.194-146-12-139.sslip.io",
+    "evidenceArtifactsMergeable": true
+  },
+  "appStoreConnectPreflight": {
+    "ready": false,
+    "exactBuildAttached": false,
+    "resubmitted": false,
+    "appStoreVersionId": null,
+    "buildId": null,
+    "reviewSubmissionId": "de150532-6197-4df2-b810-477be28af8bc",
+    "blockers": [
+      "The active developer directory is Command Line Tools, so default xcodebuild cannot run without selecting a full Xcode toolchain.",
+      "ASC issuer credentials are not configured, so metadata, screenshots, privacy, review-detail status, build attachment, and resubmission readiness cannot be verified here.",
+      "A working App Review account remains required for downstream resubmission readiness."
+    ]
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "issueId": "ISSUE-00012",
+  "bundleId": "com.kevinhouston.hooptrackcoach",
+  "reviewSubmissionId": "de150532-6197-4df2-b810-477be28af8bc",
+  "state": "UNRESOLVED_ISSUES",
+  "submittedDate": "2026-07-29T21:52:18.294Z",
+  "evidenceCapturedAt": "2026-09-16T15:55:38Z",
+  "source": {
+    "type": "local-builder",
+    "currentAppStoreConnectEvidenceAvailable": false,
+    "attemptedAccess": {
+      "ASC_KEY_ID": "UNSET",
+      "ASC_ISSUER_ID": "UNSET",
+      "ASC_KEY_PATH": "UNSET",
+      "APP_STORE_CONNECT_API_KEY_ID": "UNSET",
+      "APP_STORE_CONNECT_API_ISSUER_ID": "UNSET",
+      "APP_STORE_CONNECT_API_KEY_PATH": "UNSET",
+      "APP_STORE_CONNECT_API_KEY": "UNSET",
+      "localPrivateKeyFile": "PRESENT_AT_STANDARD_ASC_KEY_PATH",
+      "localPrivateKeyFileRead": "NOT_READ",
+      "issuerDiscovery": "NOT_FOUND_IN_ENV_KEYCHAIN_OR_REPO_CONFIG"
+    }
+  },
+  "appStoreVersion": {
+    "id": null,
+    "versionString": "1.0"
+  },
+  "build": {
+    "id": null,
+    "buildNumber": "7"
+  },
+  "guidelineMessages": [],
+  "specStopRequired": true,
+  "builderConclusion": "Current App Store Connect reviewer guideline/message evidence for submission de150532-6197-4df2-b810-477be28af8bc is still unavailable in this Builder environment. The native-shell binary correction remains local code evidence only and must not be represented as the confirmed Apple reviewer condition until ASC evidence is fetched.",
+  "blockers": [
+    "Current App Store Connect reviewer guideline/message evidence could not be fetched in this Builder environment because ASC issuer credentials are not configured.",
+    "No concrete Apple reviewer guideline/message is asserted by this artifact."
+  ]
+}

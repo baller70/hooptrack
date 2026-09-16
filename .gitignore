@@ -61,7 +61,14 @@ __codex_upload_tmp__/
 
 # 2026-07-11: macOS AppleDouble metadata files
 ._*
-.factory/
+.factory/*
+!.factory/
+!.factory/runs/
+.factory/runs/*
+!.factory/runs/ISSUE-00012/
+.factory/runs/ISSUE-00012/*
+!.factory/runs/ISSUE-00012/review-evidence.json
+!.factory/runs/ISSUE-00012/preflight.json
 DerivedData/
 build/
 *.xcarchive
