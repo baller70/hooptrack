@@ -58,19 +58,15 @@ final class HooptrackPlayerUITests: XCTestCase {
 
     func testPrimaryWorkflowAndAccessibilityAudit() throws {
         let app = launchRealScreen(scene: scenes[0].0, identifier: scenes[0].1)
+        let captureTab = app.tabBars.buttons["Capture"]
+        XCTAssertTrue(captureTab.waitForExistence(timeout: 10))
+        captureTab.tap()
+
         let startCapture = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label == %@", "Start Capture"))
+            .matching(NSPredicate(format: "label CONTAINS[c] %@", "Capture Training"))
             .firstMatch
         XCTAssertTrue(startCapture.waitForExistence(timeout: 10))
-        startCapture.tap()
-        let captureHeading = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label == %@", "Capture"))
-            .firstMatch
-        let recordNow = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label CONTAINS[c] %@", "Record now"))
-            .firstMatch
-        XCTAssertTrue(captureHeading.waitForExistence(timeout: 10))
-        XCTAssertTrue(recordNow.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["capture-screen"].firstMatch.waitForExistence(timeout: 10))
         assertMinimumInteractiveHitAreas(in: app)
         try app.performAccessibilityAudit(for: [.contrast, .elementDetection, .hitRegion, .sufficientElementDescription, .textClipped, .trait])
     }

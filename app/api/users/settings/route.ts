@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { normalizeLocalAiEndpoint } from '@/lib/local-ai-endpoint.mjs'
 import { getSession } from '@/lib/session'
 
 const ALLOWED_MODELS = [
@@ -46,9 +47,27 @@ export async function PUT(request: Request) {
   if (!normalizedModel) return Response.json({ error: 'Missing ai_model' }, { status: 400 })
   if (!ALLOWED_MODELS.includes(normalizedModel)) return Response.json({ error: 'Invalid ai_model value' }, { status: 400 })
 
-  const credsStr = ai_credentials ? JSON.stringify(ai_credentials) : null
+  const sanitizedCredentials = ai_credentials && typeof ai_credentials === 'object' && !Array.isArray(ai_credentials)
+    ? { ...ai_credentials }
+    : ai_credentials
+
+  if (
+    sanitizedCredentials &&
+    typeof sanitizedCredentials === 'object' &&
+    !Array.isArray(sanitizedCredentials) &&
+    'local_base_url' in sanitizedCredentials
+  ) {
+    try {
+      sanitizedCredentials.local_base_url = normalizeLocalAiEndpoint(sanitizedCredentials.local_base_url)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Invalid Local Model base URL'
+      return Response.json({ error: message }, { status: 400 })
+    }
+  }
+
+  const credsStr = sanitizedCredentials ? JSON.stringify(sanitizedCredentials) : null
 
   db.prepare('UPDATE users SET ai_model = ?, ai_credentials = ? WHERE id = ?').run(normalizedModel, credsStr, session.id)
 
-  return Response.json({ success: true, ai_model: normalizedModel, ai_credentials })
+  return Response.json({ success: true, ai_model: normalizedModel, ai_credentials: sanitizedCredentials })
 }

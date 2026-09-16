@@ -11,7 +11,7 @@ final class HooptrackPlayerTests: XCTestCase {
         XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundlePackageType") as? String, "APPL")
         XCTAssertEqual(appBundle.bundleIdentifier, expectedBundleIdentifier)
         XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String, "1.0")
-        XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String, "5")
+        XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String, "6")
 
         guard let executableURL = appBundle.executableURL else {
             XCTFail("Expected the app bundle to resolve an executable URL")
@@ -20,6 +20,37 @@ final class HooptrackPlayerTests: XCTestCase {
 
         XCTAssertEqual(executableURL.lastPathComponent, "HooptrackPlayer")
         XCTAssertTrue(FileManager.default.isExecutableFile(atPath: executableURL.path))
+    }
+
+    func testPlayerUsesNativeShellAndProductionAPI() throws {
+        let appBundle = Bundle(identifier: "com.kevinhouston.hooptrackplayer") ?? Bundle.main
+        XCTAssertEqual(appBundle.bundleIdentifier, "com.kevinhouston.hooptrackplayer")
+        XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String, "1.0")
+        XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String, "6")
+
+        let videoURL = HoopTrackAPI().recordingVideoURL(id: 42)
+        XCTAssertEqual(videoURL.absoluteString, "https://hooptrack.194-146-12-139.sslip.io/api/recordings/42/video")
+
+        let projectRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let rootViewSource = try String(
+            contentsOf: projectRoot.appending(path: "HooptrackPlayer/Views/RootView.swift"),
+            encoding: .utf8
+        )
+        for forbiddenShellSymbol in ["WKWebView", "PlayerWebSession", "UIViewRepresentable", "WKNavigationDelegate"] {
+            XCTAssertFalse(
+                rootViewSource.contains(forbiddenShellSymbol),
+                "RootView must launch the native Player shell without \(forbiddenShellSymbol)."
+            )
+        }
+
+        let state = AppState(client: HoopTrackAPI())
+        let coach = User(id: 91, email: "coach@example.com", role: .trainer, name: "Coach Example")
+        state.acceptAuthenticated(coach)
+        if state.phase != .blockedRole(coach) {
+            XCTFail("Coach accounts must remain blocked from the Player app.")
+        }
     }
 
     func testFactoryFixtureCoversCorePlayerSurface() {

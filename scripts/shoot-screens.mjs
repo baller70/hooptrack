@@ -44,9 +44,9 @@ const TARGETS = {
   'player-notifications': ['/player/notifications', PLAYER, null],
 }
 
-// The iOS apps are WKWebView shells over these same routes (see
-// HooptrackPlayer/Views/RootView.swift), so --mobile reproduces exactly what
-// ships inside the app and lets the ios/*.png designs be diffed for real.
+// --mobile captures route-sized browser references for screenshot design diffs.
+// HoopTrack Player now ships native SwiftUI screens, so these captures are web
+// references rather than an exact copy of the Player binary.
 const MOBILE = process.argv.includes('--mobile')
 const VIEWPORT = MOBILE ? { width: 390, height: 844 } : { width: 1536, height: 1024 }
 
