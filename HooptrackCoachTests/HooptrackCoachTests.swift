@@ -15,9 +15,25 @@ final class HooptrackCoachTests: XCTestCase {
         XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundleName") as? String, "HooptrackCoach")
         XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundlePackageType") as? String, "APPL")
         XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String, "1.0")
-        XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String, "5")
+        XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String, "6")
         XCTAssertEqual(appBundle.object(forInfoDictionaryKey: "ITSAppUsesNonExemptEncryption") as? Bool, false)
         XCTAssertEqual(appBundle.bundleIdentifier, expectedBundleIdentifier)
+    }
+
+    func testCoachBinaryUsesNativeShellAndProductionBackend() throws {
+        let projectRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let rootView = projectRoot.appending(path: "HooptrackCoach/Views/RootView.swift")
+        let apiClient = projectRoot.appending(path: "HooptrackCoach/Networking/HoopTrackAPI.swift")
+        let rootSource = try String(contentsOf: rootView)
+        let apiSource = try String(contentsOf: apiClient)
+
+        for retiredSymbol in ["WKWebView", "CoachWebSession", "CoachWebView", "UIViewRepresentable", "WKNavigationDelegate"] {
+            XCTAssertFalse(rootSource.contains(retiredSymbol), "Coach binary must not ship the retired web-shell symbol \(retiredSymbol).")
+        }
+        XCTAssertTrue(rootSource.contains("CoachShellView()"), "CoachRootView should render the native Coach shell after authentication.")
+        XCTAssertTrue(apiSource.contains("https://hooptrack.194-146-12-139.sslip.io"), "Coach API must keep the production backend host.")
     }
 
     func testCoachRoleLockAcceptsTrainerAndCoachOnly() throws {
