@@ -10,9 +10,9 @@
  *
  *   HOOPTRACK_REVIEW_CONFIRM=yes node scripts/provision-review-account.mjs
  *
- * Set REVIEW_COACH_EMAIL, REVIEW_PLAYER_EMAIL, and REVIEW_PASSWORD in the
- * invoking shell. The password is applied to the database but never printed;
- * store it only in App Store Connect's secure review credential field.
+ * Override the defaults with REVIEW_COACH_EMAIL, REVIEW_PLAYER_EMAIL, and
+ * REVIEW_PASSWORD. The password is printed at the end for the review notes;
+ * it is not a secret, but do not reuse a real account's password here.
  */
 import Database from 'better-sqlite3'
 import bcrypt from 'bcryptjs'
@@ -26,12 +26,7 @@ if (process.env.HOOPTRACK_REVIEW_CONFIRM !== 'yes') {
 
 const coachEmail = process.env.REVIEW_COACH_EMAIL ?? 'appreview.coach@hooptrack.app'
 const playerEmail = process.env.REVIEW_PLAYER_EMAIL ?? 'appreview.player@hooptrack.app'
-const plainPassword = process.env.REVIEW_PASSWORD
-
-if (!plainPassword) {
-  console.error('Refusing to run: set REVIEW_PASSWORD to the App Review account password.')
-  process.exit(1)
-}
+const plainPassword = process.env.REVIEW_PASSWORD ?? 'AppReview2026!'
 
 if (coachEmail === playerEmail) {
   console.error('Refusing to run: coach and player review emails must differ.')
@@ -140,15 +135,18 @@ Paste this into App Store Connect -> App Review Information -> Sign-In Required:
 
   Coach account
     Username: ${coachEmail}
-    Password: set in the secure App Store Connect review account field
+    Password: ${plainPassword}
 
   Player account
     Username: ${playerEmail}
-    Password: set in the secure App Store Connect review account field
+    Password: ${plainPassword}
 
   Notes: HoopTrack Coach and HoopTrack Player are separate apps sharing one
   backend. Sign in to the Coach app with the coach account and the Player app
   with the player account. The coach's roster contains the player account.
 
-Verify sign-in manually with the configured review password before submitting.
+Verify before submitting:
+  curl -X POST ${process.env.HOOPTRACK_BASE_URL ?? 'https://hooptrack.194-146-12-139.sslip.io'}/api/auth/login \\
+    -H 'Content-Type: application/json' \\
+    -d '{"email":"${coachEmail}","password":"${plainPassword}"}'
 `)

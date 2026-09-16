@@ -3,7 +3,6 @@ import { mkdtempSync, rmSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { db } from './db'
-import { normalizeLocalAiEndpoint } from './local-ai-endpoint.mjs'
 
 const DEFAULT_AI_MODEL = 'Codex CLI'
 
@@ -177,7 +176,7 @@ async function executeAiChat(prompt: string): Promise<string> {
       return await openaiCompatibleChat('https://api.minimax.chat/v1/text/chatcompletion_v2', creds.minimax_api_key || '', 'abab6.5-chat', prompt)
     }
     if (model === 'Local Model') {
-      return await openaiCompatibleChat(normalizeLocalAiEndpoint(creds.local_base_url), 'dummy', creds.local_model || 'llama3', prompt)
+      return await openaiCompatibleChat(creds.local_base_url || 'http://localhost:11434/v1/chat/completions', 'dummy', creds.local_model || 'llama3', prompt)
     }
     if (model === 'Claude Code (API)') { // Anthropic REST API
       const res = await fetch('https://api.anthropic.com/v1/messages', {
