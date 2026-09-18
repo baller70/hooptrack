@@ -54,7 +54,7 @@ final class HooptrackCoachUITests: XCTestCase {
 
     func testPrimaryWorkflowAndAccessibilityAudit() throws {
         let app = launchRealScreen(scene: scenes[0].0, identifier: scenes[0].1)
-        XCTAssertTrue(app.staticTexts["HoopTrack Coach"].firstMatch.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Hoopstrack Coach"].firstMatch.waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["Teams"].firstMatch.exists)
         assertMinimumInteractiveHitAreas(in: app)
         try app.performAccessibilityAudit(for: [.contrast, .elementDetection, .hitRegion, .sufficientElementDescription, .textClipped, .trait])
@@ -86,7 +86,7 @@ final class HooptrackCoachUITests: XCTestCase {
             let app = launchRealScreen(scene: scene, identifier: identifier)
             switch scene {
             case "01-coach-dashboard":
-                XCTAssertTrue(app.staticTexts["HoopTrack Coach"].firstMatch.exists)
+                XCTAssertTrue(app.staticTexts["Hoopstrack Coach"].firstMatch.exists)
             case "02-create-group-invite":
                 XCTAssertTrue(app.staticTexts["Teams And Training Sessions"].firstMatch.exists)
             case "03-assign-workout":

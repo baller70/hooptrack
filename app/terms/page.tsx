@@ -4,8 +4,8 @@ export default function TermsPage() {
   return (
     <PublicDocumentPage title="Terms Of Use" updated="July 18, 2026">
       <section>
-        <h2>Using HoopTrack</h2>
-        <p className="mt-2">You may use HoopTrack for lawful basketball coaching, training, recording, and communication. Keep your credentials secure and provide accurate account and team information.</p>
+        <h2>Using Hoopstrack</h2>
+        <p className="mt-2">You may use Hoopstrack for lawful basketball coaching, training, recording, and communication. Keep your credentials secure and provide accurate account and team information.</p>
       </section>
       <section>
         <h2>Player Safety</h2>
@@ -13,7 +13,7 @@ export default function TermsPage() {
       </section>
       <section>
         <h2>User Content</h2>
-        <p className="mt-2">You keep ownership of content you submit and grant HoopTrack permission to store, process, display, and transmit it only as needed to operate the service. You must have permission to upload and share the content. Harassment, threats, hate, sexual exploitation, illegal content, spam, and infringement are prohibited.</p>
+        <p className="mt-2">You keep ownership of content you submit and grant Hoopstrack permission to store, process, display, and transmit it only as needed to operate the service. You must have permission to upload and share the content. Harassment, threats, hate, sexual exploitation, illegal content, spam, and infringement are prohibited.</p>
       </section>
       <section>
         <h2>Enforcement</h2>
@@ -21,7 +21,7 @@ export default function TermsPage() {
       </section>
       <section>
         <h2>Availability</h2>
-        <p className="mt-2">We work to keep HoopTrack reliable but cannot promise uninterrupted operation. Features may change as the service and platform requirements evolve.</p>
+        <p className="mt-2">We work to keep Hoopstrack reliable but cannot promise uninterrupted operation. Features may change as the service and platform requirements evolve.</p>
       </section>
       <section>
         <h2>Contact</h2>

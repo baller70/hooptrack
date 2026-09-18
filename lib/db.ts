@@ -132,6 +132,21 @@ function runMigrations(db: Database.Database) {
     safeAddColumn(db, 'coach_groups', 'emblem', 'TEXT')
     db.prepare('INSERT OR IGNORE INTO _migrations VALUES (?)').run(19)
   }
+  if (current < 20) {
+    db.exec(SCHEMA_V20)
+    db.prepare('INSERT OR IGNORE INTO _migrations VALUES (?)').run(20)
+  }
+  if (current < 21) {
+    safeAddColumn(db, 'waitlist_leads', 'role', 'TEXT')
+    safeAddColumn(db, 'waitlist_leads', 'program_name', 'TEXT')
+    safeAddColumn(db, 'waitlist_leads', 'athlete_count', 'TEXT')
+    safeAddColumn(db, 'waitlist_leads', 'primary_goal', 'TEXT')
+    db.prepare('INSERT OR IGNORE INTO _migrations VALUES (?)').run(21)
+  }
+  if (current < 22) {
+    db.exec(SCHEMA_V22)
+    db.prepare('INSERT OR IGNORE INTO _migrations VALUES (?)').run(22)
+  }
     db.exec('COMMIT')
   } catch (error) {
     if (db.inTransaction) db.exec('ROLLBACK')
@@ -149,6 +164,37 @@ function safeAddColumn(db: Database.Database, table: string, column: string, def
     if (!message.includes('duplicate column name')) throw err
   }
 }
+
+const SCHEMA_V20 = `
+CREATE TABLE IF NOT EXISTS waitlist_leads (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  role TEXT,
+  program_name TEXT,
+  athlete_count TEXT,
+  primary_goal TEXT,
+  source TEXT NOT NULL DEFAULT 'landing',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_waitlist_leads_created ON waitlist_leads(created_at DESC);
+`
+
+const SCHEMA_V22 = `
+CREATE TABLE IF NOT EXISTS signup_leads (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  role TEXT NOT NULL,
+  program_name TEXT NOT NULL,
+  athlete_count TEXT NOT NULL,
+  primary_goal TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_signup_leads_created ON signup_leads(created_at DESC);
+`
 
 const SCHEMA_V12 = `
 ALTER TABLE messages ADD COLUMN attachment_type TEXT;

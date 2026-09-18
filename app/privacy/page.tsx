@@ -5,7 +5,7 @@ export default function PrivacyPage() {
     <PublicDocumentPage title="Privacy Policy" updated="July 18, 2026">
       <section>
         <h2>Information We Collect</h2>
-        <p className="mt-2">HoopTrack processes the information needed to operate Player and Coach accounts and provide basketball training services.</p>
+        <p className="mt-2">Hoopstrack processes the information needed to operate Player and Coach accounts and provide basketball training services.</p>
         <ul className="mt-2">
           <li>Account details such as name, email address, role, and a securely hashed password.</li>
           <li>Training records such as workouts, schedules, quiz results, progress, groups, and team invitations.</li>
@@ -19,7 +19,7 @@ export default function PrivacyPage() {
       </section>
       <section>
         <h2>Sharing And Sale</h2>
-        <p className="mt-2">HoopTrack does not sell personal information or use it for third-party advertising. Information is shared only with the coaches or players you interact with, service providers that host or operate HoopTrack, or when required by law or needed to protect users and the service.</p>
+        <p className="mt-2">Hoopstrack does not sell personal information or use it for third-party advertising. Information is shared only with the coaches or players you interact with, service providers that host or operate Hoopstrack, or when required by law or needed to protect users and the service.</p>
       </section>
       <section>
         <h2>Retention And Deletion</h2>

@@ -62,7 +62,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       type: 'team_invite',
       message: `${session.actual_name || session.name} invited you to join ${group.name}.`,
       link_url: '/player/requests',
-      push_title: 'HoopTrack request',
+      push_title: 'Hoopstrack request',
       push_now: true,
     })
 

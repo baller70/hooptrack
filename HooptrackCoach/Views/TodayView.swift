@@ -9,7 +9,7 @@ struct DashboardView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("HoopTrack Coach")
+                    Text("Hoopstrack Coach")
                         .font(.largeTitle.bold())
                         .foregroundStyle(HT.ink)
                         .lineLimit(2)

@@ -1,4 +1,4 @@
-# HoopTrack
+# Hoopstrack
 
 A basketball tracking application for managing players, sessions, drills, and progress. Built as a Next.js App Router project with offline-capable PWA support and web push notifications.
 

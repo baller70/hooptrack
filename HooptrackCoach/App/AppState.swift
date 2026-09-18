@@ -354,7 +354,7 @@ final class CoachAppState: ObservableObject {
             default:
                 _ = try await client.aiInspiration(playerName: playerName)
             }
-            banner = AppBanner(title: "AI workflow complete", message: "\(kind.capitalized) request used the shared HoopTrack backend.")
+            banner = AppBanner(title: "AI workflow complete", message: "\(kind.capitalized) request used the shared Hoopstrack backend.")
         } catch {
             banner = AppBanner(title: String(localized: "retry.title"), message: error.localizedDescription)
         }

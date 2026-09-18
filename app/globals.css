@@ -103,7 +103,7 @@
   --color-hoop-orange: #F97316;
   --color-hoop-black: #0A0A0A;
 
-  /* HoopTrack screen-pack tokens — sampled from design/hooptrack-raw-individual-screens.
+  /* Hoopstrack screen-pack tokens — sampled from design/hooptrack-raw-individual-screens.
      These drive the desktop/app shell; the older neobrutalist styles remain untouched. */
   --color-ht-orange: #FE4800;
   --color-ht-orange-hover: #E84200;
@@ -227,7 +227,7 @@
       "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
 
-  /* Condensed italic — HOOPTRACK wordmark and page titles.
+  /* Condensed italic — HOOPSTRACK wordmark and page titles.
      600, not 900: the wordmark's ink coverage measures 62.0% in
      ios/001-player-home against 71.1% for our 900. */
   .ht-display {
@@ -268,6 +268,299 @@
      and list rows all read heavier than a default 400. */
   .ht-ui {
     font-weight: 500;
+  }
+
+  .landing-rise {
+    animation: landing-rise 760ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  .landing-delay-1 {
+    animation-delay: 120ms;
+  }
+
+  .landing-delay-2 {
+    animation-delay: 220ms;
+  }
+
+  .landing-float {
+    animation: landing-float 5.6s ease-in-out infinite;
+  }
+
+  .landing-float-slow {
+    animation: landing-float 7s ease-in-out infinite;
+  }
+
+  .landing-pulse {
+    animation: landing-pulse 2.8s ease-in-out infinite;
+  }
+
+  .landing-live-dot {
+    animation: landing-live-dot 1.3s ease-in-out infinite;
+    box-shadow: 0 0 0 0 rgb(254 72 0 / 0.42);
+  }
+
+  .landing-button-shine {
+    isolation: isolate;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .landing-button-shine::after {
+    animation: landing-shine 5.4s ease-in-out infinite;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgb(255 255 255 / 0.34),
+      transparent
+    );
+    content: "";
+    inset: 0;
+    pointer-events: none;
+    position: absolute;
+    transform: translateX(-145%);
+  }
+
+  .landing-court-stage {
+    background:
+      radial-gradient(ellipse at 18% 12%, rgb(254 72 0 / 0.045), transparent 34rem),
+      radial-gradient(ellipse at 82% 34%, rgb(10 10 10 / 0.04), transparent 36rem),
+      linear-gradient(115deg, #fff 0%, #fafafa 48%, #fff 100%);
+    isolation: isolate;
+  }
+
+  .landing-court-stage::before {
+    background:
+      linear-gradient(to right, transparent 0 calc(50% - 1px), rgb(254 72 0 / 0.11) calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px)),
+      radial-gradient(ellipse 18rem 18rem at 50% 18%, transparent 0 56%, rgb(254 72 0 / 0.10) 56.4% 57%, transparent 57.4%),
+      radial-gradient(ellipse 25rem 25rem at -4% 32%, transparent 0 58%, rgb(254 72 0 / 0.075) 58.4% 59%, transparent 59.4%),
+      radial-gradient(ellipse 25rem 25rem at 104% 66%, transparent 0 58%, rgb(254 72 0 / 0.075) 58.4% 59%, transparent 59.4%),
+      linear-gradient(to bottom, transparent 0 19%, rgb(254 72 0 / 0.07) 19.15% 19.3%, transparent 19.45% 80.7%, rgb(254 72 0 / 0.06) 80.85% 81%, transparent 81.15%),
+      repeating-linear-gradient(90deg, rgb(10 10 10 / 0.018) 0 1px, transparent 1px 116px);
+    content: "";
+    inset: 78px 0 0;
+    mask-image: linear-gradient(to bottom, black 0%, black 72%, transparent 100%);
+    opacity: 0.88;
+    pointer-events: none;
+    position: absolute;
+    z-index: 0;
+  }
+
+  .landing-court-stage::after {
+    background:
+      linear-gradient(90deg, transparent, rgb(255 255 255 / 0.82) 18%, transparent 36% 64%, rgb(255 255 255 / 0.78) 82%, transparent),
+      radial-gradient(ellipse at 50% 46%, transparent 0 26rem, rgb(255 255 255 / 0.7) 38rem);
+    content: "";
+    inset: 78px 0 0;
+    pointer-events: none;
+    position: absolute;
+    z-index: 0;
+  }
+
+  .landing-court-panel {
+    background:
+      linear-gradient(to bottom, rgb(255 255 255 / 0.72), rgb(255 255 255 / 0.58)),
+      radial-gradient(ellipse 28rem 28rem at 50% 10%, transparent 0 57%, rgb(254 72 0 / 0.16) 57.25% 57.75%, transparent 58.15%),
+      radial-gradient(ellipse 26rem 26rem at 0% 52%, transparent 0 58%, rgb(254 72 0 / 0.115) 58.25% 58.75%, transparent 59.1%),
+      radial-gradient(ellipse 26rem 26rem at 100% 52%, transparent 0 58%, rgb(254 72 0 / 0.115) 58.25% 58.75%, transparent 59.1%),
+      linear-gradient(to right, transparent 0 calc(50% - 1px), rgb(254 72 0 / 0.13) calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px)),
+      repeating-linear-gradient(90deg, rgb(10 10 10 / 0.026) 0 1px, transparent 1px 108px),
+      #fff;
+  }
+
+  .landing-hero-section {
+    isolation: isolate;
+    position: relative;
+  }
+
+  .landing-hero-section::after {
+    background:
+      radial-gradient(ellipse at 55% 105%, rgb(254 72 0 / 0.04), transparent 30rem),
+      linear-gradient(to bottom, transparent 0%, rgb(255 255 255 / 0.58) 62%, rgb(255 255 255 / 0.98) 100%);
+    bottom: -82px;
+    content: "";
+    height: 220px;
+    inset-inline: 0;
+    mask-image: linear-gradient(to bottom, transparent, black 38%, black);
+    pointer-events: none;
+    position: absolute;
+    z-index: 0;
+  }
+
+  .landing-hero-section > div {
+    position: relative;
+    z-index: 1;
+  }
+
+  .landing-reveal-section {
+    isolation: isolate;
+    position: relative;
+    scroll-margin-top: 78px;
+    box-shadow: 0 -34px 110px rgb(10 10 10 / 0.04);
+  }
+
+  .landing-reveal-player {
+    --landing-reveal-bg: rgb(255 255 255 / 0.88);
+    --landing-reveal-line: rgb(254 72 0 / 0.58);
+    --landing-reveal-shadow: rgb(10 10 10 / 0.07);
+  }
+
+  .landing-reveal-coach {
+    --landing-reveal-bg: rgb(254 254 254 / 0.96);
+    --landing-reveal-line: rgb(254 72 0 / 0.52);
+    --landing-reveal-shadow: rgb(10 10 10 / 0.065);
+  }
+
+  .landing-reveal-section > div {
+    position: relative;
+    z-index: 1;
+  }
+
+  .landing-reveal-section::before {
+    animation: landing-reveal-sweep 8.4s ease-in-out infinite;
+    background:
+      linear-gradient(to bottom, transparent 0%, var(--landing-reveal-bg) 54%, rgb(255 255 255 / 0.98) 100%),
+      radial-gradient(ellipse at 58% 22%, rgb(254 72 0 / 0.07), transparent 28rem),
+      radial-gradient(ellipse at 36% 56%, rgb(10 10 10 / 0.035), transparent 34rem),
+      linear-gradient(112deg, transparent 0 39%, rgb(255 255 255 / 0.78) 47%, rgb(254 72 0 / 0.045) 49%, transparent 63% 100%);
+    content: "";
+    height: 220px;
+    inset: -45px 0 auto;
+    mask-image: linear-gradient(to bottom, transparent, black 28%, black 78%, transparent);
+    pointer-events: none;
+    position: absolute;
+    z-index: 0;
+  }
+
+  .landing-reveal-section::after {
+    animation: landing-reveal-line 7s ease-in-out infinite;
+    background:
+      radial-gradient(ellipse at 78% -18%, transparent 0 56%, var(--landing-reveal-line) 56.2% 56.55%, transparent 57%),
+      linear-gradient(108deg, transparent 0 42%, rgb(254 72 0 / 0.085) 43%, rgb(255 255 255 / 0.72) 47%, transparent 60% 100%);
+    box-shadow: 0 34px 104px var(--landing-reveal-shadow);
+    content: "";
+    height: 108px;
+    inset: -36px 0 auto;
+    mask-image: linear-gradient(to bottom, transparent, black 28%, black 64%, transparent);
+    pointer-events: none;
+    position: absolute;
+    z-index: 0;
+  }
+
+  @keyframes landing-rise {
+    from {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes landing-float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-12px);
+    }
+  }
+
+  @keyframes landing-pulse {
+    0%,
+    100% {
+      transform: translateX(-50%) translateY(0) scale(1);
+    }
+    50% {
+      transform: translateX(-50%) translateY(-4px) scale(1.03);
+    }
+  }
+
+  @keyframes landing-live-dot {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 rgb(254 72 0 / 0.42);
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      box-shadow: 0 0 0 6px rgb(254 72 0 / 0);
+      opacity: 0.78;
+      transform: scale(0.9);
+    }
+  }
+
+  @keyframes landing-shine {
+    0%,
+    42% {
+      transform: translateX(-145%);
+    }
+    58%,
+    100% {
+      transform: translateX(145%);
+    }
+  }
+
+  @keyframes landing-reveal-sweep {
+    0%,
+    100% {
+      opacity: 0.68;
+      transform: translateY(-8px);
+    }
+    50% {
+      opacity: 0.96;
+      transform: translateY(6px);
+    }
+  }
+
+  @keyframes landing-reveal-line {
+    0%,
+    100% {
+      opacity: 0.34;
+      transform: translateY(-2px) scaleX(0.82);
+    }
+    50% {
+      opacity: 0.82;
+      transform: translateY(2px) scaleX(1);
+    }
+  }
+
+  @supports (animation-timeline: view()) {
+    .landing-reveal-section > div {
+      animation: landing-section-content both ease-out;
+      animation-timeline: view();
+      animation-range: entry 0% entry 34%;
+    }
+  }
+
+  @keyframes landing-section-content {
+    from {
+      opacity: 0.82;
+      transform: translateY(34px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .landing-rise,
+    .landing-float,
+    .landing-float-slow,
+    .landing-pulse,
+    .landing-live-dot,
+    .landing-hero-section::after,
+    .landing-reveal-section > div,
+    .landing-reveal-section::before,
+    .landing-reveal-section::after {
+      animation: none;
+    }
+
+    .landing-button-shine::after {
+      display: none;
+    }
   }
 }
 

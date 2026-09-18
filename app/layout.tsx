@@ -3,12 +3,12 @@ import { Toaster } from 'sonner'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'HoopTrack',
+  title: 'Hoopstrack',
   description: 'Basketball accountability workout tracker',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'HoopTrack',
+    title: 'Hoopstrack',
   },
 }
 

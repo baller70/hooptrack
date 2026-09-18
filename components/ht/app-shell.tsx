@@ -103,7 +103,7 @@ export default function AppShell({
       {/* Desktop sidebar — hidden on mobile, where the tab bar takes over. */}
       <aside className="relative z-10 hidden w-[280px] shrink-0 border-r border-ht-line bg-ht-surface/70 lg:block">
         <div className="sticky top-0 px-7 pt-9">
-          <Link href={appPath(app)} aria-label="HoopTrack home">
+          <Link href={appPath(app)} aria-label="Hoopstrack home">
             <Wordmark app={app} />
           </Link>
           <nav className="mt-10 space-y-1.5">

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Archive, export, validate, and upload the HoopTrack iOS apps to App Store Connect.
+# Archive, export, validate, and upload the Hoopstrack iOS apps to App Store Connect.
 #
 # Runs on macOS with Xcode installed. Safe to run with the repo living on an
 # external drive — the preflight checks the conditions that break Xcode there.

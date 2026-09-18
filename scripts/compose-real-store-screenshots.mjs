@@ -11,20 +11,20 @@ const chromePath = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome
 
 const campaigns = {
   player: [
-    ["01-home", "arena-entry.png", "HOOPTRACK PLAYER", "Train smarter.\\nEvery day.", false],
-    ["02-workouts", "performance-lab.png", "HOOPTRACK PLAYER", "Build a plan.\\nFinish the work.", false],
-    ["03-moves", "performance-lab.png", "HOOPTRACK PLAYER", "Study every move.\\nOwn the detail.", true],
-    ["04-progress", "progress-arena.png", "HOOPTRACK PLAYER", "See your game\\ngrow.", false],
-    ["05-requests", "arena-entry.png", "HOOPTRACK PLAYER", "Stay connected\\nto your team.", true],
-    ["06-profile", "progress-arena.png", "HOOPTRACK PLAYER", "Your game.\\nYour account.", true],
+    ["01-home", "arena-entry.png", "HOOPSTRACK PLAYER", "Train smarter.\\nEvery day.", false],
+    ["02-workouts", "performance-lab.png", "HOOPSTRACK PLAYER", "Build a plan.\\nFinish the work.", false],
+    ["03-moves", "performance-lab.png", "HOOPSTRACK PLAYER", "Study every move.\\nOwn the detail.", true],
+    ["04-progress", "progress-arena.png", "HOOPSTRACK PLAYER", "See your game\\ngrow.", false],
+    ["05-requests", "arena-entry.png", "HOOPSTRACK PLAYER", "Stay connected\\nto your team.", true],
+    ["06-profile", "progress-arena.png", "HOOPSTRACK PLAYER", "Your game.\\nYour account.", true],
   ],
   coach: [
-    ["01-home", "command-center.png", "HOOPTRACK COACH", "Run your program\\nfrom one place.", false],
-    ["02-teams", "strategy-bench.png", "HOOPTRACK COACH", "Build teams.\\nInvite players.", false],
-    ["03-roster", "strategy-bench.png", "HOOPTRACK COACH", "Know every player.\\nMove faster.", true],
-    ["04-workouts", "command-center.png", "HOOPTRACK COACH", "Create workouts\\nthat get done.", true],
-    ["05-activity", "film-room.png", "HOOPTRACK COACH", "See every rep.\\nReview the work.", false],
-    ["06-progress", "film-room.png", "HOOPTRACK COACH", "Turn activity\\ninto progress.", true],
+    ["01-home", "command-center.png", "HOOPSTRACK COACH", "Run your program\\nfrom one place.", false],
+    ["02-teams", "strategy-bench.png", "HOOPSTRACK COACH", "Build teams.\\nInvite players.", false],
+    ["03-roster", "strategy-bench.png", "HOOPSTRACK COACH", "Know every player.\\nMove faster.", true],
+    ["04-workouts", "command-center.png", "HOOPSTRACK COACH", "Create workouts\\nthat get done.", true],
+    ["05-activity", "film-room.png", "HOOPSTRACK COACH", "See every rep.\\nReview the work.", false],
+    ["06-progress", "film-room.png", "HOOPSTRACK COACH", "Turn activity\\ninto progress.", true],
   ],
 };
 
@@ -61,7 +61,7 @@ async function composeFrame(page, { background, source, output, kicker, headline
         <img class="background" src="${imageDataUrl(background)}" alt="">
         <div class="scrim"></div>
         <div class="card"></div>
-        <img class="screen" src="${imageDataUrl(source)}" alt="Exact HoopTrack production screen">
+        <img class="screen" src="${imageDataUrl(source)}" alt="Exact Hoopstrack production screen">
         <div class="kicker"><span class="rule"></span><span>${escapeHtml(kicker)}</span></div>
         <div class="headline">${displayHeadline}</div>
       </body>

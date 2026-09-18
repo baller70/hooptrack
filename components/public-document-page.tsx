@@ -13,7 +13,7 @@ export default function PublicDocumentPage({
     <main className="min-h-screen bg-gray-50 px-4 py-8 text-hoop-black">
       <article className="mx-auto max-w-3xl rounded-lg border-2 border-black bg-white shadow-[4px_4px_0px_0px_#0A0A0A]">
         <header className="border-b-2 border-black p-5 sm:p-7">
-          <Link href="/" className="text-sm font-semibold text-hoop-orange hover:underline">HoopTrack</Link>
+          <Link href="/" className="text-sm font-semibold text-hoop-orange hover:underline">Hoopstrack</Link>
           <h1 className="mt-2 font-[family-name:var(--font-russo)] text-4xl leading-none">{title}</h1>
           {updated && <p className="mt-2 text-sm text-muted-foreground">Last updated {updated}</p>}
         </header>

@@ -804,7 +804,7 @@ function CoachSettings({ user, onSignOut }: { user: UserInfo; onSignOut: () => v
         />
         <Disclosure open={panel === 'email'}>
           <p className="text-[14px] leading-6 text-ht-muted">
-            HoopTrack does not send email yet — every alert is delivered in the app and, when you
+            Hoopstrack does not send email yet — every alert is delivered in the app and, when you
             turn it on above, as a push notification.
           </p>
           <Link

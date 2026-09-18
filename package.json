@@ -4,7 +4,7 @@
   "private": true,
   "description": "Basketball tracking application for managing players, sessions, drills, and progress — a Next.js App Router PWA with offline support and web push notifications.",
   "license": "UNLICENSED",
-  "author": "HoopTrack",
+  "author": "Hoopstrack",
   "engines": {
     "node": "22.x",
     "npm": "10.x"

@@ -68,7 +68,7 @@ const addUser = (name, email, role, position = null, jersey = null) => {
     name, email, password, role, position, jersey,
     position ? (POSITION_NAMES[position] ?? null) : null,
     grade,
-    role === 'player' ? 'HoopTrack Academy' : null,
+    role === 'player' ? 'Hoopstrack Academy' : null,
   ).lastInsertRowid
 }
 

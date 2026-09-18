@@ -196,7 +196,7 @@ export async function createNotification(opts: CreateOpts): Promise<number> {
   if (shouldPushNow) {
     // Fire push (don't await — fire and forget so callers stay fast)
     sendPushToUser(opts.player_id, {
-      title: opts.push_title || 'HoopTrack',
+      title: opts.push_title || 'Hoopstrack',
       body: opts.message,
       url: opts.link_url || fallbackUrlForUser(opts.player_id, 'notifications'),
       tag: `notif-${id}`,
@@ -220,7 +220,7 @@ export async function sendDuePushNotifications(userId: number): Promise<number> 
 
   for (const row of rows) {
     await sendPushToUser(userId, {
-      title: 'HoopTrack Reminder',
+      title: 'Hoopstrack Reminder',
       body: row.message,
       url: row.link_url || fallbackUrlForUser(userId, 'calendar'),
       tag: `notif-${row.id}`,

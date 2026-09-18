@@ -48,7 +48,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         type: 'system',
         message: `${session.name} declined the request to join ${invite.group_name}.`,
         link_url: '/coach/teams',
-        push_title: 'HoopTrack request update',
+        push_title: 'Hoopstrack request update',
         push_now: true,
       })
       return Response.json({ status: 'declined' })
@@ -73,7 +73,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       type: 'system',
       message: `${session.name} accepted the request to join ${invite.group_name}.`,
       link_url: '/coach/teams',
-      push_title: 'HoopTrack request accepted',
+      push_title: 'Hoopstrack request accepted',
       push_now: true,
     })
 

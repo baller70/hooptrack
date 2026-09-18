@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { appHomeForRole } from '@/lib/app-routes'
+import { Wordmark } from '@/components/ht/brand'
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -50,9 +51,9 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
       <div className="w-full max-w-md bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_#0A0A0A] p-8">
-        <h1 className="font-[family-name:var(--font-russo)] text-3xl text-center mb-2">
-          HoopTrack
-        </h1>
+        <div className="mb-2 flex justify-center">
+          <Wordmark markClassName="text-[36px]" />
+        </div>
         <p className="text-center text-muted-foreground mb-8">Sign in to your account</p>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

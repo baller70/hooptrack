@@ -1,5 +1,5 @@
 /**
- * Read-only App Store Connect status for both HoopTrack apps: whether the app
+ * Read-only App Store Connect status for both Hoopstrack apps: whether the app
  * record exists, what versions are there, and which builds have been uploaded.
  *
  * Answers "can we actually submit?" without changing anything. Used by the
@@ -14,8 +14,8 @@ import process from 'node:process'
 import { SignJWT, importPKCS8 } from 'jose'
 
 const APPS = [
-  { key: 'coach', bundleId: 'com.kevinhouston.hooptrackcoach', name: 'HoopTrack Coach' },
-  { key: 'player', bundleId: 'com.kevinhouston.hooptrackplayer', name: 'HoopTrack Player' },
+  { key: 'coach', bundleId: 'com.kevinhouston.hooptrackcoach', name: 'Hoopstrack Coach' },
+  { key: 'player', bundleId: 'com.kevinhouston.hooptrackplayer', name: 'Hoopstrack Player' },
 ]
 
 const keyId = process.env.ASC_KEY_ID

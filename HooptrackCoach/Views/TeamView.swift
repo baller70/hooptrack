@@ -4,7 +4,7 @@ struct TeamView: View {
     @EnvironmentObject private var appState: CoachAppState
     @State private var groupName = "New Skill Group"
     @State private var inviteEmail = "player@example.com"
-    @State private var inviteMessage = "Join this HoopTrack group so I can assign your next workout."
+    @State private var inviteMessage = "Join this Hoopstrack group so I can assign your next workout."
 
     var body: some View {
         NavigationStack {

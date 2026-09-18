@@ -6,8 +6,8 @@ export async function GET() {
   const session = await getSession()
 
   return Response.json({
-    businessName: 'HoopTrack',
-    teamName: 'HoopTrack',
+    businessName: 'Hoopstrack',
+    teamName: 'Hoopstrack',
     logoUrl: '/assets/brand/rise-is-one-logo.png',
     primaryColor: '#f97316',
     accentColor: '#111827',

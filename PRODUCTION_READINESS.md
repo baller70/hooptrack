@@ -1,4 +1,4 @@
-# HoopTrack production readiness
+# Hoopstrack production readiness
 
 ## Environments and promotion
 

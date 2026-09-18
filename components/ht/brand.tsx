@@ -1,12 +1,13 @@
 import { cn } from '@/lib/utils'
 
 /**
- * HOOPTRACK wordmark. "HOOP" in ink, "TRACK" in brand orange, heavy condensed
- * italic, with an optional letterspaced app label beneath (PLAYER / COACH).
+ * HOOPSTRACK wordmark. "HOOPS" follows the surface color, "TRACK" stays brand
+ * orange, with an optional letterspaced app label beneath (PLAYER / COACH).
  */
 export function Wordmark({
   app,
   inline = false,
+  tone = 'light',
   className,
   markClassName,
   labelClassName,
@@ -14,8 +15,10 @@ export function Wordmark({
   app?: 'player' | 'coach'
   /** Render the app label on the same line (used by the iOS-style coach header). */
   inline?: boolean
+  /** Light surfaces use ink text. Dark surfaces use white text. */
+  tone?: 'light' | 'dark'
   className?: string
-  /** Overrides the HOOPTRACK size. The inner div carries it, so `className` —
+  /** Overrides the HOOPSTRACK size. The inner div carries it, so `className` —
    *  which lands on the wrapper — cannot reach it. */
   markClassName?: string
   /** Overrides the PLAYER / COACH label size in the stacked form. */
@@ -31,14 +34,17 @@ export function Wordmark({
           markClassName ?? 'text-[44px]',
         )}
       >
-        <span className="text-ht-ink">HOOP</span>
+        <span className={tone === 'dark' ? 'text-white' : 'text-ht-ink'}>HOOPS</span>
         <span className="text-ht-orange">TRACK</span>
-        {inline && label ? <span className="text-ht-ink">&nbsp;{label}</span> : null}
+        {inline && label ? (
+          <span className={tone === 'dark' ? 'text-white' : 'text-ht-ink'}>&nbsp;{label}</span>
+        ) : null}
       </div>
       {!inline && label ? (
         <div
           className={cn(
-            'ht-ui mt-2 font-bold tracking-[0.44em] text-ht-ink',
+            'ht-ui mt-2 font-bold tracking-[0.44em]',
+            tone === 'dark' ? 'text-white' : 'text-ht-ink',
             labelClassName ?? 'text-[13px]',
           )}
         >

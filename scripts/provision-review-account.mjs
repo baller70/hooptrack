@@ -74,7 +74,7 @@ try {
     jersey_number: 1,
     position: 'Shooting Guard',
     grade_level: '11th Grade',
-    school: 'HoopTrack Academy',
+    school: 'Hoopstrack Academy',
   })
 
   // A reviewer who logs in to a completely empty app tends to read it as
@@ -141,7 +141,7 @@ Paste this into App Store Connect -> App Review Information -> Sign-In Required:
     Username: ${playerEmail}
     Password: ${plainPassword}
 
-  Notes: HoopTrack Coach and HoopTrack Player are separate apps sharing one
+  Notes: Hoopstrack Coach and Hoopstrack Player are separate apps sharing one
   backend. Sign in to the Coach app with the coach account and the Player app
   with the player account. The coach's roster contains the player account.
 

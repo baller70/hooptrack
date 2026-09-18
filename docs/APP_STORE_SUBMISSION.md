@@ -1,4 +1,4 @@
-# App Store Submission — HoopTrack Coach & Player
+# App Store Submission — Hoopstrack Coach & Player
 
 Two iOS apps ship from this repo:
 

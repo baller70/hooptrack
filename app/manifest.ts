@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'HoopTrack Player',
+    name: 'Hoopstrack Player',
     short_name: 'HT Player',
     description: 'Player app for connected basketball training',
     start_url: '/player',

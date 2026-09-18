@@ -11,7 +11,7 @@ struct AuthView: View {
             VStack(alignment: .leading, spacing: 22) {
                 Spacer()
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("HoopTrack Coach")
+                    Text("Hoopstrack Coach")
                         .font(.largeTitle.weight(.bold))
                         .foregroundStyle(HT.ink)
                     Text("auth.subtitle")

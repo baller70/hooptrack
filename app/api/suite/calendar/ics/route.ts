@@ -67,7 +67,7 @@ export async function GET() {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//HoopTrack//CoachAI Calendar Copy//EN',
+    'PRODID:-//Hoopstrack//CoachAI Calendar Copy//EN',
     'CALSCALE:GREGORIAN',
   ]
 

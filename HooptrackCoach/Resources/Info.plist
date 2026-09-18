@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>HoopTrack Coach</string>
+	<string>Hoopstrack Coach</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -34,11 +34,11 @@
 	<key>LSApplicationQueriesSchemes</key>
 	<array/>
 	<key>NSCameraUsageDescription</key>
-	<string>HoopTrack Coach uses the camera to record basketball training videos you choose to upload.</string>
+	<string>Hoopstrack Coach uses the camera to record basketball training videos you choose to upload.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>HoopTrack Coach uses the microphone when you record training video with audio.</string>
+	<string>Hoopstrack Coach uses the microphone when you record training video with audio.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>HoopTrack Coach lets you choose training videos from your library to review and upload.</string>
+	<string>Hoopstrack Coach lets you choose training videos from your library to review and upload.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

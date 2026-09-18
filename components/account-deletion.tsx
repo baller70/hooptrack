@@ -44,7 +44,7 @@ export default function AccountDeletion({
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Account deletion failed')
-      toast.success('Your HoopTrack account and data were deleted')
+      toast.success('Your Hoopstrack account and data were deleted')
       router.replace('/')
       router.refresh()
     } catch (error) {

@@ -19,12 +19,12 @@ struct RootView: View {
                     .tint(.orange)
                     .padding(14)
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
-                    .accessibilityLabel("Loading HoopTrack Player")
+                    .accessibilityLabel("Loading Hoopstrack Player")
             }
 
             if let message = session.errorMessage {
                 ContentUnavailableView {
-                    Label("HoopTrack is unavailable", systemImage: "wifi.exclamationmark")
+                    Label("Hoopstrack is unavailable", systemImage: "wifi.exclamationmark")
                 } description: {
                     Text(message)
                 } actions: {
@@ -181,7 +181,7 @@ private struct PlayerWebView: UIViewRepresentable {
         configuration.websiteDataStore = .default()
         configuration.allowsInlineMediaPlayback = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
-        configuration.applicationNameForUserAgent = "HoopTrackPlayer/1.0"
+        configuration.applicationNameForUserAgent = "HoopstrackPlayer/1.0"
         configuration.userContentController.add(context.coordinator, name: "openSettings")
 
         let webView = WKWebView(frame: .zero, configuration: configuration)

@@ -24,8 +24,8 @@ import process from 'node:process'
 import { SignJWT, importPKCS8 } from 'jose'
 
 const APPS = {
-  coach: { bundleId: 'com.kevinhouston.hooptrackcoach', name: 'HoopTrack Coach' },
-  player: { bundleId: 'com.kevinhouston.hooptrackplayer', name: 'HoopTrack Player' },
+  coach: { bundleId: 'com.kevinhouston.hooptrackcoach', name: 'Hoopstrack Coach' },
+  player: { bundleId: 'com.kevinhouston.hooptrackplayer', name: 'Hoopstrack Player' },
 }
 
 const argv = process.argv.slice(2)

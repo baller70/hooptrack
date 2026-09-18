@@ -45,7 +45,7 @@ export async function notifyScheduleAssignment(opts: NotifyOptions) {
     type: meta.type,
     message: `${meta.verb}: ${title} (${dateLabel})`,
     link_url: meta.url,
-    push_title: 'HoopTrack',
+    push_title: 'Hoopstrack',
     push_now: true,
   })
 
@@ -57,7 +57,7 @@ export async function notifyScheduleAssignment(opts: NotifyOptions) {
       type: 'reminder',
       message: `${reminder.label}: ${title} is scheduled for ${dateLabel}.`,
       link_url: meta.url,
-      push_title: 'HoopTrack Reminder',
+      push_title: 'Hoopstrack Reminder',
       scheduled_for: reminder.at.toISOString(),
       push_now: false,
     })
